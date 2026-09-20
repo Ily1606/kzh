@@ -1,0 +1,3 @@
+services:
+  workspace:
+    command: sleep infinity

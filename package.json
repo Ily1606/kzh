@@ -1,0 +1,11 @@
+{
+  "name": "dsh",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @dsh/web dev",
+    "dev:api": "pnpm --filter @dsh/api dev",
+    "build:web": "pnpm --filter @dsh/web build",
+    "lint": "pnpm -r --if-present lint"
+  }
+}

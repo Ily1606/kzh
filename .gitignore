@@ -1,0 +1,50 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+apps/api/.env
+apps/web/.env
+
+# Dependencies & build
+node_modules/
+vendor/
+dist/
+apps/api/vendor/
+apps/api/node_modules/
+apps/web/dist/
+apps/web/node_modules/
+packages/*/node_modules/
+packages/*/dist/
+
+# Laravel
+apps/api/storage/*.key
+apps/api/storage/logs/*
+apps/api/storage/framework/cache/*
+apps/api/storage/framework/sessions/*
+apps/api/storage/framework/views/*
+!apps/api/storage/logs/.gitkeep
+!apps/api/storage/framework/cache/.gitkeep
+!apps/api/storage/framework/sessions/.gitkeep
+!apps/api/storage/framework/views/.gitkeep
+apps/api/bootstrap/cache/*.php
+!apps/api/bootstrap/cache/.gitkeep
+apps/api/public/hot
+apps/api/public/storage
+
+# pnpm
+.pnpm-store/
+
+# Docker volumes / local
+docker-data/
+
+.worktrees/
+.superpowers/
+docs/superpowers
