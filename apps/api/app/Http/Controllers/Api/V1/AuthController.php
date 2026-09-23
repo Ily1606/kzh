@@ -7,6 +7,9 @@ use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\RegisterRequest;
 use App\Services\AuthService;
 use App\Support\ApiResponse;
+use App\Http\Resources\UserResource;
+use App\Services\EmailService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

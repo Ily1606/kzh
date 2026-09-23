@@ -1,3 +1,4 @@
+import { computed, reactive } from 'vue';
 import { useAuthStore } from '@/stores';
 import { api } from '@/services/api';
 import type { User } from '@/types';
@@ -34,6 +35,28 @@ export function useAuth() {
     }
   }
 
+  async function forgotPassword(email: string) {
+    try {
+      await api.get(API_ENDPOINTS.GET_COOKIE, {
+        headers: { Accept: 'application/json' }
+      });
+      return await api.post(API_ENDPOINTS.FORGOT_PASSWORD, { email });
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  async function resetPassword(data: Record<string, string>) {
+    try {
+      await api.get(API_ENDPOINTS.GET_COOKIE, {
+        headers: { Accept: 'application/json' }
+      });
+      return await api.post(API_ENDPOINTS.RESET_PASSWORD, data);
+    } catch (e) {
+      throw e;
+    }
+  }
+
   async function logout() {
     try {
       await api.post(API_ENDPOINTS.LOGOUT, {});
@@ -54,15 +77,16 @@ export function useAuth() {
     }
   }
 
-  return {
-    user: store.user,
-    isAuthenticated: store.isAuthenticated,
-    isLoading: store.isLoading,
+  return reactive({
+    user: computed(() => store.user),
+    isAuthenticated: computed(() => store.isAuthenticated),
+    isLoading: computed(() => store.isLoading),
 
     login,
     register,
+    forgotPassword,
+    resetPassword,
     logout,
     fetchUser
-  };
+  });
 }
-
