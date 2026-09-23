@@ -2,6 +2,22 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { User } from '@/types';
 
+export const AUTH_STORAGE_KEY = 'auth';
+
+const authStorage = {
+  getItem: (key: string) => localStorage.getItem(key),
+  setItem: (key: string, value: string) => {
+    const persistedState = JSON.parse(value) as { user?: User | null };
+
+    if (persistedState.user === null) {
+      localStorage.removeItem(key);
+      return;
+    }
+
+    localStorage.setItem(key, value);
+  }
+};
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const isAuthenticated = computed(() => !!user.value);
@@ -13,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function clearAuth() {
     user.value = null;
+    localStorage.removeItem(AUTH_STORAGE_KEY);
   }
 
   function setLoading(status: boolean) {
@@ -27,5 +44,11 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth,
     setLoading
   };
+}, {
+  persist: {
+    key: AUTH_STORAGE_KEY,
+    storage: authStorage,
+    pick: ['user']
+  }
 });
 

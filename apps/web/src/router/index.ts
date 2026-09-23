@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "@/views/HomeView.vue";
 import LoginView from "@/views/LoginView.vue";
 import RegisterView from "@/views/RegisterView.vue";
+import { useAuth } from "@/composables/useAuth";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -16,13 +17,13 @@ export const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
-      meta: { layout: 'auth', title: 'Sign in to your account' }
+      meta: { layout: 'auth', title: 'Sign in to your account', guestOnly: true }
     },
     {
       path: "/register",
       name: "register",
       component: RegisterView,
-      meta: { layout: 'auth', title: 'Create a new account' }
+      meta: { layout: 'auth', title: 'Create a new account', guestOnly: true }
     },
     {
       path: '/:pathMatch(.*)*',
@@ -31,4 +32,12 @@ export const router = createRouter({
       meta: { layout: 'default' }
     }
   ],
+});
+
+router.beforeEach((to) => {
+  const auth = useAuth();
+
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    return { name: 'home' };
+  }
 });

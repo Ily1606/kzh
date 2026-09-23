@@ -1,11 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { createApp, nextTick } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import { useAuthStore } from '@/stores/auth.store';
 import type { User } from '@/types';
 
 describe('Auth Store', () => {
   beforeEach(() => {
-    setActivePinia(createPinia());
+    const pinia = createPinia();
+    pinia.use(piniaPluginPersistedstate);
+    createApp({}).use(pinia);
+    setActivePinia(pinia);
+    localStorage.clear();
   });
 
   it('initializes with correct default state', () => {
@@ -32,6 +38,28 @@ describe('Auth Store', () => {
     expect(store.isAuthenticated).toBe(true);
   });
 
+  it('restores the user from localStorage', async () => {
+    const firstStore = useAuthStore();
+    const mockUser: User = {
+      id: 'uuid',
+      name: 'John Doe',
+      email: 'john@example.com',
+      isActive: true,
+      is_admin: false
+    };
+
+    firstStore.setUser(mockUser);
+    await nextTick();
+    expect(localStorage.getItem('auth')).toBe(JSON.stringify({ user: mockUser }));
+
+    const reloadedPinia = createPinia();
+    reloadedPinia.use(piniaPluginPersistedstate);
+    createApp({}).use(reloadedPinia);
+    setActivePinia(reloadedPinia);
+
+    expect(useAuthStore().user).toEqual(mockUser);
+  });
+
   it('clears state correctly when clearAuth is called', () => {
     const store = useAuthStore();
     const mockUser: User = {
@@ -50,6 +78,7 @@ describe('Auth Store', () => {
 
     expect(store.user).toBeNull();
     expect(store.isAuthenticated).toBe(false);
+    expect(localStorage.getItem('auth')).toBeNull();
   });
 
   it('updates loading state when setLoading is called', () => {

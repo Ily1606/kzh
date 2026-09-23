@@ -13,7 +13,7 @@ const title = computed(() => route.meta.title || 'Welcome')
         <h1 class="text-3xl font-bold tracking-tight text-primary">DSH</h1>
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ title }}</p>
       </div>
-      <slot />
+      <slot></slot>
     </div>
   </div>
 </template>

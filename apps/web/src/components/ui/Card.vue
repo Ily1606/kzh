@@ -10,7 +10,7 @@ const props = defineProps<Props>()
 
 <template>
   <div :class="cn('rounded-xl border border-gray-200 bg-white text-gray-950 shadow-sm dark:border-gray-800 dark:bg-[#16171d] dark:text-gray-50', props.class)">
-    <slot />
+    <slot></slot>
   </div>
 </template>
 
