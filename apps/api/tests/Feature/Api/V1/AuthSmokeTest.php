@@ -22,10 +22,12 @@ class AuthSmokeTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('user.name', 'Nguyen Van A')
-            ->assertJsonPath('user.email', 'nguyen@example.com')
-            ->assertJsonMissingPath('user.password')
-            ->assertJsonMissingPath('user.remember_token');
+            ->assertJsonPath('data.name', 'Nguyen Van A')
+            ->assertJsonPath('data.email', 'nguyen@example.com')
+            ->assertJsonMissingPath('data.password')
+            ->assertJsonMissingPath('data.remember_token')
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('errors', null);
 
         $this->assertDatabaseHas('users', [
             'email' => 'nguyen@example.com',
@@ -73,15 +75,20 @@ class AuthSmokeTest extends TestCase
                 'email' => $user->email,
                 'password' => 'secret-password',
             ])->assertOk()
-            ->assertJsonPath('user.id', $user->id);
+            ->assertJsonPath('data.id', $user->id);
 
         $this->getJson('/api/v1/user')
             ->assertOk()
-            ->assertJsonPath('user.id', $user->id);
+            ->assertJsonPath('data.id', $user->id);
 
         $this->postJson('/api/v1/logout')
             ->assertOk()
-            ->assertExactJson(['status' => 'ok']);
+            ->assertExactJson([
+                'success' => true,
+                'message' => 'Logout successful.',
+                'data' => null,
+                'errors' => null,
+            ]);
 
         $this->assertGuest('web');
     }
@@ -100,6 +107,8 @@ class AuthSmokeTest extends TestCase
             'email' => $user->email,
             'password' => 'wrong-password',
         ])->assertUnprocessable()
+            ->assertJsonPath('message', 'Email or password is incorrect.')
+            ->assertJsonPath('errors.email.0', 'Email or password is incorrect.')
             ->assertJsonValidationErrors('email');
     }
 
