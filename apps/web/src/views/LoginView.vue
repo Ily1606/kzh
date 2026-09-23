@@ -79,7 +79,13 @@ async function onSubmit() {
     </form>
 
     <div class="mt-6 text-center text-sm">
-      <RouterLink to="/" class="text-primary hover:underline">
+      <p class="mb-4 text-gray-600 dark:text-gray-400">
+        Don't have an account?
+        <RouterLink to="/register" class="font-medium text-primary hover:underline">
+          Sign up
+        </RouterLink>
+      </p>
+      <RouterLink to="/" class="text-gray-500 hover:text-primary hover:underline dark:text-gray-400">
         &larr; Back to home
       </RouterLink>
     </div>
