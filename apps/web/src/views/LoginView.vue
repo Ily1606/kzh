@@ -79,6 +79,11 @@ async function onSubmit() {
     </form>
 
     <div class="mt-6 text-center text-sm">
+      <p class="mb-2 text-gray-600 dark:text-gray-400">
+        <RouterLink to="/forgot-password" class="font-medium text-primary hover:underline">
+          Forgot your password?
+        </RouterLink>
+      </p>
       <p class="mb-4 text-gray-600 dark:text-gray-400">
         Don't have an account?
         <RouterLink to="/register" class="font-medium text-primary hover:underline">
