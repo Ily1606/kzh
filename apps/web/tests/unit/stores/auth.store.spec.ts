@@ -46,7 +46,6 @@ describe('Auth Store', () => {
     store.setUser(mockUser);
     expect(store.isAuthenticated).toBe(true);
 
-    // Clear auth
     store.clearAuth();
 
     expect(store.user).toBeNull();
