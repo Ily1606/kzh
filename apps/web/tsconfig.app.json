@@ -3,7 +3,8 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": [
-      "vite/client"
+      "vite/client",
+      "vitest/globals"
     ],
     "allowArbitraryExtensions": true,
     "paths": {
@@ -19,6 +20,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "tests/**/*.ts"
   ]
 }

@@ -1,5 +1,9 @@
 <script setup lang="ts">
-// Auth layout puts content in the center
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const title = computed(() => route.meta.title || 'Welcome')
 </script>
 
 <template>
@@ -7,7 +11,7 @@
     <div class="w-full max-w-md">
       <div class="mb-8 text-center">
         <h1 class="text-3xl font-bold tracking-tight text-primary">DSH</h1>
-        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Sign in to your account</p>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ title }}</p>
       </div>
       <slot />
     </div>

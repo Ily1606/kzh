@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-// Note: Normally you would import useAuth here
-// import { useAuth } from '@/composables/useAuth'
-// const auth = useAuth()
+import { useAuth } from '@/composables/useAuth'
+import { useRouter } from 'vue-router'
+import Button from '@/components/ui/Button.vue'
+
+const auth = useAuth()
+const router = useRouter()
+
+async function handleLogout() {
+  await auth.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -20,10 +28,22 @@ import { RouterLink } from 'vue-router'
       </div>
 
       <div class="flex items-center gap-4">
-        <!-- We can dynamically show this based on auth store later -->
-        <RouterLink to="/login" class="text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary">
-          Sign in
-        </RouterLink>
+        <template v-if="auth.isAuthenticated">
+          <span class="text-sm text-gray-700 dark:text-gray-300">
+            Hello, <span class="font-semibold">{{ auth.user?.name }}</span>
+          </span>
+          <Button variant="outline" size="sm" @click="handleLogout">
+            Logout
+          </Button>
+        </template>
+        <template v-else>
+          <RouterLink to="/login" class="text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary">
+            Sign in
+          </RouterLink>
+          <RouterLink to="/register">
+            <Button size="sm">Sign up</Button>
+          </RouterLink>
+        </template>
       </div>
     </div>
   </nav>
