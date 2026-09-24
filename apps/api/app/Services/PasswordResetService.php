@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Auth\Notifications\ResetPassword;
+use App\Support\UrlHelper;
 use Illuminate\Validation\ValidationException;
 
 class PasswordResetService
@@ -17,8 +18,7 @@ class PasswordResetService
     public function sendResetLink(array $credentials): void
     {
         ResetPassword::createUrlUsing(function ($user, string $token) {
-            $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
-            return $frontendUrl . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+            return UrlHelper::generateFrontendResetUrl($user->email, $token);
         });
 
         $status = Password::sendResetLink($credentials);

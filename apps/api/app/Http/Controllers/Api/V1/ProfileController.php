@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Enums\ApiMessage;
 use App\Http\Resources\UserResource;
+use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\UpdateAvatarRequest;
+use App\Http\Requests\UpdatePasswordRequest;
 use App\Support\ApiResponse;
 use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
@@ -21,38 +24,24 @@ class ProfileController extends Controller
         return ApiResponse::successResponse(new UserResource($request->user()), ApiMessage::USER_RETRIEVED->value);
     }
 
-    public function updateProfile(Request $request): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255'],
-            'avatarLink' => ['sometimes', 'nullable', 'url', 'max:255'],
-            'githubName' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'githubLink' => ['sometimes', 'nullable', 'url', 'max:255'],
-        ]);
-
-        $user = $this->profileService->updateProfile($request->user(), $data);
+        $user = $this->profileService->updateProfile($request->user(), $request->validated());
 
         return ApiResponse::successResponse(new UserResource($user), 'User profile updated successfully.');
     }
 
-    public function updateAvatar(Request $request): JsonResponse
+    public function updateAvatar(UpdateAvatarRequest $request): JsonResponse
     {
-        $request->validate([
-            'avatar' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
-        ]);
-
         $user = $this->profileService->updateAvatar($request->user(), $request->file('avatar'));
 
-        return ApiResponse::successResponse(['avatarLink' => $user->avatarLink], 'Avatar updated successfully.');
+        return ApiResponse::successResponse(new UserResource($user), 'Avatar updated successfully.');
     }
 
-    public function updatePassword(Request $request): JsonResponse
+    public function updatePassword(UpdatePasswordRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'current_password' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
+        $data = $request->validated();
+        
         $user = $this->profileService->updatePassword(
             $request->user(),
             $data['current_password'],

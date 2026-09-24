@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SendResetLinkRequest;
+use App\Http\Requests\ResetPasswordRequest;
 use App\Support\ApiResponse;
 use App\Services\PasswordResetService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 
 class PasswordResetController extends Controller
@@ -15,23 +16,15 @@ class PasswordResetController extends Controller
     {
     }
 
-    public function sendResetLinkEmail(Request $request): JsonResponse
+    public function sendResetLinkEmail(SendResetLinkRequest $request): JsonResponse
     {
-        $request->validate(['email' => ['required', 'email']]);
-
         $this->passwordResetService->sendResetLink($request->only('email'));
 
         return ApiResponse::successResponse(null, __(Password::RESET_LINK_SENT));
     }
 
-    public function resetPassword(Request $request): JsonResponse
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
-
         $this->passwordResetService->resetPassword(
             $request->only('email', 'password', 'password_confirmation', 'token')
         );

@@ -27,17 +27,10 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.name', 'Nguyen Van Giap');
     }
 
-    public function test_authenticated_user_can_update_avatar()
+        public function test_authenticated_user_can_remove_avatar_via_upload_api()
     {
-        $user = User::factory()->create();
-        $response = $this->actingAs($user)->patchJson('/api/v1/user', ['avatarLink' => 'https://example.com/avatar.png']);
-        $response->assertStatus(200)->assertJsonPath('data.avatarLink', 'https://example.com/avatar.png');
-    }
-
-    public function test_authenticated_user_can_remove_avatar()
-    {
-        $user = User::factory()->create(['avatarLink' => 'https://example.com/avatar.png']);
-        $response = $this->actingAs($user)->patchJson('/api/v1/user', ['avatarLink' => null]);
+        $user = User::factory()->create(['avatarLink' => 'avatars/old.png']);
+        $response = $this->actingAs($user)->postJson('/api/v1/user/avatar', []);
         $response->assertStatus(200)->assertJsonPath('data.avatarLink', null);
     }
 
@@ -67,13 +60,11 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create();
         $response = $this->actingAs($user)->patchJson('/api/v1/user', [
             'name' => 'Nguyen Van Giap',
-            'avatarLink' => 'https://example.com/avatar.jpg',
             'githubName' => 'giapnguyen',
             'githubLink' => 'https://github.com/giapnguyen',
         ]);
         $response->assertStatus(200)
-                 ->assertJsonPath('data.name', 'Nguyen Van Giap')
-                 ->assertJsonPath('data.avatarLink', 'https://example.com/avatar.jpg');
+                 ->assertJsonPath('data.name', 'Nguyen Van Giap');
     }
 
     public function test_sending_empty_payload_does_not_change_anything()
@@ -97,14 +88,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['name']);
     }
 
-    public function test_validation_fails_if_avatar_link_is_invalid_url()
-    {
-        $user = User::factory()->create();
-        $response = $this->actingAs($user)->patchJson('/api/v1/user', ['avatarLink' => 'abc']);
-        $response->assertStatus(422)->assertJsonValidationErrors(['avatarLink']);
-    }
-
-    public function test_validation_fails_if_github_link_is_invalid_url()
+        public function test_validation_fails_if_github_link_is_invalid_url()
     {
         $user = User::factory()->create();
         $response = $this->actingAs($user)->patchJson('/api/v1/user', ['githubLink' => 'github.com/user']);
@@ -138,10 +122,10 @@ class ProfileUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $this->assertStringContainsString('storage/avatars/', $response->json('data.avatarLink'));
+        $this->assertStringContainsString('avatars/', $response->json('data.avatarLink'));
 
         // Verify the file was stored
-        $path = str_replace(config('app.url') . '/storage/', '', $response->json('data.avatarLink'));
+        $path = $response->json('data.avatarLink');
         $disk->assertExists($path);
     }
 }
