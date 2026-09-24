@@ -1,5 +1,31 @@
-# Vue 3 + TypeScript + Vite
+# @dsh/web
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Vue 3 + TypeScript + Vite SPA for the DSH registry — publish, discover and install
+DeepSeek Harness plugins.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `pnpm --filter @dsh/web dev` | Dev server on http://localhost:5173 |
+| `pnpm --filter @dsh/web build` | Type-check (`vue-tsc`) + production build |
+| `pnpm --filter @dsh/web test` | Unit tests (Vitest + happy-dom) |
+| `pnpm --filter @dsh/web test:watch` | Unit tests in watch mode |
+
+## Typography
+
+Self-hosted via `@fontsource-variable` (no CDN, works offline). Both families are
+declared in `src/style.css` and only the **latin** + **vietnamese** subsets are shipped.
+
+| Token | Family | Used for |
+| --- | --- | --- |
+| `--font-sans` | Inter Variable | UI, body copy, headings |
+| `--font-mono` | JetBrains Mono Variable | commands, package names, versions, endpoints |
+
+## Conventions
+
+- `src/views` — route pages, `src/layouts` — default (`AppNavbar`) and auth shells.
+- `src/components/ui` — shadcn-vue primitives (see `components.json`).
+- Copy lives in the SFCs; keep headings unique per page (`AuthLayout` renders the
+  `h1` from `route.meta.title`, so views must not repeat a page title).
+
