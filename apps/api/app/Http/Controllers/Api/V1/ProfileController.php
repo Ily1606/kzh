@@ -6,12 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Enums\ApiMessage;
 use App\Http\Resources\UserResource;
 use App\Support\ApiResponse;
+use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class ProfileController extends Controller
 {
+    public function __construct(private readonly ProfileService $profileService)
+    {
+    }
+
     public function show(Request $request): JsonResponse
     {
         return ApiResponse::successResponse(new UserResource($request->user()), ApiMessage::USER_RETRIEVED->value);
@@ -19,8 +23,6 @@ class ProfileController extends Controller
 
     public function updateProfile(Request $request): JsonResponse
     {
-        $user = $request->user();
-
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'avatarLink' => ['sometimes', 'nullable', 'url', 'max:255'],
@@ -28,28 +30,34 @@ class ProfileController extends Controller
             'githubLink' => ['sometimes', 'nullable', 'url', 'max:255'],
         ]);
 
-        $user->update($data);
+        $user = $this->profileService->updateProfile($request->user(), $data);
 
         return ApiResponse::successResponse(new UserResource($user), 'User profile updated successfully.');
     }
 
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
+        ]);
+
+        $user = $this->profileService->updateAvatar($request->user(), $request->file('avatar'));
+
+        return ApiResponse::successResponse(['avatarLink' => $user->avatarLink], 'Avatar updated successfully.');
+    }
+
     public function updatePassword(Request $request): JsonResponse
     {
-        $user = $request->user();
-
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'new_password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        if (! Hash::check($data['current_password'], $user->password)) {
-            return ApiResponse::errorResponse('Current password is incorrect.', 422, [
-                'current_password' => ['Current password is incorrect.'],
-            ]);
-        }
-
-        $user->password = $data['new_password'];
-        $user->save();
+        $user = $this->profileService->updatePassword(
+            $request->user(),
+            $data['current_password'],
+            $data['new_password']
+        );
 
         return ApiResponse::successResponse(new UserResource($user), 'Password updated successfully.');
     }

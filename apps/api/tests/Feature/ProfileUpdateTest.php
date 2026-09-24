@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Testing\File;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
@@ -121,5 +124,24 @@ class ProfileUpdateTest extends TestCase
         $response = $this->actingAs($user)->patchJson('/api/v1/user', ['is_admin' => true]);
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', ['id' => $user->id, 'is_admin' => false]);
+    }
+
+        public function test_authenticated_user_can_upload_avatar_image()
+    {
+        $disk = Storage::fake('public');
+        $user = User::factory()->create();
+
+        $file = \Illuminate\Http\UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
+
+        $response = $this->actingAs($user)->postJson('/api/v1/user/avatar', [
+            'avatar' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertStringContainsString('storage/avatars/', $response->json('data.avatarLink'));
+
+        // Verify the file was stored
+        $path = str_replace(config('app.url') . '/storage/', '', $response->json('data.avatarLink'));
+        $disk->assertExists($path);
     }
 }

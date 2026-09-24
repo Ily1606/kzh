@@ -18,6 +18,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [ProfileController::class, 'show']);
         Route::patch('/user', [ProfileController::class, 'updateProfile']);
+        Route::post('/user/avatar', [ProfileController::class, 'updateAvatar']);
         Route::patch('/user/password', [ProfileController::class, 'updatePassword']);
     });
 });
