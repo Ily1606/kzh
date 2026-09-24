@@ -2,10 +2,10 @@
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import Card from '@/components/ui/Card.vue'
-import Input from '@/components/ui/Input.vue'
-import Button from '@/components/ui/Button.vue'
 import { validateEmail } from '@/utils/validation'
+import Input from '@/components/ui/input/Input.vue'
+import Button from '@/components/ui/button/Button.vue'
+import Card from '@/components/ui/card/Card.vue'
 
 const auth = useAuth()
 

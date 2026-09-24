@@ -2,10 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import Card from '@/components/ui/Card.vue'
-import Input from '@/components/ui/Input.vue'
-import Button from '@/components/ui/Button.vue'
 import { validatePassword, validateConfirmPassword } from '@/utils/validation'
+import Card from '@/components/ui/card/Card.vue'
+import Button from '@/components/ui/button/Button.vue'
+import Input from '@/components/ui/input/Input.vue'
 
 const auth = useAuth()
 const router = useRouter()
