@@ -17,13 +17,13 @@ export const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
-      meta: { layout: 'auth', title: 'Sign in to your account', guestOnly: true }
+      meta: { layout: 'auth', title: 'Sign in to publish plugins', guestOnly: true }
     },
     {
       path: "/register",
       name: "register",
       component: RegisterView,
-      meta: { layout: 'auth', title: 'Create a new account', guestOnly: true }
+      meta: { layout: 'auth', title: 'Create a publisher account', guestOnly: true }
     },
     {
       path: '/:pathMatch(.*)*',
