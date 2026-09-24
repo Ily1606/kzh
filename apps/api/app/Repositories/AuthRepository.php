@@ -32,8 +32,8 @@ class AuthRepository implements AuthRepositoryInterface
         return $user->createToken('api-token');
     }
 
-    public function revokeTokens(User $user): void
+    public function revokeTokens(User $user): int
     {
-        $user->tokens()->delete();
+        return $user->tokens()->delete();
     }
 }

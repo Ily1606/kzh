@@ -13,5 +13,10 @@ interface AuthRepositoryInterface
 
     public function createToken(User $user): NewAccessToken;
 
-    public function revokeTokens(User $user): void;
+    /**
+     * Revoke every access token belonging to the user.
+     *
+     * @return int number of revoked tokens
+     */
+    public function revokeTokens(User $user): int;
 }
