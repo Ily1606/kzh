@@ -3,62 +3,51 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Enums\ApiMessage;
-use App\Models\User;
+use App\Http\Requests\Api\V1\LoginRequest;
+use App\Http\Requests\Api\V1\RegisterRequest;
+use App\Services\AuthService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    public function register(Request $request): JsonResponse
+    public function __construct(
+        private readonly AuthService $authService,
+    ) {}
+
+    public function register(RegisterRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-        ]);
+        $auth = $this->authService->register($request->validated());
 
-        $user = User::create($data);
-        Auth::login($user, remember: true);
-        $request->session()->regenerate();
-
-        return ApiResponse::successResponse($user, ApiMessage::REGISTRATION_SUCCESSFUL->value, 201);
+        return ApiResponse::successResponse([
+            'user' => $auth['user'],
+            'token' => $auth['token'],
+        ], __('api.registration_successful'), 201);
     }
 
-    public function login(Request $request): JsonResponse
+    public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $auth = $this->authService->login(
+            $request->validated('email'),
+            $request->validated('password'),
+        );
 
-        $credentials['isActive'] = true;
-        $credentials['isDeleted'] = false;
-
-        if (! Auth::attempt($credentials, remember: true)) {
-            return ApiResponse::errorResponse(ApiMessage::INVALID_CREDENTIALS->value, 422, [
-                'email' => [ApiMessage::INVALID_CREDENTIALS->value],
-            ]);
-        }
-
-        $request->session()->regenerate();
-
-        return ApiResponse::successResponse($request->user(), ApiMessage::LOGIN_SUCCESSFUL->value);
+        return ApiResponse::successResponse([
+            'user' => $auth['user'],
+            'token' => $auth['token'],
+        ], __('api.login_successful'));
     }
 
     public function logout(Request $request): JsonResponse
     {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $this->authService->logout($request->user());
 
-        return ApiResponse::successResponse(null, ApiMessage::LOGOUT_SUCCESSFUL->value);
+        return ApiResponse::successResponse(null, __('api.logout_successful'));
     }
 
     public function user(Request $request): JsonResponse
     {
-        return ApiResponse::successResponse($request->user(), ApiMessage::USER_RETRIEVED->value);
+        return ApiResponse::successResponse($request->user(), __('api.user_retrieved'));
     }
 }

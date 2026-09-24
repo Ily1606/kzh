@@ -9,6 +9,7 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -18,10 +19,7 @@ use Illuminate\Support\Str;
     'name',
     'email',
     'password',
-    'isActive',
-    'avatarLink',
-    'githubName',
-    'githubLink',
+    'is_active',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
@@ -50,12 +48,17 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'isActive' => 'boolean',
+            'is_active' => 'boolean',
             'is_admin' => 'boolean',
-            'isDeleted' => 'boolean',
+            'is_deleted' => 'boolean',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(UserProfile::class);
     }
 
     public function canAccessPanel(Panel $panel): bool

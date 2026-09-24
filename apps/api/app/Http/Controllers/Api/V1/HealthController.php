@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Enums\ApiMessage;
 use App\Http\Controllers\Controller;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -13,7 +12,7 @@ class HealthController extends Controller
     {
         return ApiResponse::successResponse(
             ['status' => 'ok'],
-            ApiMessage::HEALTH_CHECK_SUCCESSFUL->value,
+            __('api.health_check_successful'),
         );
     }
 }

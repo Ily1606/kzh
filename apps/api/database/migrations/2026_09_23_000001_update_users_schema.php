@@ -12,18 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->string('id', 36)->change();
-            $table->boolean('isActive')->default(true);
-            $table->string('avatarLink')->nullable();
-            $table->string('githubName')->nullable();
-            $table->string('githubLink')->nullable();
-            $table->boolean('isDeleted')->default(false);
+            $table->uuid('id')->change();
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_deleted')->default(false);
         });
 
         Schema::table('sessions', function (Blueprint $table): void {
-            $table->dropIndex(['user_id']);
-            $table->string('user_id', 36)->nullable()->change();
-            $table->index('user_id');
+            $table->uuid('user_id')->nullable()->change();
             $table->foreign('user_id')
                 ->references('id')
                 ->on('users')
@@ -38,18 +33,13 @@ return new class extends Migration
     {
         Schema::table('sessions', function (Blueprint $table): void {
             $table->dropForeign(['user_id']);
-            $table->dropIndex(['user_id']);
             $table->unsignedBigInteger('user_id')->nullable()->change();
-            $table->index('user_id');
         });
 
         Schema::table('users', function (Blueprint $table): void {
             $table->dropColumn([
-                'isActive',
-                'avatarLink',
-                'githubName',
-                'githubLink',
-                'isDeleted',
+                'is_active',
+                'is_deleted',
             ]);
             $table->unsignedBigInteger('id')->change();
         });

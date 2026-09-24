@@ -10,7 +10,7 @@ class AuthSmokeTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_register_and_is_logged_in(): void
+    public function test_user_can_register_and_receive_a_token(): void
     {
         $response = $this
         ->withHeader('Origin', 'http://localhost:5173')
@@ -22,20 +22,21 @@ class AuthSmokeTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.name', 'Nguyen Van A')
-            ->assertJsonPath('data.email', 'nguyen@example.com')
-            ->assertJsonMissingPath('data.password')
-            ->assertJsonMissingPath('data.remember_token')
+            ->assertJsonPath('data.user.name', 'Nguyen Van A')
+            ->assertJsonPath('data.user.email', 'nguyen@example.com')
+            ->assertJsonPath('data.token', fn (string $token): bool => $token !== '')
+            ->assertJsonMissingPath('data.user.password')
+            ->assertJsonMissingPath('data.user.remember_token')
             ->assertJsonPath('success', true)
             ->assertJsonPath('errors', null);
 
         $this->assertDatabaseHas('users', [
             'email' => 'nguyen@example.com',
-            'isActive' => true,
+            'is_active' => true,
             'is_admin' => false,
-            'isDeleted' => false,
+            'is_deleted' => false,
         ]);
-        $this->assertAuthenticated('web');
+        $this->assertGuest('web');
     }
 
     public function test_register_rejects_duplicate_email(): void
@@ -70,18 +71,21 @@ class AuthSmokeTest extends TestCase
             'password' => 'secret-password',
         ]);
 
-        $this->withHeader('Origin', 'http://localhost:5173')
+        $loginResponse = $this->withHeader('Origin', 'http://localhost:5173')
             ->postJson('/api/v1/login', [
                 'email' => $user->email,
                 'password' => 'secret-password',
-            ])->assertOk()
-            ->assertJsonPath('data.id', $user->id);
+            ])->assertOk();
 
-        $this->getJson('/api/v1/user')
+        $token = $loginResponse->json('data.token');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/user')
             ->assertOk()
             ->assertJsonPath('data.id', $user->id);
 
-        $this->postJson('/api/v1/logout')
+        $this->withToken($token)
+            ->postJson('/api/v1/logout')
             ->assertOk()
             ->assertExactJson([
                 'success' => true,
@@ -90,7 +94,13 @@ class AuthSmokeTest extends TestCase
                 'errors' => null,
             ]);
 
-        $this->assertGuest('web');
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+
+        $this->app['auth']->forgetGuards();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/user')
+            ->assertUnauthorized();
     }
 
     public function test_profile_and_logout_require_authentication(): void
@@ -116,7 +126,7 @@ class AuthSmokeTest extends TestCase
     {
         $user = User::factory()->create([
             'password' => 'secret-password',
-            'isActive' => false,
+            'is_active' => false,
         ]);
 
         $this->postJson('/api/v1/login', [
@@ -130,7 +140,7 @@ class AuthSmokeTest extends TestCase
     {
         $user = User::factory()->create([
             'password' => 'secret-password',
-            'isDeleted' => true,
+            'is_deleted' => true,
         ]);
 
         $this->postJson('/api/v1/login', [

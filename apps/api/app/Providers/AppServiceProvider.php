@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\AuthRepositoryInterface;
+use App\Repositories\AuthRepository;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\SecurityScheme;
@@ -16,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
     }
 
     /**
