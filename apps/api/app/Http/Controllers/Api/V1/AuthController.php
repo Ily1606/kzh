@@ -6,13 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Enums\ApiMessage;
 use App\Models\User;
 use App\Support\ApiResponse;
+use App\Http\Resources\UserResource;
+use App\Services\EmailService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
-    public function register(Request $request): JsonResponse
+    public function register(Request $request, EmailService $emailService): JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -24,7 +29,13 @@ class AuthController extends Controller
         Auth::login($user, remember: true);
         $request->session()->regenerate();
 
-        return ApiResponse::successResponse($user, ApiMessage::REGISTRATION_SUCCESSFUL->value, 201);
+        try {
+            $emailService->sendWelcomeEmail($user);
+        } catch (Exception $e) {
+            Log::error('Failed to send welcome email: ' . $e->getMessage());
+        }
+
+        return ApiResponse::successResponse(new UserResource($user), ApiMessage::REGISTRATION_SUCCESSFUL->value, 201);
     }
 
     public function login(Request $request): JsonResponse
@@ -45,7 +56,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return ApiResponse::successResponse($request->user(), ApiMessage::LOGIN_SUCCESSFUL->value);
+        return ApiResponse::successResponse(new UserResource($request->user()), ApiMessage::LOGIN_SUCCESSFUL->value);
     }
 
     public function logout(Request $request): JsonResponse
@@ -57,8 +68,4 @@ class AuthController extends Controller
         return ApiResponse::successResponse(null, ApiMessage::LOGOUT_SUCCESSFUL->value);
     }
 
-    public function user(Request $request): JsonResponse
-    {
-        return ApiResponse::successResponse($request->user(), ApiMessage::USER_RETRIEVED->value);
-    }
 }

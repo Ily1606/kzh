@@ -26,6 +26,18 @@ export const router = createRouter({
       meta: { layout: 'auth', title: 'Create a publisher account', guestOnly: true }
     },
     {
+      path: "/forgot-password",
+      name: "forgot-password",
+      component: () => import('@/views/ForgotPasswordView.vue'),
+      meta: { layout: 'auth', title: 'Reset your password' }
+    },
+    {
+      path: "/reset-password",
+      name: "reset-password",
+      component: () => import('@/views/ResetPasswordView.vue'),
+      meta: { layout: 'auth', title: 'Create new password' }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),
