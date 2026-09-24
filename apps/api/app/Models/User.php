@@ -8,6 +8,7 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -29,14 +30,7 @@ class User extends Authenticatable implements FilamentUser
     protected $keyType = 'string';
 
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
-
-    protected static function booted(): void
-    {
-        static::creating(function (self $user): void {
-            $user->id ??= (string) Str::uuid();
-        });
-    }
+    use HasApiTokens, HasFactory, Notifiable, HasUuids;
 
     /**
      * Get the attributes that should be cast.
