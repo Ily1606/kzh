@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Enums\ApiMessage;
 use App\Http\Resources\UserResource;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UpdateAvatarRequest;
@@ -21,21 +20,21 @@ class ProfileController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        return ApiResponse::successResponse(new UserResource($request->user()), ApiMessage::USER_RETRIEVED->value);
+        return ApiResponse::successResponse(new UserResource($request->user()->load('profile')), __('api.user_retrieved'));
     }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user = $this->profileService->updateProfile($request->user(), $request->validated());
 
-        return ApiResponse::successResponse(new UserResource($user), 'User profile updated successfully.');
+        return ApiResponse::successResponse(new UserResource($user), __('api.profile_updated'));
     }
 
     public function updateAvatar(UpdateAvatarRequest $request): JsonResponse
     {
         $user = $this->profileService->updateAvatar($request->user(), $request->file('avatar'));
 
-        return ApiResponse::successResponse(new UserResource($user), 'Avatar updated successfully.');
+        return ApiResponse::successResponse(new UserResource($user), __('api.avatar_updated'));
     }
 
     public function updatePassword(UpdatePasswordRequest $request): JsonResponse
@@ -48,6 +47,6 @@ class ProfileController extends Controller
             $data['new_password']
         );
 
-        return ApiResponse::successResponse(new UserResource($user), 'Password updated successfully.');
+        return ApiResponse::successResponse(new UserResource($user), __('api.password_updated'));
     }
 }

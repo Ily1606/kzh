@@ -24,7 +24,7 @@ class AuthController extends Controller
         $auth = $this->authService->register($request->validated());
 
         return ApiResponse::successResponse([
-            'user' => $auth['user'],
+            'user' => new UserResource($auth['user']->load('profile')),
             'token' => $auth['token'],
         ], __('api.registration_successful'), 201);
     }
@@ -37,7 +37,7 @@ class AuthController extends Controller
         );
 
         return ApiResponse::successResponse([
-            'user' => $auth['user'],
+            'user' => new UserResource($auth['user']->load('profile')),
             'token' => $auth['token'],
         ], __('api.login_successful'));
     }

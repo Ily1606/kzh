@@ -6,16 +6,49 @@ use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
 class ProfileService
 {
+
+    public function __construct()
+    {
+    }
+
+    public function getProfile(User $user): User
+    {
+        return $user->load('profile');
+    }
     /**
      * Update user's basic profile information.
      */
     public function updateProfile(User $user, array $data): User
     {
-        $user->update($data);
-        return $user;
+        // Extract user data
+        if (isset($data['name'])) {
+            $user->name = $data['name'];
+            $user->save();
+        }
+
+        // Extract profile data
+        $profileData = [];
+        if (array_key_exists('githubName', $data)) {
+            $profileData['github_name'] = $data['githubName'];
+        }
+        if (array_key_exists('githubLink', $data)) {
+            $profileData['github_link'] = $data['githubLink'];
+        }
+
+        if (!empty($profileData)) {
+            if ($user->profile) {
+                $user->profile->update($profileData);
+            } else {
+                $profileData['id'] = (string) Str::uuid();
+                $user->profile()->create($profileData);
+            }
+        }
+
+        return $user->refresh();
     }
 
     /**
@@ -23,11 +56,19 @@ class ProfileService
      */
     public function updateAvatar(User $user, ?UploadedFile $file): User
     {
-        $user->avatarLink = $file?->store('avatars', 'public');
+        $avatarPath = $file?->store('avatars', 'public');
 
-        $user->save();
+        if ($user->profile) {
+            $user->profile->avatar_link = $avatarPath;
+            $user->profile->save();
+        } else {
+            $user->profile()->create([
+                'id' => (string) Str::uuid(),
+                'avatar_link' => $avatarPath,
+            ]);
+        }
 
-        return $user;
+        return $user->refresh();
     }
 
     /**
