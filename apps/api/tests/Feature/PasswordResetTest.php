@@ -414,8 +414,8 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-            'is_active' => true,
-            'is_deleted' => false,
+            
+            
         ]);
         $token = Password::createToken($user);
 
