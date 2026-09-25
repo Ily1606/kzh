@@ -33,6 +33,16 @@ return [
 
     'auth_channel' => env('LOG_AUTH_CHANNEL'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Plugin event log channel
+    |--------------------------------------------------------------------------
+    |
+    | Channel used by plugin lifecycle listeners.
+    |
+    */
+
+    'plugin_channel' => env('LOG_PLUGIN_CHANNEL'),
 
     /*
     |--------------------------------------------------------------------------
