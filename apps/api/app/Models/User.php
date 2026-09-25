@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -13,6 +12,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use App\Observers\UserObserver;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Str;
@@ -24,6 +25,7 @@ use Illuminate\Support\Str;
     'locked_at',
 ])]
 #[Hidden(['password', 'remember_token'])]
+#[ObservedBy([UserObserver::class])]
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */

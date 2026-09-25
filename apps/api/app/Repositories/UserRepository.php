@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -55,5 +56,37 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user !== null && Hash::check($password, $user->password)
             ? $user
             : null;
+    }
+
+    public function updateProfile(User $user, ?string $name, array $profileData): User
+    {
+        return DB::transaction(function () use ($user, $name, $profileData) {
+            if ($name !== null) {
+                $user->update(['name' => $name]);
+            }
+
+            if (!empty($profileData)) {
+                $user->profile()->updateOrCreate([], $profileData);
+            }
+
+            return $user->refresh();
+        });
+    }
+
+    public function updateAvatar(User $user, ?string $avatarPath): User
+    {
+        $user->profile()->updateOrCreate([], [
+            'avatar_link' => $avatarPath
+        ]);
+
+        return $user->refresh();
+    }
+
+    public function updatePassword(User $user, string $newPassword): User
+    {
+        $user->password = $newPassword;
+        $user->save();
+
+        return $user;
     }
 }
