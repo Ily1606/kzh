@@ -2,20 +2,28 @@
 import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
-import { validateEmail, validatePassword } from "@/utils/validation";
+import { isRequired, validateConfirmPassword, validateEmail, validatePassword } from "@/utils/validation";
 import Card from "@/components/ui/Card.vue";
 import Input from "@/components/ui/Input.vue";
 import Button from "@/components/ui/Button.vue";
 
 const email = ref("");
 const password = ref("");
+const confirmPassword = ref("");
+const name = ref("");
 const emailError = ref("");
 const passwordError = ref("");
+const confirmPasswordError = ref("");
+const nameError = ref("");
 const errorMsg = ref("");
 const loading = ref(false);
 
 const router = useRouter();
 const auth = useAuth();
+
+watch(name, (newVal) => {
+  nameError.value = isRequired(newVal, "Full name");
+});
 
 watch(email, (newVal) => {
   emailError.value = validateEmail(newVal);
@@ -25,23 +33,31 @@ watch(password, (newVal) => {
   passwordError.value = validatePassword(newVal);
 });
 
+watch(confirmPassword, (newVal) => {
+  confirmPasswordError.value = validateConfirmPassword(password.value, newVal);
+});
+
 async function onSubmit() {
+  nameError.value = isRequired(name.value, "Full name");
   emailError.value = validateEmail(email.value);
   passwordError.value = validatePassword(password.value);
+  confirmPasswordError.value = validateConfirmPassword(password.value, confirmPassword.value);
 
-  if (emailError.value || passwordError.value) return;
+  if (nameError.value || emailError.value || passwordError.value || confirmPasswordError.value) return;
 
   loading.value = true;
   errorMsg.value = "";
 
   try {
-    await auth.login({
+    await auth.register({
+      name: name.value,
       email: email.value,
       password: password.value,
+      password_confirmation: confirmPassword.value,
     });
     router.push("/");
   } catch (e: any) {
-    errorMsg.value = "Failed to sign in. Please try again.";
+    errorMsg.value = "Failed to sign up. Please check your information.";
   } finally {
     loading.value = false;
   }
@@ -54,6 +70,15 @@ async function onSubmit() {
       <div v-if="errorMsg" class="rounded-md bg-red-50 p-4 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
         {{ errorMsg }}
       </div>
+
+      <Input
+        id="fullName"
+        type="text"
+        label="Full Name"
+        v-model="name"
+        :error="nameError"
+        placeholder="Enter your full name"
+      />
 
       <Input
         id="email"
@@ -73,16 +98,25 @@ async function onSubmit() {
         placeholder="Enter your password"
       />
 
+      <Input
+        id="confirmPassword"
+        type="password"
+        label="Confirm Password"
+        v-model="confirmPassword"
+        :error="confirmPasswordError"
+        placeholder="Confirm your password"
+        />
+
       <Button type="submit" class="w-full" :loading="loading">
-        Sign in
+        Sign Up
       </Button>
     </form>
 
     <div class="mt-6 text-center text-sm">
       <p class="mb-4 text-gray-600 dark:text-gray-400">
-        Don't have an account?
-        <RouterLink to="/register" class="font-medium text-primary hover:underline">
-          Sign up
+        Already have an account?
+        <RouterLink to="/login" class="font-medium text-primary hover:underline">
+          Sign in
         </RouterLink>
       </p>
       <RouterLink to="/" class="text-gray-500 hover:text-primary hover:underline dark:text-gray-400">
