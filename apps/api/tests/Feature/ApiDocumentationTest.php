@@ -25,6 +25,7 @@ class ApiDocumentationTest extends TestCase
             ->json('paths');
 
         $this->assertArrayHasKey('/v1/health', $paths);
+        $this->assertArrayHasKey('/v1/plugins', $paths);
         $this->assertArrayNotHasKey('/v2/internal', $paths);
     }
 }

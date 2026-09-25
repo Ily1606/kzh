@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\PluginController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -21,5 +22,9 @@ Route::prefix('v1')->group(function () {
         Route::patch('/user', [ProfileController::class, 'updateProfile']);
         Route::post('/user/avatar', [ProfileController::class, 'updateAvatar']);
         Route::patch('/user/password', [ProfileController::class, 'updatePassword']);
+
+        // ================ Plugin ======================
+        Route::post('/plugins', [PluginController::class, 'store'])
+            ->middleware('throttle:submit-plugin');
     });
 });
