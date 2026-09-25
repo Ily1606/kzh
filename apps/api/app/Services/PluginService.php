@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
+use App\Events\Plugin\PluginSubmitted;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -21,7 +22,7 @@ final class PluginService
     public function submit(User $user, array $attributes): Plugin
     {
         try {
-            return $this->pluginRepository->create([
+            $plugin = $this->pluginRepository->create([
                 'name' => $attributes['name'],
                 'title' => $attributes['title'],
                 'license' => $attributes['license'],
@@ -38,5 +39,14 @@ final class PluginService
                 'name' => __('api.plugin_name_already_exists'),
             ]);
         }
+
+        PluginSubmitted::dispatch(
+            plugin: $plugin,
+            user: $user,
+            ipAddress: request()->ip(),
+            userAgent: request()->userAgent(),
+        );
+
+        return $plugin;
     }
 }

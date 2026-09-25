@@ -3,15 +3,24 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Events\Plugin\PluginSubmitted;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class SubmitPluginTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Event::fake([PluginSubmitted::class]);
+    }
 
     /**
      * @return array<string, mixed>
