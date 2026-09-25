@@ -3,7 +3,7 @@
 
 Thank you for registering an account with us. We are excited to have you on board.
 
-<x-mail::button :url="config('app.frontend_url', 'http://localhost:5173')">
+<x-mail::button :url="config('app.frontend_url')">
 Visit Your Dashboard
 </x-mail::button>
 

@@ -7,6 +7,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -33,11 +35,10 @@ class PasswordResetTest extends TestCase
     public function test_fails_if_email_does_not_exist()
     {
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'notfound@example.com'
+            'email' => 'nonexistent@example.com'
         ]);
 
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['email']);
+        $response->assertStatus(200);
     }
 
     public function test_fails_if_email_is_missing()
@@ -129,6 +130,8 @@ class PasswordResetTest extends TestCase
 
     public function test_resets_password_successfully()
     {
+        Event::fake([PasswordReset::class]);
+
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
 
@@ -141,6 +144,10 @@ class PasswordResetTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertTrue(Hash::check('new_password123', $user->fresh()->password));
+
+        Event::assertDispatched(PasswordReset::class, function ($event) use ($user) {
+            return $event->user->id === $user->id;
+        });
     }
 
     public function test_fails_if_token_does_not_exist()

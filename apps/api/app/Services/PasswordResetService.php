@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Notifications\ResetPassword;
 use App\Support\UrlHelper;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +23,10 @@ class PasswordResetService
         });
 
         $status = Password::sendResetLink($credentials);
+
+        if ($status === Password::INVALID_USER) {
+            return;
+        }
 
         if ($status !== Password::RESET_LINK_SENT) {
             throw ValidationException::withMessages([
@@ -46,6 +51,8 @@ class PasswordResetService
 
                 // Optional: Revoke all existing API tokens to force logout on all devices
                 $user->tokens()->delete();
+
+                event(new PasswordReset($user));
             }
         );
 

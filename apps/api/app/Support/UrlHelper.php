@@ -11,7 +11,7 @@ class UrlHelper
      */
     public static function generateFrontendResetUrl(string $email, string $token): string
     {
-        $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+        $frontendUrl = config('app.frontend_url');
 
         return (string) Url::fromString($frontendUrl)
             ->withPath('/reset-password')

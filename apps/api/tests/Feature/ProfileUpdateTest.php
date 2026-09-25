@@ -139,9 +139,10 @@ class ProfileUpdateTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertStringContainsString('avatars/', $response->json('data.avatarLink'));
+        
 
         // Verify the file was stored
-        $path = $response->json('data.avatarLink');
+        $path = $user->fresh()->profile->avatar_link;
         $disk->assertExists($path);
     }
 }

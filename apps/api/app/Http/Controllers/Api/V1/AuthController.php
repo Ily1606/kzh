@@ -8,8 +8,6 @@ use App\Http\Requests\Api\V1\RegisterRequest;
 use App\Services\AuthService;
 use App\Support\ApiResponse;
 use App\Http\Resources\UserResource;
-use App\Services\EmailService;
-use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,7 +22,7 @@ class AuthController extends Controller
         $auth = $this->authService->register($request->validated());
 
         return ApiResponse::successResponse([
-            'user' => new UserResource($auth['user']->load('profile')),
+            'user' => new UserResource($auth['user']->loadMissing('profile')),
             'token' => $auth['token'],
         ], __('api.registration_successful'), 201);
     }
@@ -37,7 +35,7 @@ class AuthController extends Controller
         );
 
         return ApiResponse::successResponse([
-            'user' => new UserResource($auth['user']->load('profile')),
+            'user' => new UserResource($auth['user']->loadMissing('profile')),
             'token' => $auth['token'],
         ], __('api.login_successful'));
     }
@@ -47,10 +45,5 @@ class AuthController extends Controller
         $this->authService->logout($request->user());
 
         return ApiResponse::successResponse(null, __('api.logout_successful'));
-    }
-
-    public function user(Request $request): JsonResponse
-    {
-        return ApiResponse::successResponse($request->user(), __('api.user_retrieved'));
     }
 }

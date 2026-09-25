@@ -31,8 +31,6 @@ class User extends Authenticatable implements FilamentUser
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable, HasUuids, SoftDeletes;
 
-    protected $with = ['profile'];
-
     /**
      * Get the attributes that should be cast.
      *

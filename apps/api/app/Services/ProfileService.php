@@ -20,7 +20,7 @@ class ProfileService
 
     public function getProfile(User $user): User
     {
-        return $user->load('profile');
+        return $user->loadMissing('profile');
     }
 
     /**

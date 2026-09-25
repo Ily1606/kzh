@@ -20,7 +20,7 @@ class PasswordResetController extends Controller
     {
         $this->passwordResetService->sendResetLink($request->only('email'));
 
-        return ApiResponse::successResponse(null, __(Password::RESET_LINK_SENT));
+        return ApiResponse::successResponse(null, __('api.password_reset_link_sent_if_exists'));
     }
 
     public function resetPassword(ResetPasswordRequest $request): JsonResponse

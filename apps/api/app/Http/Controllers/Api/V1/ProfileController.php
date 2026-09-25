@@ -20,7 +20,7 @@ class ProfileController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        return ApiResponse::successResponse(new UserResource($request->user()->load('profile')), __('api.user_retrieved'));
+        return ApiResponse::successResponse(new UserResource($request->user()->loadMissing('profile')), __('api.user_retrieved'));
     }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse

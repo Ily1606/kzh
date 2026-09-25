@@ -19,4 +19,5 @@ return [
     'profile_updated' => 'User profile updated successfully.',
     'avatar_updated' => 'Avatar updated successfully.',
     'password_updated' => 'Password updated successfully.',
+    'password_reset_link_sent_if_exists' => 'If your email exists in our system, we have sent a password reset link.',
 ];
