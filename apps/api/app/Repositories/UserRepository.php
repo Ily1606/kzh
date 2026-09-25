@@ -56,4 +56,34 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
             ? $user
             : null;
     }
+
+    public function updateProfile(User $user, ?string $name, array $profileData): User
+    {
+        if ($name !== null) {
+            $user->update(['name' => $name]);
+        }
+
+        if (!empty($profileData)) {
+            $user->profile()->updateOrCreate([], $profileData);
+        }
+
+        return $user->refresh();
+    }
+
+    public function updateAvatar(User $user, ?string $avatarPath): User
+    {
+        $user->profile()->updateOrCreate([], [
+            'avatar_link' => $avatarPath
+        ]);
+
+        return $user->refresh();
+    }
+
+    public function updatePassword(User $user, string $newPassword): User
+    {
+        $user->password = $newPassword;
+        $user->save();
+
+        return $user;
+    }
 }

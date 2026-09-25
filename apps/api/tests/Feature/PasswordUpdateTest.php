@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
+use Laravel\Sanctum\Sanctum;
 
 class PasswordUpdateTest extends TestCase
 {
@@ -24,13 +26,14 @@ class PasswordUpdateTest extends TestCase
     public function test_user_can_update_password_successfully()
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'old_password',
             'new_password' => 'new_password123',
             'new_password_confirmation' => 'new_password123',
         ]);
-        
+
         $response->assertStatus(200);
         $this->assertTrue(Hash::check('new_password123', $user->fresh()->password));
     }
@@ -38,13 +41,14 @@ class PasswordUpdateTest extends TestCase
     public function test_validation_fails_if_current_password_is_incorrect()
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'wrong_password',
             'new_password' => 'new_password123',
             'new_password_confirmation' => 'new_password123',
         ]);
-        
+
         $response->assertStatus(422)
                  ->assertJsonValidationErrors(['current_password']);
     }
@@ -52,12 +56,13 @@ class PasswordUpdateTest extends TestCase
     public function test_validation_fails_if_current_password_is_missing()
     {
         $user = User::factory()->create();
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'new_password' => 'new_password123',
             'new_password_confirmation' => 'new_password123',
         ]);
-        
+
         $response->assertStatus(422)
                  ->assertJsonValidationErrors(['current_password']);
     }
@@ -65,11 +70,12 @@ class PasswordUpdateTest extends TestCase
     public function test_validation_fails_if_new_password_is_missing()
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'old_password',
         ]);
-        
+
         $response->assertStatus(422)
                  ->assertJsonValidationErrors(['new_password']);
     }
@@ -77,13 +83,14 @@ class PasswordUpdateTest extends TestCase
     public function test_validation_fails_if_new_password_is_too_short()
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'old_password',
             'new_password' => '1234567',
             'new_password_confirmation' => '1234567',
         ]);
-        
+
         $response->assertStatus(422)
                  ->assertJsonValidationErrors(['new_password']);
     }
@@ -91,13 +98,14 @@ class PasswordUpdateTest extends TestCase
     public function test_user_can_update_password_with_exactly_8_characters()
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'old_password',
             'new_password' => '12345678',
             'new_password_confirmation' => '12345678',
         ]);
-        
+
         $response->assertStatus(200);
         $this->assertTrue(Hash::check('12345678', $user->fresh()->password));
     }
@@ -105,12 +113,13 @@ class PasswordUpdateTest extends TestCase
     public function test_validation_fails_if_password_confirmation_is_missing()
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'old_password',
             'new_password' => 'new_password123',
         ]);
-        
+
         $response->assertStatus(422)
                  ->assertJsonValidationErrors(['new_password']);
     }
@@ -118,13 +127,14 @@ class PasswordUpdateTest extends TestCase
     public function test_validation_fails_if_password_confirmation_does_not_match()
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
-        
-        $response = $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'old_password',
             'new_password' => '12345678',
             'new_password_confirmation' => '123456789',
         ]);
-        
+
         $response->assertStatus(422)
                  ->assertJsonValidationErrors(['new_password']);
     }
@@ -134,25 +144,26 @@ class PasswordUpdateTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-            'isActive' => true,
-            'isDeleted' => false,
+            'is_active' => true,
+            'is_deleted' => false,
         ]);
-        
-        $this->actingAs($user)->patchJson('/api/v1/user/password', [
+
+        Sanctum::actingAs($user);
+        $this->patchJson('/api/v1/user/password', [
             'current_password' => 'old_password',
             'new_password' => 'new_password123',
             'new_password_confirmation' => 'new_password123',
         ])->assertStatus(200);
 
         $this->withHeader('Origin', 'http://localhost:5173')->postJson('/api/v1/logout');
-        \Illuminate\Support\Facades\Auth::forgetGuards();
-        \Illuminate\Support\Facades\Auth::shouldUse('web');
+        Auth::forgetGuards();
+        Auth::shouldUse('web');
 
         $this->withHeader('Origin', 'http://localhost:5173')->postJson('/api/v1/login', [
             'email' => 'test@example.com',
             'password' => 'old_password',
         ])->assertStatus(422);
-        
+
         $this->withHeader('Origin', 'http://localhost:5173')->postJson('/api/v1/login', [
             'email' => 'test@example.com',
             'password' => 'new_password123',

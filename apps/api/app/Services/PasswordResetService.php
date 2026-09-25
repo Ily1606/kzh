@@ -42,8 +42,10 @@ class PasswordResetService
             function ($user, string $password) {
                 $user->forceFill([
                     'password' => $password,
-                    'remember_token' => Str::random(60),
                 ])->save();
+
+                // Optional: Revoke all existing API tokens to force logout on all devices
+                $user->tokens()->delete();
             }
         );
 

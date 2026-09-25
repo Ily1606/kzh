@@ -2,53 +2,41 @@
 
 namespace App\Services;
 
+use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use App\Events\Profile\UserProfileUpdated;
+use App\Events\Profile\UserAvatarUpdated;
+use App\Events\Profile\UserPasswordUpdated;
 
 class ProfileService
 {
-
-    public function __construct()
-    {
-    }
+    public function __construct(
+        private readonly UserRepositoryInterface $userRepository
+    ) {}
 
     public function getProfile(User $user): User
     {
         return $user->load('profile');
     }
+
     /**
      * Update user's basic profile information.
      */
     public function updateProfile(User $user, array $data): User
     {
-        // Extract user data
-        if (isset($data['name'])) {
-            $user->name = $data['name'];
-            $user->save();
-        }
+        $name = $data['name'] ?? null;
 
-        // Extract profile data
         $profileData = [];
-        if (array_key_exists('githubName', $data)) {
-            $profileData['github_name'] = $data['githubName'];
-        }
-        if (array_key_exists('githubLink', $data)) {
-            $profileData['github_link'] = $data['githubLink'];
-        }
+        if (array_key_exists('githubName', $data)) $profileData['github_name'] = $data['githubName'];
+        if (array_key_exists('githubLink', $data)) $profileData['github_link'] = $data['githubLink'];
 
-        if (!empty($profileData)) {
-            if ($user->profile) {
-                $user->profile->update($profileData);
-            } else {
-                $profileData['id'] = (string) Str::uuid();
-                $user->profile()->create($profileData);
-            }
-        }
-
-        return $user->refresh();
+        $user = $this->userRepository->updateProfile($user, $name, $profileData);
+        UserProfileUpdated::dispatch($user);
+        return $user;
     }
 
     /**
@@ -58,17 +46,9 @@ class ProfileService
     {
         $avatarPath = $file?->store('avatars', 'public');
 
-        if ($user->profile) {
-            $user->profile->avatar_link = $avatarPath;
-            $user->profile->save();
-        } else {
-            $user->profile()->create([
-                'id' => (string) Str::uuid(),
-                'avatar_link' => $avatarPath,
-            ]);
-        }
-
-        return $user->refresh();
+        $user = $this->userRepository->updateAvatar($user, $avatarPath);
+        UserAvatarUpdated::dispatch($user);
+        return $user;
     }
 
     /**
@@ -84,9 +64,8 @@ class ProfileService
             ]);
         }
 
-        $user->password = $newPassword;
-        $user->save();
-
+        $user = $this->userRepository->updatePassword($user, $newPassword);
+        UserPasswordUpdated::dispatch($user);
         return $user;
     }
 }

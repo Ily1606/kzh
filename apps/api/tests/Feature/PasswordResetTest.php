@@ -414,8 +414,8 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-            'isActive' => true,
-            'isDeleted' => false,
+            'is_active' => true,
+            'is_deleted' => false,
         ]);
         $token = Password::createToken($user);
 
@@ -437,12 +437,15 @@ class PasswordResetTest extends TestCase
         ])->assertStatus(200);
     }
 
-    public function test_updates_remember_token_on_reset()
+    public function test_revokes_all_tokens_on_reset()
     {
         $user = User::factory()->create([
             'email' => 'user@example.com',
-            'remember_token' => 'old_token'
         ]);
+        // Giả lập user đang đăng nhập và có 1 token
+        $user->createToken('test-token');
+        $this->assertCount(1, $user->tokens);
+
         $token = Password::createToken($user);
 
         $this->postJson('/api/v1/reset-password', [
@@ -452,8 +455,8 @@ class PasswordResetTest extends TestCase
             'password_confirmation' => 'new_password123',
         ])->assertStatus(200);
 
-        $this->assertNotEquals('old_token', $user->fresh()->remember_token);
-        $this->assertNotNull($user->fresh()->remember_token);
+        // Sau khi reset, toàn bộ token bị xóa (đăng xuất mọi thiết bị)
+        $this->assertCount(0, $user->fresh()->tokens);
     }
 
     public function test_works_without_authentication()
