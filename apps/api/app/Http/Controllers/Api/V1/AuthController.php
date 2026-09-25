@@ -3,42 +3,51 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\LoginRequest;
+use App\Http\Requests\Api\V1\RegisterRequest;
+use App\Services\AuthService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function login(Request $request): JsonResponse
+    public function __construct(
+        private readonly AuthService $authService,
+    ) {}
+
+    public function register(RegisterRequest $request): JsonResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $auth = $this->authService->register($request->validated());
 
-        if (! Auth::attempt($credentials, remember: true)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
-            ]);
-        }
+        return ApiResponse::successResponse([
+            'user' => $auth['user'],
+            'token' => $auth['token'],
+        ], __('api.registration_successful'), 201);
+    }
 
-        $request->session()->regenerate();
+    public function login(LoginRequest $request): JsonResponse
+    {
+        $auth = $this->authService->login(
+            $request->validated('email'),
+            $request->validated('password'),
+        );
 
-        return response()->json(['user' => $request->user()]);
+        return ApiResponse::successResponse([
+            'user' => $auth['user'],
+            'token' => $auth['token'],
+        ], __('api.login_successful'));
     }
 
     public function logout(Request $request): JsonResponse
     {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $this->authService->logout($request->user());
 
-        return response()->json(['status' => 'ok']);
+        return ApiResponse::successResponse(null, __('api.logout_successful'));
     }
 
     public function user(Request $request): JsonResponse
     {
-        return response()->json(['user' => $request->user()]);
+        return ApiResponse::successResponse($request->user(), __('api.user_retrieved'));
     }
 }
