@@ -32,9 +32,9 @@ class AuthSmokeTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'email' => 'nguyen@example.com',
-            'is_active' => true,
+            'locked_at' => null,
             'is_admin' => false,
-            'is_deleted' => false,
+            'deleted_at' => null,
         ]);
         $this->assertGuest('web');
     }
@@ -126,7 +126,7 @@ class AuthSmokeTest extends TestCase
     {
         $user = User::factory()->create([
             'password' => 'secret-password',
-            'is_active' => false,
+            'locked_at' => now(),
         ]);
 
         $this->postJson('/api/v1/login', [
@@ -140,7 +140,7 @@ class AuthSmokeTest extends TestCase
     {
         $user = User::factory()->create([
             'password' => 'secret-password',
-            'is_deleted' => true,
+            'deleted_at' => now(),
         ]);
 
         $this->postJson('/api/v1/login', [

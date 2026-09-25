@@ -8,6 +8,7 @@ use App\Events\Auth\UserRegistered;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class AuthEventTest extends TestCase
@@ -92,13 +93,19 @@ class AuthEventTest extends TestCase
 
     public function test_auth_events_are_logged_by_the_default_listener(): void
     {
+        $writes = 0;
+
+        Log::listen(function () use (&$writes): void {
+            $writes++;
+        });
+
         $this->postJson('/api/v1/login', [
             'email' => User::factory()->create(['password' => 'secret-password'])->email,
             'password' => 'secret-password',
         ])->assertOk();
 
         // QUEUE_CONNECTION=sync in the test environment, so the queued listener
-        // runs inline; LogAuthActivity must therefore not throw.
-        $this->assertTrue(true);
+        // runs inline and must write the audit entry exactly once.
+        $this->assertSame(1, $writes);
     }
 }
