@@ -7,6 +7,8 @@ return [
     'logout_successful' => 'Logout successful.',
     'user_retrieved' => 'User retrieved successfully.',
     'health_check_successful' => 'Health check successful.',
+    'plugin_submitted_successfully' => 'Plugin submitted successfully.',
+    'plugin_name_already_exists' => 'You already submitted a plugin with this name.',
     'invalid_data' => 'The given data was invalid.',
     'invalid_credentials' => 'Email or password is incorrect.',
     'unauthenticated' => 'Unauthenticated.',
