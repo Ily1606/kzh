@@ -28,8 +28,11 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:submit-plugin');
     });
 
-    Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
-        ->whereUuid('id')
-        ->middleware('throttle:60,1');
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::get('/plugins', [PluginController::class, 'index']);
+        Route::get('/plugins/trending', [PluginController::class, 'trending']);
 
+        Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
+            ->whereUuid('id');
+    });
 });
