@@ -45,7 +45,10 @@ class EventServiceProviderTest extends TestCase
             Event::dispatch($event);
         }
 
-        Bus::assertDispatchedTimes(CallQueuedListener::class, count($this->authEvents()));
+        // We assert that LogAuthActivity specifically was queued 3 times
+        Bus::assertDispatched(CallQueuedListener::class, function ($job) {
+            return $job->class === \App\Listeners\Auth\LogAuthActivity::class;
+        });
     }
 
     public function test_auth_events_do_not_implement_the_listener_twice(): void

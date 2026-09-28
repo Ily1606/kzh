@@ -18,4 +18,19 @@ interface UserRepositoryInterface
      * is unknown, the account is locked, or the password does not match.
      */
     public function findValidCredentials(string $email, string $password): ?User;
+
+    /**
+     * Update user's basic profile information.
+     */
+    public function updateProfile(User $user, ?string $name, array $profileData): User;
+
+    /**
+     * Update user's avatar.
+     */
+    public function updateAvatar(User $user, ?string $avatarPath): User;
+
+    /**
+     * Update user's password.
+     */
+    public function updatePassword(User $user, string $newPassword): User;
 }
