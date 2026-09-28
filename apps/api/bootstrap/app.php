@@ -69,7 +69,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 default => __('api.request_failed'),
             };
 
-            return ApiResponse::errorResponse($message, $status);
+            return ApiResponse::errorResponse($message, $status)
+                ->withHeaders($exception->getHeaders());
         });
 
         $exceptions->render(function (Throwable $exception, Request $request) {
