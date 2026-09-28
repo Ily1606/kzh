@@ -16,14 +16,16 @@ use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 /**
- * Guards the wildcard subscription declared in App\Providers\EventServiceProvider.
+ * Guards how Laravel's event discovery wires auth events to their listeners.
  *
  * Auth events are consumed through App\Contracts\RecordsAuthActivity rather than
- * a per-event $listen mapping, so these tests pin the guarantees that make that
- * safe: every auth event is handled, exactly once, and unrelated App\Events
- * payloads never reach the auth listeners.
+ * a per-event mapping, so these tests pin the guarantees that make that safe:
+ * every auth event is handled, exactly once, and unrelated App\Events payloads
+ * never reach the auth listeners. No EventServiceProvider is involved — Laravel
+ * scans app/Listeners and binds LogAuthActivity through the interface type-hint
+ * of its handle() method.
  */
-class EventServiceProviderTest extends TestCase
+class AuthEventDiscoveryTest extends TestCase
 {
     /**
      * @return array<int, RecordsAuthActivity>
@@ -61,8 +63,9 @@ class EventServiceProviderTest extends TestCase
 
         UserLoggedIn::dispatch(new User, 'token-id');
 
-        // A duplicate registration (for example $listen alongside the listener's
-        // own contract type-hint) would write the audit entry twice.
+        // A listener bound to an auth event twice — for instance if it were also
+        // listed in a $listen mapping alongside its own contract type-hint —
+        // would write the audit entry twice.
         $this->assertSame(1, $calls);
     }
 

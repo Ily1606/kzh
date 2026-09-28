@@ -19,7 +19,11 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        $auth = $this->authService->register($request->validated());
+        $auth = $this->authService->register(
+            $request->validated(),
+            $request->ip(),
+            $request->userAgent(),
+        );
 
         return ApiResponse::successResponse([
             'user' => new UserResource($auth['user']->loadMissing('profile')),
@@ -32,6 +36,8 @@ class AuthController extends Controller
         $auth = $this->authService->login(
             $request->validated('email'),
             $request->validated('password'),
+            $request->ip(),
+            $request->userAgent(),
         );
 
         return ApiResponse::successResponse([
@@ -42,7 +48,11 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $this->authService->logout($request->user());
+        $this->authService->logout(
+            $request->user(),
+            $request->ip(),
+            $request->userAgent(),
+        );
 
         return ApiResponse::successResponse(null, __('api.logout_successful'));
     }

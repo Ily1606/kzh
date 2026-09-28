@@ -16,21 +16,25 @@ final class AuthService
     ) {}
 
     /**
+     * @param  string|null  $ipAddress  Client IP of the originating request, captured by the caller.
+     * @param  string|null  $userAgent  User agent of the originating request, captured by the caller.
      * @return array{user: User, token: string}
      */
-    public function register(array $attributes): array
+    public function register(array $attributes, ?string $ipAddress = null, ?string $userAgent = null): array
     {
         $result = $this->issueToken($this->authRepository->createUser($attributes));
 
-        UserRegistered::dispatch($result['user']);
+        UserRegistered::dispatch($result['user'], $ipAddress, $userAgent);
 
         return $this->toAuthPayload($result);
     }
 
     /**
+     * @param  string|null  $ipAddress  Client IP of the originating request, captured by the caller.
+     * @param  string|null  $userAgent  User agent of the originating request, captured by the caller.
      * @return array{user: User, token: string}
      */
-    public function login(string $email, string $password): array
+    public function login(string $email, string $password, ?string $ipAddress = null, ?string $userAgent = null): array
     {
         $user = $this->authRepository->findValidUser($email, $password);
 
@@ -40,16 +44,16 @@ final class AuthService
 
         $result = $this->issueToken($user);
 
-        UserLoggedIn::dispatch($result['user'], (string) $result['token_id']);
+        UserLoggedIn::dispatch($result['user'], (string) $result['token_id'], $ipAddress, $userAgent);
 
         return $this->toAuthPayload($result);
     }
 
-    public function logout(User $user): void
+    public function logout(User $user, ?string $ipAddress = null, ?string $userAgent = null): void
     {
         $revokedTokens = $this->authRepository->revokeTokens($user);
 
-        UserLoggedOut::dispatch($user, $revokedTokens);
+        UserLoggedOut::dispatch($user, $revokedTokens, $ipAddress, $userAgent);
     }
 
     /**
