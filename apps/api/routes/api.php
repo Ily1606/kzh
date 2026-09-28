@@ -27,4 +27,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/plugins', [PluginController::class, 'store'])
             ->middleware('throttle:submit-plugin');
     });
+
+    Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
+        ->whereUuid('id')
+        ->middleware('throttle:60,1');
+
 });

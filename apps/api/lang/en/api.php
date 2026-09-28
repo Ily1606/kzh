@@ -21,4 +21,6 @@ return [
     'avatar_updated' => 'Avatar updated successfully.',
     'password_updated' => 'Password updated successfully.',
     'password_reset_link_sent_if_exists' => 'If your email exists in our system, we have sent a password reset link.',
+    'plugin_view_counted' => 'View counted successfully.',
+    'plugin_view_already_counted' => 'You have already viewed this plugin in the last 24 hours.',
 ];

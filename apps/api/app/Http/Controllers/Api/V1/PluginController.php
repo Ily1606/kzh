@@ -8,6 +8,7 @@ use App\Http\Resources\PluginResource;
 use App\Services\PluginService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PluginController extends Controller
 {
@@ -27,5 +28,12 @@ class PluginController extends Controller
             __('api.plugin_submitted_successfully'),
             201,
         );
+    }
+
+    public function trackView(Request $request, string $id): JsonResponse
+    {
+        $result = $this->pluginService->incrementViewIfNotViewed($id, $request);
+
+        return ApiResponse::successResponse($result, $result['message']);
     }
 }
