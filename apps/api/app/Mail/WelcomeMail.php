@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
+use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
@@ -14,14 +14,11 @@ class WelcomeMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $user;
-
     /**
      * Create a new message instance.
      */
-    public function __construct($user)
+    public function __construct(public User $user)
     {
-        $this->user = $user;
     }
 
     /**
@@ -30,7 +27,7 @@ class WelcomeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Welcome Mail',
+            subject: __('api.welcome_mail_subject'),
         );
     }
 

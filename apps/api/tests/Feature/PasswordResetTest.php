@@ -3,17 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
-use Illuminate\Auth\Notifications\ResetPassword;
-use Carbon\Carbon;
 
 class PasswordResetTest extends TestCase
 {
@@ -25,7 +25,7 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'user@example.com'
+            'email' => 'user@example.com',
         ]);
 
         $response->assertStatus(200);
@@ -35,7 +35,7 @@ class PasswordResetTest extends TestCase
     public function test_fails_if_email_does_not_exist()
     {
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'nonexistent@example.com'
+            'email' => 'nonexistent@example.com',
         ]);
 
         $response->assertStatus(200);
@@ -46,17 +46,17 @@ class PasswordResetTest extends TestCase
         $response = $this->postJson('/api/v1/forgot-password', []);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['email']);
     }
 
     public function test_fails_if_email_is_empty()
     {
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => ''
+            'email' => '',
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['email']);
     }
 
     public function test_fails_if_email_format_is_invalid()
@@ -65,11 +65,11 @@ class PasswordResetTest extends TestCase
 
         foreach ($invalidEmails as $email) {
             $response = $this->postJson('/api/v1/forgot-password', [
-                'email' => $email
+                'email' => $email,
             ]);
 
             $response->assertStatus(422)
-                     ->assertJsonValidationErrors(['email']);
+                ->assertJsonValidationErrors(['email']);
         }
     }
 
@@ -79,7 +79,7 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => '  user@example.com  '
+            'email' => '  user@example.com  ',
         ]);
 
         $response->assertStatus(200);
@@ -96,7 +96,7 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'USER@EXAMPLE.COM'
+            'email' => 'USER@EXAMPLE.COM',
         ]);
 
         $response->assertStatus(200);
@@ -106,26 +106,34 @@ class PasswordResetTest extends TestCase
     public function test_throttles_reset_link_requests()
     {
         Notification::fake();
-        User::factory()->create(['email' => 'user@example.com']);
+        $user = User::factory()->create(['email' => 'user@example.com']);
 
+        // First request succeeds and sends notification
         $this->postJson('/api/v1/forgot-password', ['email' => 'user@example.com'])
-             ->assertStatus(200);
+            ->assertStatus(200);
 
+        Notification::assertSentTo($user, ResetPassword::class);
+
+        // Reset fake to verify the second notification is throttled
+        Notification::fake();
+
+        // Second request is throttled but returns 200 silently
         $this->postJson('/api/v1/forgot-password', ['email' => 'user@example.com'])
-             ->assertStatus(422)
-             ->assertJsonValidationErrors(['email']);
+            ->assertStatus(200);
+
+        Notification::assertNothingSent();
     }
 
     public function test_fails_if_email_is_too_long()
     {
-        $longEmail = Str::random(250) . '@example.com';
-        
+        $longEmail = Str::random(250).'@example.com';
+
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => $longEmail
+            'email' => $longEmail,
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['email']);
     }
 
     public function test_resets_password_successfully()
@@ -170,7 +178,7 @@ class PasswordResetTest extends TestCase
         $token = Password::createToken($user);
 
         DB::table('password_reset_tokens')->where('email', $user->email)->update([
-            'created_at' => Carbon::now()->subMinutes(config('auth.passwords.users.expire') + 1)
+            'created_at' => Carbon::now()->subMinutes(config('auth.passwords.users.expire') + 1),
         ]);
 
         $response = $this->postJson('/api/v1/reset-password', [
@@ -358,7 +366,7 @@ class PasswordResetTest extends TestCase
             'password' => $unicodePassword,
             'password_confirmation' => $unicodePassword,
         ]);
-        
+
         $response->assertStatus(200);
         $this->assertTrue(Hash::check($unicodePassword, $user->fresh()->password));
     }
@@ -376,7 +384,7 @@ class PasswordResetTest extends TestCase
             'password' => $longPassword,
             'password_confirmation' => $longPassword,
         ]);
-        
+
         $response->assertStatus(200);
         $this->assertTrue(Hash::check($longPassword, $user->fresh()->password));
     }
@@ -385,7 +393,7 @@ class PasswordResetTest extends TestCase
     {
         $user = User::factory()->create([
             'email' => 'user@example.com',
-            'password' => Hash::make('same_password123')
+            'password' => Hash::make('same_password123'),
         ]);
         $token = Password::createToken($user);
 
@@ -395,7 +403,7 @@ class PasswordResetTest extends TestCase
             'password' => 'same_password123',
             'password_confirmation' => 'same_password123',
         ]);
-        
+
         $response->assertStatus(200);
     }
 
@@ -421,8 +429,7 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-            
-            
+
         ]);
         $token = Password::createToken($user);
 
@@ -437,7 +444,7 @@ class PasswordResetTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'old_password',
         ])->assertStatus(422);
-        
+
         $this->withHeader('Origin', 'http://localhost:5173')->postJson('/api/v1/login', [
             'email' => 'test@example.com',
             'password' => 'new_password123',
@@ -487,7 +494,7 @@ class PasswordResetTest extends TestCase
         User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'user@example.com'
+            'email' => 'user@example.com',
         ]);
 
         $response->assertStatus(200);
@@ -499,11 +506,11 @@ class PasswordResetTest extends TestCase
     {
         Notification::fake();
         config()->set('app.frontend_url', 'https://my-vue-app.com');
-        
+
         $user = User::factory()->create(['email' => 'test+1@example.com']);
 
         $this->postJson('/api/v1/forgot-password', [
-            'email' => 'test+1@example.com'
+            'email' => 'test+1@example.com',
         ]);
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification, $channels) use ($user) {
@@ -511,7 +518,7 @@ class PasswordResetTest extends TestCase
             $actionUrl = $mail->actionUrl;
 
             $expectedUrlPrefix = 'https://my-vue-app.com/reset-password?token=';
-            $expectedEmailParam = '&email=' . urlencode($user->email);
+            $expectedEmailParam = '&email='.urlencode($user->email);
 
             return str_starts_with($actionUrl, $expectedUrlPrefix) && str_ends_with($actionUrl, $expectedEmailParam);
         });
@@ -521,7 +528,7 @@ class PasswordResetTest extends TestCase
     {
         $userA = User::factory()->create(['email' => 'usera@example.com']);
         $userB = User::factory()->create(['email' => 'userb@example.com']);
-        
+
         $tokenA = Password::createToken($userA);
 
         $response = $this->postJson('/api/v1/reset-password', [
@@ -532,7 +539,7 @@ class PasswordResetTest extends TestCase
         ]);
 
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
-        
+
         $this->assertFalse(Hash::check('hacked_password123', $userA->fresh()->password));
         $this->assertFalse(Hash::check('hacked_password123', $userB->fresh()->password));
     }

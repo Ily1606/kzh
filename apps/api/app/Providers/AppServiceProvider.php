@@ -39,6 +39,9 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) config('plugins.submit_per_minute', 5))
                 ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
         });
+        RateLimiter::for('register', fn(Request $r) => Limit::perMinute(5)->by(strtolower((string) $r->input('email')) . '|' . $r->ip()));
+        RateLimiter::for('login', fn(Request $r) => Limit::perMinute(5)->by(strtolower((string) $r->input('email')) . '|' . $r->ip()));
+        RateLimiter::for('password-reset', fn(Request $r) => Limit::perMinute(3)->by(strtolower((string) $r->input('email')) . '|' . $r->ip()));
 
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $openApi): void {

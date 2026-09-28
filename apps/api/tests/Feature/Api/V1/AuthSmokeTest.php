@@ -13,13 +13,13 @@ class AuthSmokeTest extends TestCase
     public function test_user_can_register_and_receive_a_token(): void
     {
         $response = $this
-        ->withHeader('Origin', 'http://localhost:5173')
-        ->postJson('/api/v1/register', [
-            'name' => 'Nguyen Van A',
-            'email' => 'nguyen@example.com',
-            'password' => 'secret-password',
-            'password_confirmation' => 'secret-password',
-        ]);
+            ->withHeader('Origin', 'http://localhost:5173')
+            ->postJson('/api/v1/register', [
+                'name' => 'Nguyen Van A',
+                'email' => 'nguyen@example.com',
+                'password' => 'secret-password',
+                'password_confirmation' => 'secret-password',
+            ]);
 
         $response->assertCreated()
             ->assertJsonPath('data.user.name', 'Nguyen Van A')

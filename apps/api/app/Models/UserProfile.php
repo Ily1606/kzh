@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use App\Observers\UserProfileObserver;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
-use App\Observers\UserProfileObserver;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'user_id',
@@ -38,7 +39,7 @@ class UserProfile extends Model
                     return $this->avatar_link;
                 }
 
-                /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+                /** @var FilesystemAdapter $disk */
                 $disk = Storage::disk('public');
 
                 return $disk->url($this->avatar_link);

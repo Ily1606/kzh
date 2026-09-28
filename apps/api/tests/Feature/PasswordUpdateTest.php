@@ -6,8 +6,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Tests\TestCase;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class PasswordUpdateTest extends TestCase
 {
@@ -50,7 +50,7 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['current_password']);
+            ->assertJsonValidationErrors(['current_password']);
     }
 
     public function test_validation_fails_if_current_password_is_missing()
@@ -64,7 +64,7 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['current_password']);
+            ->assertJsonValidationErrors(['current_password']);
     }
 
     public function test_validation_fails_if_new_password_is_missing()
@@ -77,7 +77,7 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
     public function test_validation_fails_if_new_password_is_too_short()
@@ -92,7 +92,7 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
     public function test_user_can_update_password_with_exactly_8_characters()
@@ -121,7 +121,7 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
     public function test_validation_fails_if_password_confirmation_does_not_match()
@@ -136,7 +136,7 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
     public function test_user_can_login_with_new_password_and_fails_with_old_password()
@@ -144,8 +144,7 @@ class PasswordUpdateTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-            
-            
+
         ]);
 
         Sanctum::actingAs($user);

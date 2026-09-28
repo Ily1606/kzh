@@ -65,7 +65,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
                 $user->update(['name' => $name]);
             }
 
-            if (!empty($profileData)) {
+            if (! empty($profileData)) {
                 $user->profile()->updateOrCreate([], $profileData);
             }
 
@@ -76,7 +76,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     public function updateAvatar(User $user, ?string $avatarPath): User
     {
         $user->profile()->updateOrCreate([], [
-            'avatar_link' => $avatarPath
+            'avatar_link' => $avatarPath,
         ]);
 
         return $user->refresh();
@@ -86,6 +86,9 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     {
         $user->password = $newPassword;
         $user->save();
+
+        $currentId = $user->currentAccessToken()?->id;
+        $user->tokens()->when($currentId, fn ($q) => $q->whereKeyNot($currentId))->delete();
 
         return $user;
     }

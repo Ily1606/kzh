@@ -4,12 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
-use Tests\TestCase;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
 {
@@ -29,7 +29,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.name', 'Nguyen Van Giap');
     }
 
-        public function test_authenticated_user_can_remove_avatar_via_upload_api()
+    public function test_authenticated_user_can_remove_avatar_via_upload_api()
     {
         $user = User::factory()->create();
         $user->profile()->create(['id' => (string) Str::uuid(), 'avatar_link' => 'avatars/old.png']);
@@ -73,7 +73,7 @@ class ProfileUpdateTest extends TestCase
             'githubLink' => 'https://github.com/giapnguyen',
         ]);
         $response->assertStatus(200)
-                 ->assertJsonPath('data.name', 'Nguyen Van Giap');
+            ->assertJsonPath('data.name', 'Nguyen Van Giap');
     }
 
     public function test_sending_empty_payload_does_not_change_anything()
@@ -100,7 +100,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['name']);
     }
 
-        public function test_validation_fails_if_github_link_is_invalid_url()
+    public function test_validation_fails_if_github_link_is_invalid_url()
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -125,12 +125,12 @@ class ProfileUpdateTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $user->id, 'is_admin' => false]);
     }
 
-        public function test_authenticated_user_can_upload_avatar_image()
+    public function test_authenticated_user_can_upload_avatar_image()
     {
         $disk = Storage::fake('public');
         $user = User::factory()->create();
 
-        $file = \Illuminate\Http\UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
+        $file = UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
 
         Sanctum::actingAs($user);
         $response = $this->postJson('/api/v1/user/avatar', [
@@ -139,7 +139,6 @@ class ProfileUpdateTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertStringContainsString('avatars/', $response->json('data.avatarLink'));
-        
 
         // Verify the file was stored
         $path = $user->fresh()->profile->avatar_link;

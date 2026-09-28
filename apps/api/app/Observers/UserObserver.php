@@ -8,12 +8,13 @@ use Illuminate\Support\Facades\Storage;
 class UserObserver
 {
     /**
-     * Handle the User "forceDeleted" event.
+     * Handle the User "forceDeleting" event.
      */
-    public function forceDeleted(User $user): void
+    public function forceDeleting(User $user): void
     {
-        // When user is deleted, also remove their avatar from storage
+        // When user is being deleted, also remove their avatar from storage
         $avatarLink = $user->profile?->avatar_link;
+
         if ($avatarLink && !str_starts_with($avatarLink, 'http')) {
             Storage::disk('public')->delete($avatarLink);
         }
