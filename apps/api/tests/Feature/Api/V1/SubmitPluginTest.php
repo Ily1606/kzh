@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class SubmitPluginTest extends TestCase
@@ -158,6 +159,143 @@ class SubmitPluginTest extends TestCase
             'source_link' => 'http://example.com/plugin',
         ]))->assertUnprocessable()
             ->assertJsonValidationErrors(['license', 'source_link']);
+    }
+
+    /**
+     * `max` rules must reject one character past the limit. Each boundary is
+     * asserted from both sides so an off-by-one in the rule is caught.
+     *
+     * @return array<string, array{0: string, 1: string, 2: int}>
+     */
+    public static function maxLengthFieldProvider(): array
+    {
+        return [
+            'name' => ['name', 'name', 255],
+            'title' => ['title', 'title', 255],
+            'source_link' => ['source_link', 'source link', 2048],
+        ];
+    }
+
+    #[DataProvider('maxLengthFieldProvider')]
+    public function test_submission_rejects_fields_longer_than_their_max_length(string $field, string $label, int $max): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        // Keep `source_link` a valid URL so `url:https` cannot fail first and
+        // hide the `max` failure behind an earlier error message.
+        $value = $field === 'source_link'
+            ? 'https://example.com/'.str_repeat('a', $max + 1 - strlen('https://example.com/'))
+            : str_repeat('a', $max + 1);
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            $field => $value,
+        ]))->assertUnprocessable()
+            ->assertJsonPath('message', 'The given data was invalid.')
+            ->assertJsonValidationErrors([$field])
+            ->assertJsonPath('errors.'.$field.'.0', 'The '.$label.' field must not be greater than '.$max.' characters.');
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    #[DataProvider('maxLengthFieldProvider')]
+    public function test_submission_accepts_fields_exactly_at_their_max_length(string $field, string $label, int $max): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        // The generated value is a valid URL so `source_link` passes `url:https`
+        // and only the `max` rule is under test.
+        $value = $field === 'source_link'
+            ? 'https://example.com/'.str_repeat('a', $max - strlen('https://example.com/'))
+            : str_repeat('a', $max);
+
+        $this->postJson('/api/v1/plugins', $this->payload([$field => $value]))
+            ->assertCreated()
+            ->assertJsonPath('data.plugin.'.$field, $value);
+
+        $this->assertSame($max, strlen($value), ucfirst($label).' should sit exactly on the limit.');
+
+        $this->assertDatabaseCount('plugins', 1);
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: mixed}>
+     */
+    public static function wrongTypeFieldProvider(): array
+    {
+        return [
+            'name as array' => ['name', ['Laravel Debugbar']],
+            'name as nested array' => ['name', ['nested' => ['value']]],
+            'name as integer' => ['name', 12345],
+            'title as float' => ['title', 1.5],
+            'title as boolean' => ['title', true],
+            'license as array' => ['license', ['MIT']],
+            'source_link as array' => ['source_link', ['https://example.com/plugin']],
+        ];
+    }
+
+    #[DataProvider('wrongTypeFieldProvider')]
+    public function test_submission_rejects_fields_with_the_wrong_data_type(string $field, mixed $value): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([$field => $value]))
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'The given data was invalid.')
+            ->assertJsonValidationErrors([$field]);
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    /**
+     * A string of nothing but whitespace must be rejected. Note that Laravel's
+     * `TrimStrings` middleware and the `required` rule already cover this, so
+     * this asserts the API contract rather than the hand-written trim. The trim
+     * itself is covered by `SubmitPluginRequestTest`.
+     *
+     * @return array<string, array{0: string, 1: string, 2: string}>
+     */
+    public static function whitespaceOnlyFieldProvider(): array
+    {
+        return [
+            'name of spaces' => ['name', 'name', '     '],
+            'name of tabs and newlines' => ['name', 'name', "\t\n\r  "],
+            'title of spaces' => ['title', 'title', '   '],
+            'license of spaces' => ['license', 'license', '  '],
+            'source_link of spaces' => ['source_link', 'source link', '     '],
+        ];
+    }
+
+    #[DataProvider('whitespaceOnlyFieldProvider')]
+    public function test_submission_rejects_fields_containing_only_whitespace(string $field, string $label, string $value): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([$field => $value]))
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'The given data was invalid.')
+            ->assertJsonValidationErrors([$field])
+            ->assertJsonPath('errors.'.$field.'.0', 'The '.$label.' field is required.');
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    /**
+     * A padded value that is within the limit once trimmed must be accepted,
+     * which requires trimming to happen before the `max` rule runs.
+     */
+    public function test_submission_accepts_a_padded_name_that_fits_the_limit_once_trimmed(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $name = '  '.str_repeat('a', 255).'  ';
+
+        $this->assertSame(259, strlen($name));
+
+        $this->postJson('/api/v1/plugins', $this->payload(['name' => $name]))
+            ->assertCreated()
+            ->assertJsonPath('data.plugin.name', str_repeat('a', 255));
+
+        $this->assertDatabaseHas('plugins', ['name' => str_repeat('a', 255)]);
     }
 
     public function test_license_validation_uses_the_configured_list(): void
