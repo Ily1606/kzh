@@ -7,13 +7,14 @@ use App\Enums\AuthEventType;
 use App\Models\User;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
 
 /**
  * Dispatched right after the user's access tokens have been revoked.
  */
 final class UserLoggedOut implements RecordsAuthActivity, ShouldDispatchAfterCommit
 {
-    use Dispatchable;
+    use Dispatchable, SerializesModels;
 
     public function __construct(
         public readonly User $user,
