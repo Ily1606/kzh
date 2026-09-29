@@ -27,4 +27,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/plugins', [PluginController::class, 'store'])
             ->middleware('throttle:submit-plugin');
     });
+
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::get('/plugins', [PluginController::class, 'index']);
+        Route::get('/plugins/trending', [PluginController::class, 'trending']);
+
+        Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
+            ->whereUuid('id');
+    });
 });
