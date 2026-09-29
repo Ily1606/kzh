@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Plugin;
+use App\Contracts\PluginRepositoryInterface;
 use Exception;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -13,13 +13,19 @@ use Illuminate\Support\Facades\Redis;
 #[Description('Sync buffered plugin views from Redis to the database')]
 class SyncPluginViews extends Command
 {
+    public function __construct(
+        private readonly PluginRepositoryInterface $pluginRepository
+    ) {
+        parent::__construct();
+    }
+
     /**
      * Execute the console command.
      */
     public function handle(): void
     {
-        $bufferKey = 'plugins:views_buffer';
-        $processingKey = 'plugins:views_processing';
+        $bufferKey = config('plugins.views_buffer_key');
+        $processingKey = config('plugins.views_buffer_key') . '_processing';
 
         // Atomically rename the buffer so new incoming views go to a fresh key.
         // If the buffer doesn't exist, rename() throws — we treat that as "nothing to do".
@@ -45,7 +51,7 @@ class SyncPluginViews extends Command
 
         foreach ($views as $pluginId => $count) {
             try {
-                Plugin::where('id', $pluginId)->increment('view_count', (int) $count);
+                $this->pluginRepository->incrementViewCount($pluginId, (int) $count);
             } catch (Exception $e) {
                 // Track failed plugin IDs so we can push them back to Redis
                 $failed[$pluginId] = (int) $count;

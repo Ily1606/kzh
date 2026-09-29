@@ -15,6 +15,7 @@ return [
     |
     */
     'view_cache_ttl' => env('PLUGIN_VIEW_CACHE_TTL', 86400),
+    'views_buffer_key' => 'plugins:views_buffer',
 
     /*
     |--------------------------------------------------------------------------
@@ -49,21 +50,21 @@ return [
     */
     'trending' => [
         // Cache duration for the trending list in seconds
-        'cache_ttl' => env('PLUGIN_TRENDING_CACHE_TTL', 300),
+        'cache_ttl' => (int) env('PLUGIN_TRENDING_CACHE_TTL', 300),
 
         // Only consider plugins approved within the last X days
-        'days_limit' => env('PLUGIN_TRENDING_DAYS_LIMIT', 30),
+        'days_limit' => (int) env('PLUGIN_TRENDING_DAYS_LIMIT', 30),
 
         // Interaction weights for calculating trending scores
         'weights' => [
-            'view' => env('PLUGIN_TRENDING_WEIGHT_VIEW', 1),
-            'comment' => env('PLUGIN_TRENDING_WEIGHT_COMMENT', 5),
-            'star' => env('PLUGIN_TRENDING_WEIGHT_STAR', 10),
+            'view' => (float) env('PLUGIN_TRENDING_WEIGHT_VIEW', 1.0),
+            'comment' => (float) env('PLUGIN_TRENDING_WEIGHT_COMMENT', 5.0),
+            'star' => (float) env('PLUGIN_TRENDING_WEIGHT_STAR', 10.0),
         ],
 
         // Time decay parameters (Hacker News algorithm)
-        'gravity' => env('PLUGIN_TRENDING_GRAVITY', 1.8),
-        'age_offset' => env('PLUGIN_TRENDING_AGE_OFFSET', 2),
+        'gravity' => (float) env('PLUGIN_TRENDING_GRAVITY', 1.8),
+        'age_offset' => (float) env('PLUGIN_TRENDING_AGE_OFFSET', 2.0),
     ],
     'licenses' => array_column(PluginLicense::cases(), 'value'),
 ];

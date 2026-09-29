@@ -61,4 +61,13 @@ class Plugin extends Model
     {
         return $this->hasMany(Comment::class);
     }
+
+    /**
+     * Scope a query to only include fully approved plugins.
+     */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', PluginStatus::Approved)
+            ->whereNotNull('approved_at');
+    }
 }

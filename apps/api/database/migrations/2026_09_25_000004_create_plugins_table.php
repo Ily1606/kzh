@@ -25,7 +25,7 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->unique(['user_id', 'name']);
-            $table->index('status');
+            $table->index(['status', 'approved_at']);
             $table->index(['user_id', 'created_at']);
         });
     }

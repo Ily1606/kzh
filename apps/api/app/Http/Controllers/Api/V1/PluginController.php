@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
+use App\Http\Requests\Plugin\GetTrendingPluginsRequest;
+use App\Http\Requests\Plugin\ListPluginsRequest;
 use App\Http\Resources\PluginResource;
+use App\Http\Resources\PluginViewResource;
 use App\Services\PluginService;
 use App\Support\ApiResponse;
 use App\Support\RequestContext;
@@ -19,17 +22,25 @@ class PluginController extends Controller
         private readonly PluginService $pluginService,
     ) {}
 
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(ListPluginsRequest $request): JsonResponse
     {
-        $defaultPerPage = config('plugins.pagination.default_per_page');
-        $maxPerPage = config('plugins.pagination.max_per_page');
-
-        $perPage = (int) $request->query('per_page', $defaultPerPage);
-        $perPage = max(1, min($perPage, $maxPerPage));
+        $perPage = (int) $request->validated('per_page', config('plugins.pagination.default_per_page'));
 
         $paginator = $this->pluginService->getPaginatedApprovedPlugins($perPage);
 
-        return PluginResource::collection($paginator);
+        return ApiResponse::successResponse(
+            PluginResource::collection($paginator)->resolve(),
+            'Plugins retrieved successfully.',
+            200,
+            [
+                'pagination' => [
+                    'total' => $paginator->total(),
+                    'per_page' => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                ]
+            ]
+        );
     }
 
     /**
@@ -67,23 +78,28 @@ class PluginController extends Controller
 
     public function trackView(Request $request, string $id): JsonResponse
     {
-        $result = $this->pluginService->incrementViewIfNotViewed($id, $request);
+        $viewerId = (string) ($request->user('sanctum')?->getAuthIdentifier() ?? $request->fingerprint());
+        $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
 
-        return ApiResponse::successResponse($result, $result['message']);
+        $ttl = (int) config('plugins.view_cache_ttl');
+        $message = $result->counted
+            ? __('api.plugin_view_counted')
+            : __('api.plugin_view_already_counted', ['hours' => max(1, (int) round($ttl / 3600))]);
+
+        return ApiResponse::successResponse(
+            (new PluginViewResource($result))->resolve(),
+            $message
+        );
     }
 
-    public function trending(Request $request): JsonResponse
+    public function trending(GetTrendingPluginsRequest $request): JsonResponse
     {
-        $defaultLimit = config('plugins.trending_api.default_limit');
-        $maxLimit = config('plugins.trending_api.max_limit');
-
-        $limit = (int) $request->query('limit', $defaultLimit);
-        $limit = max(1, min($limit, $maxLimit));
+        $limit = (int) $request->validated('limit', config('plugins.trending_api.default_limit'));
 
         $plugins = $this->pluginService->getTrendingPlugins($limit);
 
         return ApiResponse::successResponse([
-            'plugins' => $plugins,
+            'plugins' => PluginResource::collection($plugins)->resolve(),
         ]);
     }
 }

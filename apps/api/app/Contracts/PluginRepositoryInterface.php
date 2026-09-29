@@ -17,9 +17,12 @@ interface PluginRepositoryInterface
 
     public function incrementCommentCount(string $pluginId): void;
 
+    public function incrementViewCount(string $id, int $count): void;
+
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator;
 
     /**
+     * @param array{view: float, comment: float, star: float} $weights
      * @return Collection<int, Plugin>
      */
     public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection;
