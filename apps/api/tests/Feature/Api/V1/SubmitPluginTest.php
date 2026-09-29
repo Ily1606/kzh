@@ -180,15 +180,41 @@ class SubmitPluginTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        for ($index = 0; $index < 5; $index++) {
+        $limit = (int) config('plugins.submit_per_minute');
+
+        for ($index = 0; $index < $limit; $index++) {
             $this->postJson('/api/v1/plugins', $this->payload([
                 'name' => 'Plugin '.$index,
             ]))->assertCreated();
         }
 
         $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => 'Plugin 5',
+            'name' => 'Plugin '.$limit,
         ]))->assertTooManyRequests();
+    }
+
+    public function test_submit_rate_limit_is_configurable_per_environment(): void
+    {
+        config()->set('plugins.submit_per_minute', 1);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'name' => 'First Plugin',
+        ]))->assertCreated();
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'name' => 'Second Plugin',
+        ]))->assertTooManyRequests();
+    }
+
+    public function test_submit_rate_limit_never_blocks_everything_when_config_is_invalid(): void
+    {
+        config()->set('plugins.submit_per_minute', 0);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'name' => 'Still Reachable Plugin',
+        ]))->assertCreated();
     }
 
     public function test_same_user_cannot_submit_the_same_name_twice(): void

@@ -11,7 +11,6 @@ return [
         PluginLicense::Bsd3Clause->value,
         PluginLicense::Proprietary->value,
     ],
-    'submit_per_minute' => 5,
     /*
     |--------------------------------------------------------------------------
     | Plugin View Cache TTL (Time-To-Live)
@@ -74,4 +73,7 @@ return [
         'gravity' => env('PLUGIN_TRENDING_GRAVITY', 1.8),
         'age_offset' => env('PLUGIN_TRENDING_AGE_OFFSET', 2),
     ],
+    // Maximum plugin submissions per minute, counted per authenticated user.
+    // Read from env so each environment can tune it without a code change and redeploy.
+    'submit_per_minute' => (int) env('PLUGIN_SUBMIT_PER_MINUTE', 5),
 ];
