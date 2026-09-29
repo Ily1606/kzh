@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use App\Support\RequestContext;
 
 final class AuthService
 {
@@ -19,25 +20,21 @@ final class AuthService
     ) {}
 
     /**
-     * @param  string|null  $ipAddress  Client IP of the originating request, captured by the caller.
-     * @param  string|null  $userAgent  User agent of the originating request, captured by the caller.
      * @return array{user: User, token: string}
      */
-    public function register(array $attributes, ?string $ipAddress = null, ?string $userAgent = null): array
+    public function register(array $attributes, RequestContext $requestContext): array
     {
         $result = $this->issueToken($this->authRepository->createUser($attributes));
 
-        UserRegistered::dispatch($result['user'], $ipAddress, $userAgent);
+        UserRegistered::dispatch($result['user'], $requestContext);
 
         return $this->toAuthPayload($result);
     }
 
     /**
-     * @param  string|null  $ipAddress  Client IP of the originating request, captured by the caller.
-     * @param  string|null  $userAgent  User agent of the originating request, captured by the caller.
      * @return array{user: User, token: string}
      */
-    public function login(string $email, string $password, ?string $ipAddress = null, ?string $userAgent = null): array
+    public function login(string $email, string $password, RequestContext $requestContext): array
     {
         $normalizedEmail = Str::lower($email);
         $rateLimitKey = 'login_account:' . $normalizedEmail;
@@ -58,16 +55,16 @@ final class AuthService
 
         $result = $this->issueToken($user);
 
-        UserLoggedIn::dispatch($result['user'], (string) $result['token_id'], $ipAddress, $userAgent);
+        UserLoggedIn::dispatch($result['user'], (string) $result['token_id'], $requestContext);
 
         return $this->toAuthPayload($result);
     }
 
-    public function logout(User $user, ?string $ipAddress = null, ?string $userAgent = null): void
+    public function logout(User $user, RequestContext $requestContext): void
     {
         $revokedTokens = $this->authRepository->revokeTokens($user);
 
-        UserLoggedOut::dispatch($user, $revokedTokens, $ipAddress, $userAgent);
+        UserLoggedOut::dispatch($user, $requestContext, $revokedTokens);
     }
 
     /**

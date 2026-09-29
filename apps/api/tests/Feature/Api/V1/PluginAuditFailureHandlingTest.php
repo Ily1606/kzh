@@ -6,6 +6,7 @@ use App\Events\Plugin\PluginSubmitted;
 use App\Listeners\Plugin\LogPluginSubmission;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -50,6 +51,7 @@ class PluginAuditFailureHandlingTest extends TestCase
         PluginSubmitted::dispatch(
             plugin: Plugin::factory()->create(),
             user: User::factory()->create(),
+            requestContext: new RequestContext(null, null),
         );
 
         $job = Bus::dispatched(CallQueuedListener::class)->sole();
@@ -78,6 +80,7 @@ class PluginAuditFailureHandlingTest extends TestCase
         PluginSubmitted::dispatch(
             plugin: Plugin::factory()->create(),
             user: User::factory()->create(),
+            requestContext: new RequestContext(null, null),
         );
 
         $job = Bus::dispatched(CallQueuedListener::class)->sole();
@@ -112,8 +115,7 @@ class PluginAuditFailureHandlingTest extends TestCase
             new PluginSubmitted(
                 plugin: $plugin,
                 user: $user,
-                ipAddress: '198.51.100.7',
-                userAgent: 'Plugin Review Agent',
+                requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
             ),
             new RuntimeException('log sink unreachable'),
         );
@@ -152,7 +154,7 @@ class PluginAuditFailureHandlingTest extends TestCase
             new PluginSubmitted(
                 plugin: new Plugin,
                 user: $user,
-                ipAddress: '198.51.100.7',
+                requestContext: new RequestContext('198.51.100.7', null),
             ),
             new RuntimeException('log sink unreachable'),
         );
@@ -186,6 +188,7 @@ class PluginAuditFailureHandlingTest extends TestCase
             new PluginSubmitted(
                 plugin: Plugin::factory()->create(['user_id' => User::factory()->create()->getKey()]),
                 user: User::factory()->create(),
+                requestContext: new RequestContext(null, null),
             ),
             new RuntimeException('log sink unreachable'),
         );

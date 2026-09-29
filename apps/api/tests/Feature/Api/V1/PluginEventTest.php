@@ -7,6 +7,7 @@ use App\Listeners\Plugin\LogPluginSubmission;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Services\PluginService;
+use App\Support\RequestContext;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -67,13 +68,12 @@ class PluginEventTest extends TestCase
         $event = new PluginSubmitted(
             plugin: $plugin,
             user: $user,
-            ipAddress: '192.0.2.10',
-            userAgent: 'Plugin Review Agent',
+            requestContext: new RequestContext('192.0.2.10', 'Plugin Review Agent'),
         );
 
-        $this->assertSame('192.0.2.10', $event->ipAddress);
+        $this->assertSame('192.0.2.10', $event->requestContext->ipAddress);
         $this->assertSame('192.0.2.10', $event->context()['ip_address']);
-        $this->assertSame('Plugin Review Agent', $event->userAgent);
+        $this->assertSame('Plugin Review Agent', $event->requestContext->userAgent);
         $this->assertSame('Plugin Review Agent', $event->context()['user_agent']);
     }
 
@@ -90,8 +90,8 @@ class PluginEventTest extends TestCase
 
         Event::assertDispatched(
             PluginSubmitted::class,
-            fn (PluginSubmitted $event): bool => $event->ipAddress === '198.51.100.7'
-                && $event->userAgent === 'Plugin Review Agent'
+            fn (PluginSubmitted $event): bool => $event->requestContext->ipAddress === '198.51.100.7'
+                && $event->requestContext->userAgent === 'Plugin Review Agent'
                 && $event->context()['ip_address'] === '198.51.100.7'
                 && $event->context()['user_agent'] === 'Plugin Review Agent',
         );
@@ -107,8 +107,7 @@ class PluginEventTest extends TestCase
         $event = new PluginSubmitted(
             plugin: Plugin::factory()->create(),
             user: User::factory()->create(),
-            ipAddress: '198.51.100.7',
-            userAgent: 'Plugin Review Agent',
+            requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
         );
 
         // Round-trip through the queue payload, then build context while a console
@@ -117,8 +116,8 @@ class PluginEventTest extends TestCase
 
         $this->app->instance('request', Request::create('/'));
 
-        $this->assertSame('198.51.100.7', $workerSideEvent->ipAddress);
-        $this->assertSame('Plugin Review Agent', $workerSideEvent->userAgent);
+        $this->assertSame('198.51.100.7', $workerSideEvent->requestContext->ipAddress);
+        $this->assertSame('Plugin Review Agent', $workerSideEvent->requestContext->userAgent);
         $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
         $this->assertSame('Plugin Review Agent', $workerSideEvent->context()['user_agent']);
     }
@@ -128,8 +127,7 @@ class PluginEventTest extends TestCase
         $event = new PluginSubmitted(
             plugin: Plugin::factory()->create(),
             user: User::factory()->create(),
-            ipAddress: '198.51.100.7',
-            userAgent: 'Plugin Review Agent',
+            requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
         );
 
         $this->app->instance('request', Request::create('/'));
@@ -152,17 +150,21 @@ class PluginEventTest extends TestCase
         $this->app->make(PluginService::class)->submit(
             User::factory()->create(),
             $this->payload(),
-            '198.51.100.7',
-            'Console Runner',
+            new RequestContext('198.51.100.7', 'Console Runner'),
         );
 
         Event::assertDispatched(
             PluginSubmitted::class,
-            fn (PluginSubmitted $event): bool => $event->ipAddress === '198.51.100.7'
-                && $event->userAgent === 'Console Runner',
+            fn (PluginSubmitted $event): bool => $event->requestContext->ipAddress === '198.51.100.7'
+                && $event->requestContext->userAgent === 'Console Runner',
         );
     }
 
+    /**
+     * A non-HTTP caller must opt in to missing metadata explicitly. The context
+     * itself is still required so a forgotten argument fails fast instead of
+     * silently dropping the audit metadata.
+     */
     public function test_plugin_service_needs_no_http_request_to_dispatch_events(): void
     {
         Event::fake([PluginSubmitted::class]);
@@ -173,12 +175,13 @@ class PluginEventTest extends TestCase
         $this->app->make(PluginService::class)->submit(
             User::factory()->create(),
             $this->payload(),
+            new RequestContext(null, null),
         );
 
         Event::assertDispatched(
             PluginSubmitted::class,
-            fn (PluginSubmitted $event): bool => $event->ipAddress === null
-                && $event->userAgent === null,
+            fn (PluginSubmitted $event): bool => $event->requestContext->ipAddress === null
+                && $event->requestContext->userAgent === null,
         );
     }
 

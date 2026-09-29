@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\SubmitPluginRequest;
 use App\Http\Resources\PluginResource;
 use App\Services\PluginService;
 use App\Support\ApiResponse;
+use App\Support\RequestContext;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,8 +55,7 @@ class PluginController extends Controller
         $plugin = $this->pluginService->submit(
             $request->user(),
             $request->validated(),
-            $request->ip(),
-            $request->userAgent(),
+            RequestContext::fromRequest($request),
         );
 
         return ApiResponse::successResponse(

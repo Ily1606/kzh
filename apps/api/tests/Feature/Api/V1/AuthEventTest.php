@@ -7,6 +7,7 @@ use App\Events\Auth\UserLoggedOut;
 use App\Events\Auth\UserRegistered;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -126,8 +127,8 @@ class AuthEventTest extends TestCase
             ->assertOk();
 
         Event::assertDispatched(UserLoggedIn::class, function (UserLoggedIn $event): bool {
-            return $event->ipAddress === '198.51.100.7'
-                && $event->userAgent === 'Audit Agent'
+            return $event->requestContext->ipAddress === '198.51.100.7'
+                && $event->requestContext->userAgent === 'Audit Agent'
                 && $event->context()['ip_address'] === '198.51.100.7'
                 && $event->context()['user_agent'] === 'Audit Agent';
         });
@@ -142,8 +143,7 @@ class AuthEventTest extends TestCase
     {
         $event = new UserRegistered(
             user: User::factory()->create(),
-            ipAddress: '198.51.100.7',
-            userAgent: 'Audit Agent',
+            requestContext: new RequestContext('198.51.100.7', 'Audit Agent'),
         );
 
         // Round-trip through the queue payload, then build context while a console
@@ -152,8 +152,8 @@ class AuthEventTest extends TestCase
 
         $this->app->instance('request', Request::create('/'));
 
-        $this->assertSame('198.51.100.7', $workerSideEvent->ipAddress);
-        $this->assertSame('Audit Agent', $workerSideEvent->userAgent);
+        $this->assertSame('198.51.100.7', $workerSideEvent->requestContext->ipAddress);
+        $this->assertSame('Audit Agent', $workerSideEvent->requestContext->userAgent);
         $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
         $this->assertSame('Audit Agent', $workerSideEvent->context()['user_agent']);
     }
@@ -162,8 +162,7 @@ class AuthEventTest extends TestCase
     {
         $event = new UserLoggedOut(
             user: User::factory()->create(),
-            ipAddress: '198.51.100.7',
-            userAgent: 'Audit Agent',
+            requestContext: new RequestContext('198.51.100.7', 'Audit Agent'),
             revokedTokensCount: 1,
         );
 
@@ -179,13 +178,12 @@ class AuthEventTest extends TestCase
     {
         $event = new UserRegistered(
             user: User::factory()->make(),
-            ipAddress: '192.0.2.10',
-            userAgent: 'Console Runner',
+            requestContext: new RequestContext('192.0.2.10', 'Console Runner'),
         );
 
-        $this->assertSame('192.0.2.10', $event->ipAddress);
+        $this->assertSame('192.0.2.10', $event->requestContext->ipAddress);
         $this->assertSame('192.0.2.10', $event->context()['ip_address']);
-        $this->assertSame('Console Runner', $event->userAgent);
+        $this->assertSame('Console Runner', $event->requestContext->userAgent);
         $this->assertSame('Console Runner', $event->context()['user_agent']);
     }
 
@@ -202,15 +200,20 @@ class AuthEventTest extends TestCase
             'name' => 'Service Metadata',
             'email' => 'service-metadata@example.com',
             'password' => 'secret-password',
-        ], '198.51.100.7', 'Console Runner');
+        ], new RequestContext('198.51.100.7', 'Console Runner'));
 
         Event::assertDispatched(
             UserRegistered::class,
-            fn (UserRegistered $event): bool => $event->ipAddress === '198.51.100.7'
-                && $event->userAgent === 'Console Runner',
+            fn (UserRegistered $event): bool => $event->requestContext->ipAddress === '198.51.100.7'
+                && $event->requestContext->userAgent === 'Console Runner',
         );
     }
 
+    /**
+     * A non-HTTP caller must opt in to missing metadata explicitly. The context
+     * itself is still required so a forgotten argument fails fast instead of
+     * silently dropping the audit metadata.
+     */
     public function test_auth_service_needs_no_http_request_to_dispatch_events(): void
     {
         Event::fake([UserRegistered::class]);
@@ -222,12 +225,12 @@ class AuthEventTest extends TestCase
             'name' => 'No Http',
             'email' => 'no-http@example.com',
             'password' => 'secret-password',
-        ]);
+        ], new RequestContext(null, null));
 
         Event::assertDispatched(
             UserRegistered::class,
-            fn (UserRegistered $event): bool => $event->ipAddress === null
-                && $event->userAgent === null,
+            fn (UserRegistered $event): bool => $event->requestContext->ipAddress === null
+                && $event->requestContext->userAgent === null,
         );
     }
 }

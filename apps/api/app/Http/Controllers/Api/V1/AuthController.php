@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Services\AuthService;
 use App\Support\ApiResponse;
+use App\Support\RequestContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,8 +22,7 @@ class AuthController extends Controller
     {
         $auth = $this->authService->register(
             $request->validated(),
-            $request->ip(),
-            $request->userAgent(),
+            RequestContext::fromRequest($request),
         );
 
         return ApiResponse::successResponse([
@@ -36,8 +36,7 @@ class AuthController extends Controller
         $auth = $this->authService->login(
             $request->validated('email'),
             $request->validated('password'),
-            $request->ip(),
-            $request->userAgent(),
+            RequestContext::fromRequest($request),
         );
 
         return ApiResponse::successResponse([
@@ -50,8 +49,7 @@ class AuthController extends Controller
     {
         $this->authService->logout(
             $request->user(),
-            $request->ip(),
-            $request->userAgent(),
+            RequestContext::fromRequest($request),
         );
 
         return ApiResponse::successResponse(null, __('api.logout_successful'));

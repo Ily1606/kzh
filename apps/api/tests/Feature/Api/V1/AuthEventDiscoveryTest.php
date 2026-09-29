@@ -9,6 +9,7 @@ use App\Events\Auth\UserLoggedOut;
 use App\Events\Auth\UserRegistered;
 use App\Listeners\Auth\LogAuthActivity;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -42,9 +43,9 @@ class AuthEventDiscoveryTest extends TestCase
         $user = User::factory()->create();
 
         return [
-            new UserRegistered($user),
-            new UserLoggedIn($user, 'token-id'),
-            new UserLoggedOut($user, 2),
+            new UserRegistered($user, new RequestContext(null, null)),
+            new UserLoggedIn($user, 'token-id', new RequestContext(null, null)),
+            new UserLoggedOut($user, new RequestContext(null, null), 2),
         ];
     }
 
@@ -69,7 +70,7 @@ class AuthEventDiscoveryTest extends TestCase
             $calls++;
         });
 
-        UserLoggedIn::dispatch(User::factory()->create(), 'token-id');
+        UserLoggedIn::dispatch(User::factory()->create(), 'token-id', new RequestContext(null, null));
 
         // A listener bound to an auth event twice — for instance if it were also
         // listed in a $listen mapping alongside its own contract type-hint —
@@ -81,7 +82,7 @@ class AuthEventDiscoveryTest extends TestCase
     {
         Bus::fake();
 
-        UserLoggedIn::dispatch(User::factory()->create(), 'token-id');
+        UserLoggedIn::dispatch(User::factory()->create(), 'token-id', new RequestContext(null, null));
 
         Bus::assertDispatchedTimes(CallQueuedListener::class, 1);
 
@@ -105,9 +106,9 @@ class AuthEventDiscoveryTest extends TestCase
         $user = User::factory()->create();
 
         $events = [
-            new UserRegistered($user),
-            new UserLoggedIn($user, 'token-id'),
-            new UserLoggedOut($user, 2),
+            new UserRegistered($user, new RequestContext(null, null)),
+            new UserLoggedIn($user, 'token-id', new RequestContext(null, null)),
+            new UserLoggedOut($user, new RequestContext(null, null), 2),
         ];
 
         foreach ($events as $event) {

@@ -7,6 +7,7 @@ use App\Events\Auth\UserLoggedIn;
 use App\Events\Auth\UserRegistered;
 use App\Listeners\Auth\LogAuthActivity;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -58,7 +59,7 @@ class AuthAuditFailureHandlingTest extends TestCase
         // Must be a persisted user: the event uses SerializesModels, so an
         // unsaved `make()` model has no key for the queued job to re-fetch
         // and dispatch() throws ModelNotFoundException.
-        UserLoggedIn::dispatch(User::factory()->create(), 'token-id');
+        UserLoggedIn::dispatch(User::factory()->create(), 'token-id', new RequestContext(null, null));
 
         $job = Bus::dispatched(CallQueuedListener::class)->sole();
 
@@ -90,8 +91,7 @@ class AuthAuditFailureHandlingTest extends TestCase
         (new LogAuthActivity)->failed(
             new UserRegistered(
                 user: $user,
-                ipAddress: '198.51.100.7',
-                userAgent: 'Audit Agent',
+                requestContext: new RequestContext('198.51.100.7', 'Audit Agent'),
             ),
             new RuntimeException('log sink unreachable'),
         );
@@ -127,7 +127,7 @@ class AuthAuditFailureHandlingTest extends TestCase
         Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
 
         (new LogAuthActivity)->failed(
-            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new UserRegistered(user: User::factory()->create(), requestContext: new RequestContext('198.51.100.7', null)),
             new RuntimeException('log sink unreachable'),
         );
     }
@@ -144,7 +144,7 @@ class AuthAuditFailureHandlingTest extends TestCase
         Log::shouldReceive('channel')->once()->with('syslog')->andReturn($logger);
 
         (new LogAuthActivity)->failed(
-            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new UserRegistered(user: User::factory()->create(), requestContext: new RequestContext('198.51.100.7', null)),
             new RuntimeException('log sink unreachable'),
         );
     }
@@ -165,7 +165,7 @@ class AuthAuditFailureHandlingTest extends TestCase
         Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
 
         (new LogAuthActivity)->failed(
-            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new UserRegistered(user: User::factory()->create(), requestContext: new RequestContext('198.51.100.7', null)),
             new RuntimeException('log sink unreachable'),
         );
     }
@@ -183,7 +183,7 @@ class AuthAuditFailureHandlingTest extends TestCase
         Log::shouldReceive('channel')->once()->with('stderr')->andThrow(new RuntimeException('stderr down'));
 
         (new LogAuthActivity)->failed(
-            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new UserRegistered(user: User::factory()->create(), requestContext: new RequestContext('198.51.100.7', null)),
             new RuntimeException('log sink unreachable'),
         );
 
