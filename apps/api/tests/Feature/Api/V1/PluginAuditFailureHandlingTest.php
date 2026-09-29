@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Mockery;
 use Psr\Log\LoggerInterface;
+use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -108,6 +109,17 @@ class PluginAuditFailureHandlingTest extends TestCase
      * failed($event, $e). Driving that same path keeps the argument order
      * honest and pins the report an operator actually receives.
      */
+    public function test_the_failure_handler_takes_the_event_before_the_throwable(): void
+    {
+        $parameters = (new ReflectionMethod(new LogPluginSubmission, 'failed'))->getParameters();
+
+        // CallQueuedListener calls failed(...$this->data, $e), so the event has to
+        // come first or the job blows up while reporting its own failure.
+        $this->assertCount(2, $parameters);
+        $this->assertSame(PluginSubmitted::class, (string) $parameters[0]->getType());
+        $this->assertSame(\Throwable::class, (string) $parameters[1]->getType());
+    }
+
     public function test_an_exhausted_job_reports_the_failure_with_enough_context(): void
     {
         $entries = [];
