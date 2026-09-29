@@ -34,12 +34,9 @@ final class PluginService
                 'license' => $attributes['license'],
                 'source_link' => $attributes['source_link'],
                 'user_id' => $user->getAuthIdentifier(),
-                'status' => PluginStatus::Pending,
-                'star_count' => 0,
-                'comment_count' => 0,
-                'view_count' => 0,
-                'approved_at' => null,
             ]);
+
+            $plugin->refresh();
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages([
                 'name' => __('api.plugin_name_already_exists'),

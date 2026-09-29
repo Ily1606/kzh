@@ -16,12 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'user_id',
     'title',
     'license',
-    'approved_at',
-    'status',
     'source_link',
-    'star_count',
-    'comment_count',
-    'view_count',
 ])]
 class Plugin extends Model
 {
