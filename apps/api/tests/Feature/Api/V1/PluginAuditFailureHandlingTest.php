@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Mockery;
 use Psr\Log\LoggerInterface;
-use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -89,17 +88,12 @@ class PluginAuditFailureHandlingTest extends TestCase
         $this->assertSame([10, 60], $job->backoff);
     }
 
-    public function test_the_failure_handler_takes_the_event_before_the_throwable(): void
-    {
-        $parameters = (new ReflectionMethod(new LogPluginSubmission, 'failed'))->getParameters();
-
-        // CallQueuedListener calls failed(...$this->data, $e), so the event has to
-        // come first or the job blows up while reporting its own failure.
-        $this->assertCount(2, $parameters);
-        $this->assertSame(PluginSubmitted::class, (string) $parameters[0]->getType());
-        $this->assertSame(\Throwable::class, (string) $parameters[1]->getType());
-    }
-
+    /**
+     * On the final attempt the worker goes through CallQueuedListener, which
+     * appends the throwable to the queued payload before calling
+     * failed($event, $e). Driving that same path keeps the argument order
+     * honest and pins the report an operator actually receives.
+     */
     public function test_an_exhausted_job_reports_the_failure_with_enough_context(): void
     {
         $entries = [];
@@ -111,14 +105,14 @@ class PluginAuditFailureHandlingTest extends TestCase
         $user = User::factory()->create();
         $plugin = Plugin::factory()->create(['user_id' => $user->getKey()]);
 
-        (new LogPluginSubmission)->failed(
-            new PluginSubmitted(
-                plugin: $plugin,
-                user: $user,
-                requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
-            ),
-            new RuntimeException('log sink unreachable'),
+        $event = new PluginSubmitted(
+            plugin: $plugin,
+            user: $user,
+            requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
         );
+
+        (new CallQueuedListener(LogPluginSubmission::class, 'handle', [$event]))
+            ->failed(new RuntimeException('log sink unreachable'));
 
         $this->assertCount(1, $entries);
 

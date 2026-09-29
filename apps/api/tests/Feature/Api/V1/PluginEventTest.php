@@ -60,23 +60,6 @@ class PluginEventTest extends TestCase
         );
     }
 
-    public function test_event_constructor_preserves_explicit_request_metadata(): void
-    {
-        $plugin = Plugin::factory()->make();
-        $user = User::factory()->make();
-
-        $event = new PluginSubmitted(
-            plugin: $plugin,
-            user: $user,
-            requestContext: new RequestContext('192.0.2.10', 'Plugin Review Agent'),
-        );
-
-        $this->assertSame('192.0.2.10', $event->requestContext->ipAddress);
-        $this->assertSame('192.0.2.10', $event->context()['ip_address']);
-        $this->assertSame('Plugin Review Agent', $event->requestContext->userAgent);
-        $this->assertSame('Plugin Review Agent', $event->context()['user_agent']);
-    }
-
     public function test_event_captures_the_real_ip_of_the_request(): void
     {
         Event::fake([PluginSubmitted::class]);
@@ -98,11 +81,12 @@ class PluginEventTest extends TestCase
     }
 
     /**
-     * The queued listener is executed by a worker, where the container's request
-     * is the console request. The audit entry must describe the originating
-     * request, not the one the worker happens to be running.
+     * The queued listener runs in a worker, where the bound request is the
+     * console request (127.0.0.1 / "Symfony"). The context snapshotted at
+     * construction time has to survive the queue payload untouched and must
+     * never be rebuilt from the request the worker happens to see.
      */
-    public function test_audit_context_survives_serialization_into_a_queue_worker(): void
+    public function test_event_context_stays_the_origin_request_after_the_queue_round_trip(): void
     {
         $event = new PluginSubmitted(
             plugin: Plugin::factory()->create(),
@@ -110,32 +94,22 @@ class PluginEventTest extends TestCase
             requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
         );
 
-        // Round-trip through the queue payload, then build context while a console
-        // request is bound — exactly what CallQueuedListener does in the worker.
-        $workerSideEvent = unserialize(serialize($event));
+        // A console request answers 127.0.0.1 / "Symfony"; binding it makes the
+        // fallback this test guards against observable.
+        $consoleRequest = Request::create('/');
+        $this->app->instance('request', $consoleRequest);
 
-        $this->app->instance('request', Request::create('/'));
+        $this->assertSame('127.0.0.1', $consoleRequest->ip());
+        $this->assertSame('Symfony', $consoleRequest->userAgent());
+
+        // Round-trip through the queue payload, exactly what CallQueuedListener
+        // does before it invokes the listener.
+        $workerSideEvent = unserialize(serialize($event));
 
         $this->assertSame('198.51.100.7', $workerSideEvent->requestContext->ipAddress);
         $this->assertSame('Plugin Review Agent', $workerSideEvent->requestContext->userAgent);
         $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
         $this->assertSame('Plugin Review Agent', $workerSideEvent->context()['user_agent']);
-    }
-
-    public function test_event_context_does_not_fall_back_to_the_console_request(): void
-    {
-        $event = new PluginSubmitted(
-            plugin: Plugin::factory()->create(),
-            user: User::factory()->create(),
-            requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
-        );
-
-        $this->app->instance('request', Request::create('/'));
-
-        $context = $event->context();
-
-        $this->assertNotSame('127.0.0.1', $context['ip_address']);
-        $this->assertNotSame('Symfony', $context['user_agent']);
     }
 
     /**

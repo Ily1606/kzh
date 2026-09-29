@@ -135,56 +135,40 @@ class AuthEventTest extends TestCase
     }
 
     /**
-     * The queued listener is executed by a worker, where app(Request::class) is the
-     * console request. The audit entry must describe the originating request, not
-     * the one the worker happens to be running.
+     * The queued listener runs in a worker, where the bound request is the
+     * console request (127.0.0.1 / "Symfony"). The context snapshotted at
+     * construction time has to survive the queue payload untouched and must
+     * never be rebuilt from the request the worker happens to see.
      */
-    public function test_audit_context_survives_serialization_into_a_queue_worker(): void
+    public function test_auth_event_context_stays_the_origin_request_after_the_queue_round_trip(): void
     {
-        $event = new UserRegistered(
-            user: User::factory()->create(),
-            requestContext: new RequestContext('198.51.100.7', 'Audit Agent'),
-        );
+        $user = User::factory()->create();
+        $requestContext = new RequestContext('198.51.100.7', 'Audit Agent');
 
-        // Round-trip through the queue payload, then build context while a console
-        // request is bound — exactly what CallQueuedListener does in the worker.
-        $workerSideEvent = unserialize(serialize($event));
+        $events = [
+            new UserRegistered($user, $requestContext),
+            new UserLoggedIn($user, 'token-id', $requestContext),
+            new UserLoggedOut($user, $requestContext, 1),
+        ];
 
-        $this->app->instance('request', Request::create('/'));
+        // A console request answers 127.0.0.1 / "Symfony"; binding it makes the
+        // fallback this test guards against observable.
+        $consoleRequest = Request::create('/');
+        $this->app->instance('request', $consoleRequest);
 
-        $this->assertSame('198.51.100.7', $workerSideEvent->requestContext->ipAddress);
-        $this->assertSame('Audit Agent', $workerSideEvent->requestContext->userAgent);
-        $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
-        $this->assertSame('Audit Agent', $workerSideEvent->context()['user_agent']);
-    }
+        $this->assertSame('127.0.0.1', $consoleRequest->ip());
+        $this->assertSame('Symfony', $consoleRequest->userAgent());
 
-    public function test_auth_event_context_does_not_fall_back_to_the_console_request(): void
-    {
-        $event = new UserLoggedOut(
-            user: User::factory()->create(),
-            requestContext: new RequestContext('198.51.100.7', 'Audit Agent'),
-            revokedTokensCount: 1,
-        );
+        foreach ($events as $event) {
+            // Round-trip through the queue payload, exactly what
+            // CallQueuedListener does before it invokes the listener.
+            $workerSideEvent = unserialize(serialize($event));
 
-        $this->app->instance('request', Request::create('/'));
-
-        $context = $event->context();
-
-        $this->assertNotSame('127.0.0.1', $context['ip_address']);
-        $this->assertNotSame('Symfony', $context['user_agent']);
-    }
-
-    public function test_auth_event_constructor_preserves_explicit_request_metadata(): void
-    {
-        $event = new UserRegistered(
-            user: User::factory()->make(),
-            requestContext: new RequestContext('192.0.2.10', 'Console Runner'),
-        );
-
-        $this->assertSame('192.0.2.10', $event->requestContext->ipAddress);
-        $this->assertSame('192.0.2.10', $event->context()['ip_address']);
-        $this->assertSame('Console Runner', $event->requestContext->userAgent);
-        $this->assertSame('Console Runner', $event->context()['user_agent']);
+            $this->assertSame('198.51.100.7', $workerSideEvent->requestContext->ipAddress, $event::class);
+            $this->assertSame('Audit Agent', $workerSideEvent->requestContext->userAgent, $event::class);
+            $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address'], $event::class);
+            $this->assertSame('Audit Agent', $workerSideEvent->context()['user_agent'], $event::class);
+        }
     }
 
     /**

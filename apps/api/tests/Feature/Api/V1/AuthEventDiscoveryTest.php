@@ -7,6 +7,7 @@ use App\Enums\AuthEventType;
 use App\Events\Auth\UserLoggedIn;
 use App\Events\Auth\UserLoggedOut;
 use App\Events\Auth\UserRegistered;
+use App\Events\Plugin\PaginatedPluginsFetched;
 use App\Listeners\Auth\LogAuthActivity;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -89,10 +90,13 @@ class AuthEventDiscoveryTest extends TestCase
             Event::dispatch($event);
         }
 
-        // We assert that LogAuthActivity specifically was queued 3 times
-        Bus::assertDispatched(CallQueuedListener::class, function ($job) {
-            return $job->class === LogAuthActivity::class;
-        });
+        // One queued audit job per event: a missed or duplicated binding shows
+        // up as a count other than 3.
+        $this->assertCount(
+            3,
+            Bus::dispatched(CallQueuedListener::class)
+                ->filter(fn (CallQueuedListener $job): bool => $job->class === LogAuthActivity::class),
+        );
     }
 
     public function test_auth_events_do_not_implement_the_listener_twice(): void
@@ -125,13 +129,29 @@ class AuthEventDiscoveryTest extends TestCase
         $this->assertSame('handle', $job->method);
     }
 
+    /**
+     * The audit listener is bound through the RecordsAuthActivity interface of
+     * its handle() type-hint, so an unrelated App\Events payload has no binding
+     * that could reach it. The auth event dispatched first is a positive
+     * control: it proves the count below observes real queued audit jobs
+     * instead of a silently empty bus.
+     */
     public function test_app_events_that_are_not_auth_activity_are_ignored(): void
     {
         Bus::fake();
 
-        Event::dispatch('App\\Events\\UnrelatedEvent', ['not-an-auth-event']);
+        UserLoggedIn::dispatch(User::factory()->create(), 'token-id', new RequestContext(null, null));
 
-        Bus::assertNotDispatched(CallQueuedListener::class);
+        $auditJobs = fn () => Bus::dispatched(CallQueuedListener::class)
+            ->filter(fn (CallQueuedListener $job): bool => $job->class === LogAuthActivity::class);
+
+        $this->assertCount(1, $auditJobs());
+
+        // A real App\Events payload that is not auth activity must add nothing:
+        // a wildcard (App\Events\*) or an over-broad registration would.
+        Event::dispatch(new PaginatedPluginsFetched(15, 100, 2, '198.51.100.7', 'Unrelated Agent'));
+
+        $this->assertCount(1, $auditJobs());
     }
 
     public function test_auth_events_expose_the_contract_consumed_by_the_listener(): void

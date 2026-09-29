@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Mockery;
 use Psr\Log\LoggerInterface;
-use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -68,17 +67,12 @@ class AuthAuditFailureHandlingTest extends TestCase
         $this->assertSame([10, 60], $job->backoff);
     }
 
-    public function test_the_failure_handler_takes_the_event_before_the_throwable(): void
-    {
-        $parameters = (new ReflectionMethod(new LogAuthActivity, 'failed'))->getParameters();
-
-        // CallQueuedListener calls failed(...$this->data, $e), so the event has to
-        // come first or the job blows up while reporting its own failure.
-        $this->assertCount(2, $parameters);
-        $this->assertSame(RecordsAuthActivity::class, (string) $parameters[0]->getType());
-        $this->assertSame(\Throwable::class, (string) $parameters[1]->getType());
-    }
-
+    /**
+     * On the final attempt the worker goes through CallQueuedListener, which
+     * appends the throwable to the queued payload before calling
+     * failed($event, $e). Driving that same path keeps the argument order
+     * honest and pins the report an operator actually receives.
+     */
     public function test_an_exhausted_job_reports_the_failure_with_enough_context(): void
     {
         $entries = [];
@@ -89,13 +83,13 @@ class AuthAuditFailureHandlingTest extends TestCase
 
         $user = User::factory()->create();
 
-        (new LogAuthActivity)->failed(
-            new UserRegistered(
-                user: $user,
-                requestContext: new RequestContext('198.51.100.7', 'Audit Agent'),
-            ),
-            new RuntimeException('log sink unreachable'),
+        $event = new UserRegistered(
+            user: $user,
+            requestContext: new RequestContext('198.51.100.7', 'Audit Agent'),
         );
+
+        (new CallQueuedListener(LogAuthActivity::class, 'handle', [$event]))
+            ->failed(new RuntimeException('log sink unreachable'));
 
         $this->assertCount(1, $entries);
 
