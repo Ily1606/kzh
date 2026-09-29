@@ -7,13 +7,14 @@ use App\Models\User;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Http\Request;
+use Illuminate\Queue\SerializesModels;
 
 /**
  * Dispatched after a plugin submission has been persisted successfully.
  */
 final class PluginSubmitted implements ShouldDispatchAfterCommit
 {
-    use Dispatchable;
+    use Dispatchable, SerializesModels;
 
     public readonly ?string $ipAddress;
 
