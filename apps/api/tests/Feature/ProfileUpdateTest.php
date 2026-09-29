@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -127,7 +127,7 @@ class ProfileUpdateTest extends TestCase
 
     public function test_authenticated_user_can_upload_avatar_image()
     {
-        $disk = Storage::fake('public');
+        $disk = Storage::fake(UserProfile::AVATAR_DISK);
         $user = User::factory()->create();
 
         $file = UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
@@ -143,5 +143,45 @@ class ProfileUpdateTest extends TestCase
         // Verify the file was stored
         $path = $user->fresh()->profile->avatar_link;
         $disk->assertExists($path);
+    }
+
+    public function test_force_delete_cleans_up_avatar()
+    {
+        $disk = Storage::fake(UserProfile::AVATAR_DISK);
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
+
+        Sanctum::actingAs($user);
+        $this->postJson('/api/v1/user/avatar', [
+            'avatar' => $file,
+        ])->assertStatus(200);
+
+        $path = $user->fresh()->profile->avatar_link;
+        $disk->assertExists($path);
+
+        $user->forceDelete();
+
+        $disk->assertMissing($path);
+    }
+
+    public function test_avatar_upload_cleans_up_new_file_if_db_fails()
+    {
+        $disk = Storage::fake(UserProfile::AVATAR_DISK);
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
+
+        $this->mock(\App\Contracts\UserRepositoryInterface::class, function ($mock) {
+            $mock->shouldReceive('updateAvatar')->andThrow(new \Exception('DB Error'));
+        });
+
+        Sanctum::actingAs($user);
+        $this->postJson('/api/v1/user/avatar', [
+            'avatar' => $file,
+        ])->assertStatus(500);
+
+        $files = $disk->allFiles('avatars');
+        $this->assertEmpty($files);
     }
 }

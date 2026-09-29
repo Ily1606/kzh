@@ -39,9 +39,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) config('plugins.submit_per_minute', 5))
                 ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
         });
-        RateLimiter::for('register', fn(Request $r) => Limit::perMinute(5)->by(strtolower((string) $r->input('email')) . '|' . $r->ip()));
-        RateLimiter::for('login', fn(Request $r) => Limit::perMinute(5)->by(strtolower((string) $r->input('email')) . '|' . $r->ip()));
-        RateLimiter::for('password-reset', fn(Request $r) => Limit::perMinute(3)->by(strtolower((string) $r->input('email')) . '|' . $r->ip()));
+
+        RateLimiter::for('register', fn(Request $request) => Limit::perMinute(config('auth.limiters.register', 5))->by($this->authThrottleKey($request)));
+        RateLimiter::for('login', fn(Request $request) => Limit::perMinute(config('auth.limiters.login', 5))->by($this->authThrottleKey($request)));
+        RateLimiter::for('password-reset', fn(Request $request) => Limit::perMinute(config('auth.limiters.password_reset', 3))->by($this->authThrottleKey($request)));
 
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $openApi): void {
@@ -51,5 +52,10 @@ class AppServiceProvider extends ServiceProvider
         Scramble::routes(function (Route $route): bool {
             return Str::startsWith($route->uri(), 'api/v1');
         });
+    }
+
+    protected function authThrottleKey(Request $request): string
+    {
+        return strtolower((string) $request->input('email')) . '|' . $request->ip();
     }
 }

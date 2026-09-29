@@ -12,7 +12,6 @@ return [
     'invalid_data' => 'The given data was invalid.',
     'invalid_credentials' => 'Email or password is incorrect.',
     'current_password_incorrect' => 'Current password is incorrect.',
-    'welcome_mail_subject' => 'Welcome Mail',
     'unauthenticated' => 'Unauthenticated.',
     'unauthorized' => 'This action is unauthorized.',
     'not_found' => 'Resource not found.',

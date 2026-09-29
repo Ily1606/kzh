@@ -17,9 +17,7 @@ class WelcomeMail extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct(public User $user)
-    {
-    }
+    public function __construct(public User $user) {}
 
     /**
      * Get the message envelope.
@@ -27,7 +25,7 @@ class WelcomeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: __('api.welcome_mail_subject'),
+            subject: __('mail.welcome.subject'),
         );
     }
 

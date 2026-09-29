@@ -168,4 +168,29 @@ class PasswordUpdateTest extends TestCase
             'password' => 'new_password123',
         ])->assertStatus(200);
     }
+
+    public function test_changing_password_revokes_other_tokens_but_keeps_current_token()
+    {
+        $user = User::factory()->create([
+            'password' => Hash::make('old_password'),
+        ]);
+
+        $otherToken = $user->createToken('other_device')->plainTextToken;
+        $currentToken = $user->createToken('current_device')->plainTextToken;
+
+        $this->assertCount(2, $user->tokens);
+
+        $this->withToken($currentToken)->patchJson('/api/v1/user/password', [
+            'current_password' => 'old_password',
+            'new_password' => 'new_password123',
+            'new_password_confirmation' => 'new_password123',
+        ])->assertStatus(200);
+
+        $this->assertCount(1, $user->fresh()->tokens);
+
+        Auth::forgetGuards();
+
+        $this->withToken($otherToken)->getJson('/api/v1/user')->assertStatus(401);
+        $this->withToken($currentToken)->getJson('/api/v1/user')->assertStatus(200);
+    }
 }

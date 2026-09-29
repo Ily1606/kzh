@@ -7,6 +7,7 @@ use App\Events\Profile\UserAvatarUpdated;
 use App\Events\Profile\UserPasswordUpdated;
 use App\Events\Profile\UserProfileUpdated;
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -53,13 +54,13 @@ class ProfileService
      */
     public function updateAvatar(User $user, ?UploadedFile $file): User
     {
-        $avatarPath = $file?->store('avatars', 'public');
+        $avatarPath = $file?->store('avatars', UserProfile::AVATAR_DISK);
 
         try {
             $user = $this->userRepository->updateAvatar($user, $avatarPath);
         } catch (Throwable $e) {
             if ($avatarPath) {
-                Storage::disk('public')->delete($avatarPath);
+                Storage::disk(UserProfile::AVATAR_DISK)->delete($avatarPath);
             }
             throw $e;
         }

@@ -126,7 +126,7 @@ class PasswordResetTest extends TestCase
 
     public function test_fails_if_email_is_too_long()
     {
-        $longEmail = Str::random(250).'@example.com';
+        $longEmail = Str::random(250) . '@example.com';
 
         $response = $this->postJson('/api/v1/forgot-password', [
             'email' => $longEmail,
@@ -518,7 +518,7 @@ class PasswordResetTest extends TestCase
             $actionUrl = $mail->actionUrl;
 
             $expectedUrlPrefix = 'https://my-vue-app.com/reset-password?token=';
-            $expectedEmailParam = '&email='.urlencode($user->email);
+            $expectedEmailParam = '&email=' . urlencode($user->email);
 
             return str_starts_with($actionUrl, $expectedUrlPrefix) && str_ends_with($actionUrl, $expectedEmailParam);
         });
@@ -542,5 +542,42 @@ class PasswordResetTest extends TestCase
 
         $this->assertFalse(Hash::check('hacked_password123', $userA->fresh()->password));
         $this->assertFalse(Hash::check('hacked_password123', $userB->fresh()->password));
+    }
+
+    public function test_named_limiter_returns_429_when_exceeded()
+    {
+        $email = 'test@example.com';
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/v1/forgot-password', ['email' => $email]);
+        }
+
+        $this->postJson('/api/v1/forgot-password', ['email' => $email])
+            ->assertStatus(429);
+    }
+
+    public function test_named_limiter_does_not_block_different_emails()
+    {
+        $email1 = 'test1@example.com';
+        $email2 = 'test2@example.com';
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/v1/forgot-password', ['email' => $email1]);
+        }
+
+        // $email1 should be blocked
+        $this->postJson('/api/v1/forgot-password', ['email' => $email1])
+            ->assertStatus(429);
+
+        // $email2 should still work
+        $this->postJson('/api/v1/forgot-password', ['email' => $email2])
+            ->assertStatus(200);
+    }
+
+    public function test_named_limiter_returns_422_if_email_is_array()
+    {
+        $this->postJson('/api/v1/forgot-password', ['email' => ['test@example.com']])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
     }
 }

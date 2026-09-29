@@ -3,18 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\SendResetLinkRequest;
 use App\Http\Requests\ResetPasswordRequest;
-use App\Support\ApiResponse;
+use App\Http\Requests\SendResetLinkRequest;
 use App\Services\PasswordResetService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Password;
 
 class PasswordResetController extends Controller
 {
-    public function __construct(private readonly PasswordResetService $passwordResetService)
-    {
-    }
+    public function __construct(private readonly PasswordResetService $passwordResetService) {}
 
     public function sendResetLinkEmail(SendResetLinkRequest $request): JsonResponse
     {

@@ -1,14 +1,14 @@
 <x-mail::message>
-# {{ __('api.welcome_mail_greeting', ['app' => config('app.name'), 'name' => $user->name]) }}
+    # {{ __('mail.welcome.greeting', ['app' => config('app.name'), 'name' => $user->name]) }}
 
-{{ __('api.welcome_mail_body') }}
+    {{ __('mail.welcome.body') }}
 
-<x-mail::button :url="config('app.frontend_url')">
-{{ __('api.welcome_mail_button') }}
-</x-mail::button>
+    <x-mail::button :url="config('app.frontend_url')">
+        {{ __('mail.welcome.button') }}
+    </x-mail::button>
 
-{{ __('api.welcome_mail_footer') }}
+    {{ __('mail.welcome.footer') }}
 
-Thanks,<br>
-{{ config('app.name') }} Team
+    {{ __('mail.welcome.thanks') }}
+    {{ __('mail.welcome.team', ['app' => config('app.name')]) }}
 </x-mail::message>

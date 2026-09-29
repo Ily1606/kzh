@@ -23,6 +23,15 @@ class UserProfile extends Model
 {
     use HasUuids;
 
+    public const AVATAR_DISK = 'public';
+
+    public function isLocalAvatar(?string $url = null): bool
+    {
+        $url = $url ?? $this->avatar_link;
+
+        return $url && ! str_starts_with($url, 'http');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -35,12 +44,12 @@ class UserProfile extends Model
     {
         return Attribute::make(
             get: function () {
-                if (! $this->avatar_link || str_starts_with($this->avatar_link, 'http')) {
+                if (! $this->isLocalAvatar()) {
                     return $this->avatar_link;
                 }
 
                 /** @var FilesystemAdapter $disk */
-                $disk = Storage::disk('public');
+                $disk = Storage::disk(self::AVATAR_DISK);
 
                 return $disk->url($this->avatar_link);
             }
