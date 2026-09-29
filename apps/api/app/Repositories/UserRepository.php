@@ -75,11 +75,13 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
 
     public function updateAvatar(User $user, ?string $avatarPath): User
     {
-        $user->profile()->updateOrCreate([], [
-            'avatar_link' => $avatarPath,
-        ]);
+        return DB::transaction(function () use ($user, $avatarPath) {
+            $user->profile()->updateOrCreate([], [
+                'avatar_link' => $avatarPath,
+            ]);
 
-        return $user->refresh();
+            return $user->refresh();
+        });
     }
 
     public function updatePassword(User $user, string $newPassword): User
@@ -88,7 +90,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         $user->save();
 
         $currentId = $user->currentAccessToken()?->id;
-        $user->tokens()->when($currentId, fn ($q) => $q->whereKeyNot($currentId))->delete();
+        $user->tokens()->when($currentId, fn($q) => $q->whereKeyNot($currentId))->delete();
 
         return $user;
     }

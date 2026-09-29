@@ -6,6 +6,8 @@ use App\Models\User;
 
 class UserObserver
 {
+    public $afterCommit = true;
+
     /**
      * Handle the User "forceDeleting" event.
      */

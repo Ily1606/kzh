@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Storage;
 
 class UserProfileObserver
 {
+    public $afterCommit = true;
+
     /**
      * Handle the UserProfile "updated" event.
      */

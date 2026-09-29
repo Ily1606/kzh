@@ -56,6 +56,9 @@ class AppServiceProvider extends ServiceProvider
 
     protected function authThrottleKey(Request $request): string
     {
-        return strtolower((string) $request->input('email')) . '|' . $request->ip();
+        $email = $request->input('email');
+        $emailString = is_string($email) ? $email : '';
+
+        return strtolower($emailString) . '|' . $request->ip();
     }
 }

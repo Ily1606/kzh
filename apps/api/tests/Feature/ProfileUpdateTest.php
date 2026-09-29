@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -172,7 +173,7 @@ class ProfileUpdateTest extends TestCase
 
         $file = UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
 
-        $this->mock(\App\Contracts\UserRepositoryInterface::class, function ($mock) {
+        $this->mock(UserRepositoryInterface::class, function ($mock) {
             $mock->shouldReceive('updateAvatar')->andThrow(new \Exception('DB Error'));
         });
 
