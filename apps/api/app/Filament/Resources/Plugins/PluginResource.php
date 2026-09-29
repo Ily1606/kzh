@@ -2,10 +2,7 @@
 
 namespace App\Filament\Resources\Plugins;
 
-use App\Filament\Resources\Plugins\Pages\CreatePlugin;
-use App\Filament\Resources\Plugins\Pages\EditPlugin;
 use App\Filament\Resources\Plugins\Pages\ListPlugins;
-use App\Filament\Resources\Plugins\Schemas\PluginForm;
 use App\Filament\Resources\Plugins\Tables\PluginsTable;
 use App\Models\Plugin;
 use BackedEnum;
@@ -26,7 +23,7 @@ class PluginResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return PluginForm::configure($schema);
+        return $schema;
     }
 
     public static function table(Table $table): Table
@@ -45,8 +42,6 @@ class PluginResource extends Resource
     {
         return [
             'index' => ListPlugins::route('/'),
-            'create' => CreatePlugin::route('/create'),
-            'edit' => EditPlugin::route('/{record}/edit'),
         ];
     }
 

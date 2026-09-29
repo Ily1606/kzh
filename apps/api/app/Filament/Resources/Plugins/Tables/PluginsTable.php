@@ -2,12 +2,9 @@
 
 namespace App\Filament\Resources\Plugins\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreBulkAction;
+use App\Enums\PluginStatus;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
@@ -18,32 +15,33 @@ class PluginsTable
         return $table
             ->columns([
                 TextColumn::make('title')
-                    ->label('Tên Plugin')
-                    ->description(fn ($record): string => $record->name ?? '')
+                    ->label(__('plugin.table.columns.plugin_name'))
+                    ->description(fn($record): string => $record->name ?? '')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
                 TextColumn::make('user.name')
-                    ->label('Tác giả')
+                    ->label(__('plugin.table.columns.author'))
+                    ->description(fn($record): string => $record->user->email ?? '')
                     ->icon('heroicon-m-user')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('status')
-                    ->label('Trạng thái')
+                    ->label(__('plugin.table.columns.status'))
                     ->badge()
-                    ->color(fn ($state): string => match ($state) {
-                        \App\Enums\PluginStatus::Pending, 'pending' => 'warning',
-                        \App\Enums\PluginStatus::Approved, 'approved' => 'success',
-                        \App\Enums\PluginStatus::Rejected, 'rejected' => 'danger',
+                    ->color(fn($state): string => match ($state) {
+                        PluginStatus::Pending, 'pending' => 'warning',
+                        PluginStatus::Approved, 'approved' => 'success',
+                        PluginStatus::Rejected, 'rejected' => 'danger',
                         default => 'gray',
                     }),
                 TextColumn::make('star_count')
-                    ->label('Stars')
+                    ->label(__('plugin.table.columns.stars'))
                     ->icon('heroicon-m-star')
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('created_at')
-                    ->label('Ngày tạo')
+                    ->label(__('plugin.table.columns.created_at'))
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -58,20 +56,10 @@ class PluginsTable
             ])
             ->filters([
                 TrashedFilter::make(),
-                \Filament\Tables\Filters\SelectFilter::make('status')
-                    ->label('Lọc theo trạng thái')
-                    ->options(\App\Enums\PluginStatus::class)
+                SelectFilter::make('status')
+                    ->label(__('plugin.table.filters.status'))
+                    ->options(PluginStatus::class)
                     ->multiple(),
-            ])
-            ->recordActions([
-                EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
-                ]),
             ]);
     }
 }
