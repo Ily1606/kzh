@@ -4,7 +4,6 @@ namespace App\Events\Auth;
 
 use App\Contracts\RecordsAuthActivity;
 use App\Enums\AuthEventType;
-use App\Events\Concerns\InteractsWithRequestContext;
 use App\Models\User;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -16,11 +15,12 @@ use Illuminate\Foundation\Events\Dispatchable;
 final class UserLoggedIn implements RecordsAuthActivity, ShouldDispatchAfterCommit
 {
     use Dispatchable;
-    use InteractsWithRequestContext;
 
     public function __construct(
         public readonly User $user,
         public readonly string $tokenId,
+        public readonly ?string $ipAddress = null,
+        public readonly ?string $userAgent = null,
     ) {}
 
     public function user(): User
@@ -38,7 +38,11 @@ final class UserLoggedIn implements RecordsAuthActivity, ShouldDispatchAfterComm
      */
     public function context(): array
     {
-        return $this->baseContext() + [
+        return [
+            'user_id' => $this->user->getKey(),
+            'email' => $this->user->email,
+            'ip_address' => $this->ipAddress,
+            'user_agent' => $this->userAgent,
             // Identifier of the issued personal access token (useful to trace sessions).
             'token_id' => $this->tokenId,
         ];

@@ -4,7 +4,6 @@ namespace App\Events\Auth;
 
 use App\Contracts\RecordsAuthActivity;
 use App\Enums\AuthEventType;
-use App\Events\Concerns\InteractsWithRequestContext;
 use App\Models\User;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -15,11 +14,12 @@ use Illuminate\Foundation\Events\Dispatchable;
 final class UserLoggedOut implements RecordsAuthActivity, ShouldDispatchAfterCommit
 {
     use Dispatchable;
-    use InteractsWithRequestContext;
 
     public function __construct(
         public readonly User $user,
         public readonly int $revokedTokensCount = 0,
+        public readonly ?string $ipAddress = null,
+        public readonly ?string $userAgent = null,
     ) {}
 
     public function user(): User
@@ -37,7 +37,11 @@ final class UserLoggedOut implements RecordsAuthActivity, ShouldDispatchAfterCom
      */
     public function context(): array
     {
-        return $this->baseContext() + [
+        return [
+            'user_id' => $this->user->getKey(),
+            'email' => $this->user->email,
+            'ip_address' => $this->ipAddress,
+            'user_agent' => $this->userAgent,
             'revoked_tokens' => $this->revokedTokensCount,
         ];
     }
