@@ -35,6 +35,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Auth audit failure channel
+    |--------------------------------------------------------------------------
+    |
+    | Channel the auth listener reports a terminal failure on. It has to differ
+    | from the channel above, otherwise the report dies with the sink it is
+    | trying to report on. stderr does not touch the log file, which is what
+    | makes it a safe rescue when the disk is full or the sink is unreachable.
+    |
+    */
+
+    'auth_failure_channel' => env('LOG_AUTH_FAILURE_CHANNEL', 'stderr'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Plugin event log channel
     |--------------------------------------------------------------------------
     |
@@ -43,6 +57,18 @@ return [
     */
 
     'plugin_channel' => env('LOG_PLUGIN_CHANNEL'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Plugin event failure channel
+    |--------------------------------------------------------------------------
+    |
+    | Same reasoning as auth_failure_channel: a different channel from the one
+    | the plugin audit entries went to.
+    |
+    */
+
+    'plugin_failure_channel' => env('LOG_PLUGIN_FAILURE_CHANNEL', 'stderr'),
 
     /*
     |--------------------------------------------------------------------------

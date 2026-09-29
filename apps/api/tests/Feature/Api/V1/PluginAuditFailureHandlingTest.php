@@ -10,6 +10,8 @@ use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
+use Mockery;
+use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
@@ -161,5 +163,31 @@ class PluginAuditFailureHandlingTest extends TestCase
         $this->assertSame($user->getKey(), $entries[0]->context['user_id']);
         $this->assertSame('198.51.100.7', $entries[0]->context['ip_address']);
         $this->assertSame('log sink unreachable', $entries[0]->context['error']);
+    }
+
+    /**
+     * The same regression as the auth listener: logging.plugin_channel is null
+     * whenever LOG_PLUGIN_CHANNEL is unset, and Laravel resolves that null to
+     * logging.default, so one broken sink took down both the audit entry and
+     * the report that it had failed.
+     */
+    public function test_the_failure_is_not_reported_on_the_channel_that_just_failed(): void
+    {
+        config()->set('logging.default', 'stack');
+        config()->set('logging.plugin_channel', null);
+        config()->set('logging.plugin_failure_channel', 'stderr');
+
+        $logger = Mockery::mock(LoggerInterface::class);
+        $logger->shouldReceive('error')->once();
+
+        Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
+
+        (new LogPluginSubmission)->failed(
+            new PluginSubmitted(
+                plugin: Plugin::factory()->create(['user_id' => User::factory()->create()->getKey()]),
+                user: User::factory()->create(),
+            ),
+            new RuntimeException('log sink unreachable'),
+        );
     }
 }

@@ -11,6 +11,8 @@ use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
+use Mockery;
+use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 use RuntimeException;
 use Tests\TestCase;
@@ -102,5 +104,86 @@ class AuthAuditFailureHandlingTest extends TestCase
         $this->assertSame('198.51.100.7', $failure->context['ip_address']);
         $this->assertSame(RuntimeException::class, $failure->context['exception']);
         $this->assertSame('log sink unreachable', $failure->context['error']);
+    }
+
+    /**
+     * The regression this guards. LOG_AUTH_CHANNEL unset leaves
+     * logging.auth_channel null, which Laravel resolves to logging.default, and
+     * failed() used to write to logging.default as well. One broken sink then
+     * took down both the audit entry and the report that it had failed.
+     */
+    public function test_the_failure_is_not_reported_on_the_channel_that_just_failed(): void
+    {
+        config()->set('logging.default', 'stack');
+        config()->set('logging.auth_channel', null);
+        config()->set('logging.auth_failure_channel', 'stderr');
+
+        $logger = Mockery::mock(LoggerInterface::class);
+        $logger->shouldReceive('error')->once();
+
+        Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
+
+        (new LogAuthActivity)->failed(
+            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new RuntimeException('log sink unreachable'),
+        );
+    }
+
+    public function test_the_failure_channel_follows_the_configuration(): void
+    {
+        config()->set('logging.default', 'stack');
+        config()->set('logging.auth_channel', 'daily');
+        config()->set('logging.auth_failure_channel', 'syslog');
+
+        $logger = Mockery::mock(LoggerInterface::class);
+        $logger->shouldReceive('error')->once();
+
+        Log::shouldReceive('channel')->once()->with('syslog')->andReturn($logger);
+
+        (new LogAuthActivity)->failed(
+            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new RuntimeException('log sink unreachable'),
+        );
+    }
+
+    /**
+     * An operator can point the failure channel at the audit channel by hand,
+     * which would defeat the whole point. The resolver steps over it.
+     */
+    public function test_a_failure_channel_pointing_at_the_audit_channel_is_skipped(): void
+    {
+        config()->set('logging.default', 'stack');
+        config()->set('logging.auth_channel', 'daily');
+        config()->set('logging.auth_failure_channel', 'daily');
+
+        $logger = Mockery::mock(LoggerInterface::class);
+        $logger->shouldReceive('error')->once();
+
+        Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
+
+        (new LogAuthActivity)->failed(
+            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new RuntimeException('log sink unreachable'),
+        );
+    }
+
+    /**
+     * Even if the rescue channel itself is down, failed() must not throw —
+     * a terminal failure has to leave a trace, never raise a new exception.
+     */
+    public function test_failed_never_throws_when_the_failure_channel_is_down(): void
+    {
+        config()->set('logging.default', 'stack');
+        config()->set('logging.auth_channel', null);
+        config()->set('logging.auth_failure_channel', 'stderr');
+
+        Log::shouldReceive('channel')->once()->with('stderr')->andThrow(new RuntimeException('stderr down'));
+
+        (new LogAuthActivity)->failed(
+            new UserRegistered(user: User::factory()->create(), ipAddress: '198.51.100.7'),
+            new RuntimeException('log sink unreachable'),
+        );
+
+        $this->assertTrue(true);
     }
 }
