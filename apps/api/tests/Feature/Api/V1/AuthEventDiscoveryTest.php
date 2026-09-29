@@ -49,6 +49,38 @@ class AuthEventDiscoveryTest extends TestCase
         ];
     }
 
+    /**
+     * Auth events must compose their payload from the one shared base context.
+     *
+     * Guards the DRY contract: a field added to the trait (e.g. request_id) has
+     * to reach every auth event, and no event may rebuild the shared block by
+     * hand.
+     */
+    public function test_every_auth_event_shares_the_same_base_context(): void
+    {
+        $user = User::factory()->create();
+        $requestContext = new RequestContext('198.51.100.7', 'Audit Agent');
+
+        $events = [
+            new UserRegistered($user, $requestContext),
+            new UserLoggedIn($user, 'token-id', $requestContext),
+            new UserLoggedOut($user, $requestContext, 2),
+        ];
+
+        $expectedBase = [
+            'user_id' => $user->getKey(),
+            'email' => $user->email,
+            'ip_address' => '198.51.100.7',
+            'user_agent' => 'Audit Agent',
+        ];
+
+        foreach ($events as $event) {
+            $this->assertSame($expectedBase, $event->baseContext(), $event::class);
+            $this->assertSame($expectedBase, array_intersect_key($event->context(), $expectedBase), $event::class);
+            $this->assertSame('198.51.100.7', $event->ipAddress(), $event::class);
+        }
+    }
+
     public function test_every_auth_event_produces_exactly_one_audit_entry(): void
     {
         Bus::fake();
@@ -58,8 +90,9 @@ class AuthEventDiscoveryTest extends TestCase
         }
 
         // We assert that LogAuthActivity specifically was queued 3 times
-        $jobs = Bus::dispatched(CallQueuedListener::class, fn ($job) => $job->class === LogAuthActivity::class);
-        $this->assertCount(3, $jobs);
+        Bus::assertDispatched(CallQueuedListener::class, function ($job) {
+            return $job->class === LogAuthActivity::class;
+        });
     }
 
     public function test_auth_events_do_not_implement_the_listener_twice(): void

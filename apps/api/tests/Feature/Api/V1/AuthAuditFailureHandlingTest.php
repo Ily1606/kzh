@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Contracts\RecordsAuthActivity;
+use App\Enums\AuthEventType;
 use App\Events\Auth\UserLoggedIn;
 use App\Events\Auth\UserRegistered;
 use App\Listeners\Auth\LogAuthActivity;
@@ -107,6 +108,31 @@ class AuthAuditFailureHandlingTest extends TestCase
         $this->assertSame('198.51.100.7', $failure->context['ip_address']);
         $this->assertSame(RuntimeException::class, $failure->context['exception']);
         $this->assertSame('log sink unreachable', $failure->context['error']);
+    }
+
+    /**
+     * The failure report only needs the request origin, so it must read the
+     * dedicated accessor. Calling context() would rebuild the whole audit
+     * payload just to throw it away.
+     */
+    public function test_the_failure_report_does_not_build_the_whole_event_context(): void
+    {
+        $entries = [];
+
+        Log::listen(function ($message) use (&$entries): void {
+            $entries[] = $message;
+        });
+
+        $event = Mockery::mock(RecordsAuthActivity::class);
+        $event->shouldReceive('eventType')->andReturn(AuthEventType::Registered);
+        $event->shouldReceive('user')->andReturn(User::factory()->create());
+        $event->shouldReceive('ipAddress')->andReturn('198.51.100.7');
+        $event->shouldReceive('context')->never();
+
+        (new LogAuthActivity)->failed($event, new RuntimeException('log sink unreachable'));
+
+        $this->assertCount(1, $entries);
+        $this->assertSame('198.51.100.7', $entries[0]->context['ip_address']);
     }
 
     /**

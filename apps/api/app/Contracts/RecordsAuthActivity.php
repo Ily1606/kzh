@@ -18,6 +18,14 @@ interface RecordsAuthActivity
     public function eventType(): AuthEventType;
 
     /**
+     * IP address of the originating request, if any.
+     *
+     * Declared on the contract so a listener can report where an event came from
+     * without building the event's whole context payload.
+     */
+    public function ipAddress(): ?string;
+
+    /**
      * Extra context attached to the event, safe to store in logs.
      *
      * @return array<string, mixed>

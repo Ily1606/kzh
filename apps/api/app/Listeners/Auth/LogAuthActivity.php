@@ -37,12 +37,10 @@ final class LogAuthActivity implements ShouldQueue
     public function failed(RecordsAuthActivity $event, Throwable $e): void
     {
         try {
-            $context = $event->context();
-
             Log::channel($this->failureChannel())->error('Auth audit logging failed.', [
                 'event_type' => $event->eventType()->value,
                 'user_id' => $event->user()->getKey(),
-                'ip_address' => $context['ip_address'] ?? null,
+                'ip_address' => $event->ipAddress(),
                 'exception' => $e::class,
                 'error' => $e->getMessage(),
             ]);
