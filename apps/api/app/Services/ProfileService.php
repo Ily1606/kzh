@@ -9,9 +9,11 @@ use App\Events\Profile\UserProfileUpdated;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 use Throwable;
 
 class ProfileService
@@ -82,7 +84,16 @@ class ProfileService
             ]);
         }
 
-        $user = $this->userRepository->updatePassword($user, $newPassword);
+        DB::transaction(function () use ($user, $newPassword): void {
+            $this->userRepository->updatePassword($user, $newPassword);
+
+            $currentToken = $user->currentAccessToken();
+            $this->userRepository->revokeTokensExcept(
+                $user,
+                $currentToken instanceof PersonalAccessToken ? $currentToken->getKey() : null,
+            );
+        });
+
         UserPasswordUpdated::dispatch($user);
 
         return $user;

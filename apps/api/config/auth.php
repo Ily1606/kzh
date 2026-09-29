@@ -16,9 +16,14 @@ return [
     */
 
     'limiters' => [
-        'register' => 5,
-        'login' => 5,
-        'password_reset' => 3,
+        'register_per_email' => (int) env('AUTH_LIMITER_REGISTER_PER_EMAIL', 5),
+        'register_per_ip' => (int) env('AUTH_LIMITER_REGISTER_PER_IP', 20),
+        'login_per_email' => (int) env('AUTH_LIMITER_LOGIN_PER_EMAIL', 5),
+        'login_per_ip' => (int) env('AUTH_LIMITER_LOGIN_PER_IP', 20),
+        'password_reset_link_per_email' => (int) env('AUTH_LIMITER_PASSWORD_RESET_LINK_PER_EMAIL', 3),
+        'password_reset_link_per_ip' => (int) env('AUTH_LIMITER_PASSWORD_RESET_LINK_PER_IP', 10),
+        'password_reset_per_email' => (int) env('AUTH_LIMITER_PASSWORD_RESET_PER_EMAIL', 3),
+        'password_reset_per_ip' => (int) env('AUTH_LIMITER_PASSWORD_RESET_PER_IP', 10),
     ],
 
     'defaults' => [

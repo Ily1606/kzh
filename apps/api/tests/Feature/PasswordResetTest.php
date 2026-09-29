@@ -126,7 +126,7 @@ class PasswordResetTest extends TestCase
 
     public function test_fails_if_email_is_too_long()
     {
-        $longEmail = Str::random(250).'@example.com';
+        $longEmail = Str::random(250) . '@example.com';
 
         $response = $this->postJson('/api/v1/forgot-password', [
             'email' => $longEmail,
@@ -518,7 +518,7 @@ class PasswordResetTest extends TestCase
             $actionUrl = $mail->actionUrl;
 
             $expectedUrlPrefix = 'https://my-vue-app.com/reset-password?token=';
-            $expectedEmailParam = '&email='.urlencode($user->email);
+            $expectedEmailParam = '&email=' . urlencode($user->email);
 
             return str_starts_with($actionUrl, $expectedUrlPrefix) && str_ends_with($actionUrl, $expectedEmailParam);
         });
@@ -579,5 +579,24 @@ class PasswordResetTest extends TestCase
         $this->postJson('/api/v1/forgot-password', ['email' => ['test@example.com']])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_forgot_and_reset_password_limiters_are_independent()
+    {
+        $email = 'test@example.com';
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/v1/forgot-password', ['email' => $email]);
+        }
+
+        $this->postJson('/api/v1/forgot-password', ['email' => $email])->assertStatus(429);
+
+        // The reset-password endpoint should not be rate limited
+        $this->postJson('/api/v1/reset-password', [
+            'token' => 'invalid-token',
+            'email' => $email,
+            'password' => 'new_password123',
+            'password_confirmation' => 'new_password123',
+        ])->assertStatus(422); // Fails validation, but NOT 429
     }
 }

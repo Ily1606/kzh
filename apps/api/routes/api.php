@@ -11,25 +11,24 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', HealthController::class);
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
-    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail'])->middleware('throttle:password-reset');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLinkEmail'])->middleware('throttle:password-reset-link');
     Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:password-reset');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [ProfileController::class, 'show']);
         Route::patch('/user', [ProfileController::class, 'updateProfile']);
-        Route::post('/user/avatar', [ProfileController::class, 'updateAvatar']);
-        Route::patch('/user/password', [ProfileController::class, 'updatePassword']);
+        Route::post('/user/avatar', [ProfileController::class, 'updateAvatar'])->middleware('throttle:strict');
+        Route::patch('/user/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:strict');
 
         // ================ Plugin ======================
         Route::post('/plugins', [PluginController::class, 'store'])
             ->middleware('throttle:submit-plugin');
     });
 
-    Route::middleware('throttle:60,1')->group(function () {
+    Route::middleware('throttle:api')->group(function () {
         Route::get('/plugins', [PluginController::class, 'index']);
         Route::get('/plugins/trending', [PluginController::class, 'trending']);
-
         Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
             ->whereUuid('id');
     });

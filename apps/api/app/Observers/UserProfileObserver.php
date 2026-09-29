@@ -3,12 +3,11 @@
 namespace App\Observers;
 
 use App\Models\UserProfile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class UserProfileObserver
 {
-    public $afterCommit = true;
-
     /**
      * Handle the UserProfile "updated" event.
      */
@@ -18,7 +17,9 @@ class UserProfileObserver
             $oldAvatar = $profile->getOriginal('avatar_link');
 
             if ($profile->isLocalAvatar($oldAvatar)) {
-                Storage::disk(UserProfile::AVATAR_DISK)->delete($oldAvatar);
+                DB::afterCommit(function () use ($oldAvatar) {
+                    Storage::disk(UserProfile::AVATAR_DISK)->delete($oldAvatar);
+                });
             }
         }
     }
@@ -29,7 +30,10 @@ class UserProfileObserver
     public function deleted(UserProfile $profile): void
     {
         if ($profile->isLocalAvatar()) {
-            Storage::disk(UserProfile::AVATAR_DISK)->delete($profile->avatar_link);
+            $avatar = $profile->avatar_link;
+            DB::afterCommit(function () use ($avatar) {
+                Storage::disk(UserProfile::AVATAR_DISK)->delete($avatar);
+            });
         }
     }
 }

@@ -89,9 +89,11 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         $user->password = $newPassword;
         $user->save();
 
-        $currentId = $user->currentAccessToken()?->id;
-        $user->tokens()->when($currentId, fn($q) => $q->whereKeyNot($currentId))->delete();
-
         return $user;
+    }
+
+    public function revokeTokensExcept(User $user, mixed $exceptId = null): void
+    {
+        $user->tokens()->when($exceptId, fn($q) => $q->whereKeyNot($exceptId))->delete();
     }
 }

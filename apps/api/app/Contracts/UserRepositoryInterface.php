@@ -33,4 +33,9 @@ interface UserRepositoryInterface
      * Update user's password.
      */
     public function updatePassword(User $user, string $newPassword): User;
+
+    /**
+     * Revoke all tokens for the user, except the one with the given ID.
+     */
+    public function revokeTokensExcept(User $user, mixed $exceptId = null): void;
 }
