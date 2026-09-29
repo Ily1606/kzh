@@ -35,6 +35,8 @@ class PluginController extends Controller
         $plugin = $this->pluginService->submit(
             $request->user(),
             $request->validated(),
+            $request->ip(),
+            $request->userAgent(),
         );
 
         return ApiResponse::successResponse(

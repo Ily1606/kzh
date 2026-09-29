@@ -6,8 +6,10 @@ use App\Events\Plugin\PluginSubmitted;
 use App\Listeners\Plugin\LogPluginSubmission;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Services\PluginService;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -73,6 +75,111 @@ class PluginEventTest extends TestCase
         $this->assertSame('192.0.2.10', $event->context()['ip_address']);
         $this->assertSame('Plugin Review Agent', $event->userAgent);
         $this->assertSame('Plugin Review Agent', $event->context()['user_agent']);
+    }
+
+    public function test_event_captures_the_real_ip_of_the_request(): void
+    {
+        Event::fake([PluginSubmitted::class]);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.7'])
+            ->withHeader('User-Agent', 'Plugin Review Agent')
+            ->postJson('/api/v1/plugins', $this->payload())
+            ->assertCreated();
+
+        Event::assertDispatched(
+            PluginSubmitted::class,
+            fn (PluginSubmitted $event): bool => $event->ipAddress === '198.51.100.7'
+                && $event->userAgent === 'Plugin Review Agent'
+                && $event->context()['ip_address'] === '198.51.100.7'
+                && $event->context()['user_agent'] === 'Plugin Review Agent',
+        );
+    }
+
+    /**
+     * The queued listener is executed by a worker, where the container's request
+     * is the console request. The audit entry must describe the originating
+     * request, not the one the worker happens to be running.
+     */
+    public function test_audit_context_survives_serialization_into_a_queue_worker(): void
+    {
+        $event = new PluginSubmitted(
+            plugin: Plugin::factory()->create(),
+            user: User::factory()->create(),
+            ipAddress: '198.51.100.7',
+            userAgent: 'Plugin Review Agent',
+        );
+
+        // Round-trip through the queue payload, then build context while a console
+        // request is bound — exactly what CallQueuedListener does in the worker.
+        $workerSideEvent = unserialize(serialize($event));
+
+        $this->app->instance('request', Request::create('/'));
+
+        $this->assertSame('198.51.100.7', $workerSideEvent->ipAddress);
+        $this->assertSame('Plugin Review Agent', $workerSideEvent->userAgent);
+        $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
+        $this->assertSame('Plugin Review Agent', $workerSideEvent->context()['user_agent']);
+    }
+
+    public function test_event_context_does_not_fall_back_to_the_console_request(): void
+    {
+        $event = new PluginSubmitted(
+            plugin: Plugin::factory()->create(),
+            user: User::factory()->create(),
+            ipAddress: '198.51.100.7',
+            userAgent: 'Plugin Review Agent',
+        );
+
+        $this->app->instance('request', Request::create('/'));
+
+        $context = $event->context();
+
+        $this->assertNotSame('127.0.0.1', $context['ip_address']);
+        $this->assertNotSame('Symfony', $context['user_agent']);
+    }
+
+    /**
+     * Only the controller may read the HTTP request. The service must forward the
+     * metadata it is given rather than resolving a request of its own, so it stays
+     * usable from a console command or another non-HTTP caller.
+     */
+    public function test_plugin_service_forwards_the_request_metadata_it_receives(): void
+    {
+        Event::fake([PluginSubmitted::class]);
+
+        $this->app->make(PluginService::class)->submit(
+            User::factory()->create(),
+            $this->payload(),
+            '198.51.100.7',
+            'Console Runner',
+        );
+
+        Event::assertDispatched(
+            PluginSubmitted::class,
+            fn (PluginSubmitted $event): bool => $event->ipAddress === '198.51.100.7'
+                && $event->userAgent === 'Console Runner',
+        );
+    }
+
+    public function test_plugin_service_needs_no_http_request_to_dispatch_events(): void
+    {
+        Event::fake([PluginSubmitted::class]);
+
+        // Simulate a non-HTTP caller: the service must not depend on a request.
+        $this->app->instance('request', Request::create('/'));
+
+        $this->app->make(PluginService::class)->submit(
+            User::factory()->create(),
+            $this->payload(),
+        );
+
+        Event::assertDispatched(
+            PluginSubmitted::class,
+            fn (PluginSubmitted $event): bool => $event->ipAddress === null
+                && $event->userAgent === null,
+        );
     }
 
     public function test_invalid_submission_does_not_dispatch_plugin_submitted_event(): void

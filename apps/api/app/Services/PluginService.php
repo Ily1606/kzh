@@ -24,8 +24,10 @@ final class PluginService
 
     /**
      * @param  array{name: string, title: string, license: string, source_link: string}  $attributes
+     * @param  string|null  $ipAddress  Client IP of the originating request, captured by the caller.
+     * @param  string|null  $userAgent  User agent of the originating request, captured by the caller.
      */
-    public function submit(User $user, array $attributes): Plugin
+    public function submit(User $user, array $attributes, ?string $ipAddress = null, ?string $userAgent = null): Plugin
     {
         try {
             $plugin = $this->pluginRepository->create([
@@ -46,8 +48,8 @@ final class PluginService
         PluginSubmitted::dispatch(
             plugin: $plugin,
             user: $user,
-            ipAddress: request()->ip(),
-            userAgent: request()->userAgent(),
+            ipAddress: $ipAddress,
+            userAgent: $userAgent,
         );
 
         return $plugin;

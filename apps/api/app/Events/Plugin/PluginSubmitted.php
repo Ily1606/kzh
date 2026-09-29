@@ -6,7 +6,6 @@ use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Http\Request;
 use Illuminate\Queue\SerializesModels;
 
 /**
@@ -16,19 +15,12 @@ final class PluginSubmitted implements ShouldDispatchAfterCommit
 {
     use Dispatchable, SerializesModels;
 
-    public readonly ?string $ipAddress;
-
-    public readonly ?string $userAgent;
-
     public function __construct(
         public readonly Plugin $plugin,
         public readonly User $user,
-        ?string $ipAddress = null,
-        ?string $userAgent = null,
-    ) {
-        $this->ipAddress = $ipAddress ?? app(Request::class)->ip();
-        $this->userAgent = $userAgent ?? app(Request::class)->userAgent();
-    }
+        public readonly ?string $ipAddress = null,
+        public readonly ?string $userAgent = null,
+    ) {}
 
     public function user(): User
     {
