@@ -43,7 +43,6 @@ class PluginRepositoryTest extends TestCase
 
         $this->assertInstanceOf(Plugin::class, $plugin);
         $this->assertDatabaseHas('plugins', [
-
             'id' => $plugin->id,
             'user_id' => $user->id,
             'name' => 'Laravel Debugbar',
