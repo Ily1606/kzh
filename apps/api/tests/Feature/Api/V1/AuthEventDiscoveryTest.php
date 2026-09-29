@@ -10,6 +10,7 @@ use App\Events\Auth\UserRegistered;
 use App\Listeners\Auth\LogAuthActivity;
 use App\Models\User;
 use Illuminate\Events\CallQueuedListener;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
@@ -27,15 +28,23 @@ use Tests\TestCase;
  */
 class AuthEventDiscoveryTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
+     * Auth events use SerializesModels, so they must carry a persisted user:
+     * an unsaved `new User` has no key and the queued listener cannot
+     * re-fetch it (ModelNotFoundException / missing table on sqlite).
+     *
      * @return array<int, RecordsAuthActivity>
      */
     private function authEvents(): array
     {
+        $user = User::factory()->create();
+
         return [
-            new UserRegistered(new User),
-            new UserLoggedIn(new User, 'token-id'),
-            new UserLoggedOut(new User, 2),
+            new UserRegistered($user),
+            new UserLoggedIn($user, 'token-id'),
+            new UserLoggedOut($user, 2),
         ];
     }
 
@@ -60,7 +69,7 @@ class AuthEventDiscoveryTest extends TestCase
             $calls++;
         });
 
-        UserLoggedIn::dispatch(new User, 'token-id');
+        UserLoggedIn::dispatch(User::factory()->create(), 'token-id');
 
         // A listener bound to an auth event twice — for instance if it were also
         // listed in a $listen mapping alongside its own contract type-hint —
@@ -72,7 +81,7 @@ class AuthEventDiscoveryTest extends TestCase
     {
         Bus::fake();
 
-        UserLoggedIn::dispatch(new User, 'token-id');
+        UserLoggedIn::dispatch(User::factory()->create(), 'token-id');
 
         Bus::assertDispatchedTimes(CallQueuedListener::class, 1);
 
@@ -93,7 +102,15 @@ class AuthEventDiscoveryTest extends TestCase
 
     public function test_auth_events_expose_the_contract_consumed_by_the_listener(): void
     {
-        foreach ($this->authEvents() as $event) {
+        $user = User::factory()->create();
+
+        $events = [
+            new UserRegistered($user),
+            new UserLoggedIn($user, 'token-id'),
+            new UserLoggedOut($user, 2),
+        ];
+
+        foreach ($events as $event) {
             $this->assertInstanceOf(RecordsAuthActivity::class, $event);
             $this->assertInstanceOf(AuthEventType::class, $event->eventType());
         }

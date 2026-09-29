@@ -20,6 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api();
+        // Không truyền `at:` ở đây. TrustProxies đã là global middleware
+        // nên nó sẽ tự đọc config('trustedproxy.proxies') lúc runtime
+        // (request đi qua mới đọc, khi đó config đã load xong).
+        // Lý do không gọi config()/env() tại đây: closure này chạy ngay khi
+        // resolve ConsoleKernel, lúc đó container chưa có `config` -> crash.
+        // Nguồn sự thật duy nhất: config/trustedproxy.php + TRUSTED_PROXIES.
+        $middleware->trustProxies();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

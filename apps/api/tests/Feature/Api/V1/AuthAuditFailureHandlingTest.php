@@ -55,7 +55,10 @@ class AuthAuditFailureHandlingTest extends TestCase
     {
         Bus::fake();
 
-        UserLoggedIn::dispatch(User::factory()->make(), 'token-id');
+        // Must be a persisted user: the event uses SerializesModels, so an
+        // unsaved `make()` model has no key for the queued job to re-fetch
+        // and dispatch() throws ModelNotFoundException.
+        UserLoggedIn::dispatch(User::factory()->create(), 'token-id');
 
         $job = Bus::dispatched(CallQueuedListener::class)->sole();
 
