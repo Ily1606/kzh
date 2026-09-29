@@ -24,7 +24,9 @@ final class PluginService
     ) {}
 
     /**
-     * @param  array{name: string, title: string, license: string, source_link: string}  $attributes
+     * @param  User  $user  Submitter the plugin belongs to.
+     * @param  array{name: string, title: string, license: string, source_link: string}  $attributes  Validated submission payload.
+     * @param  RequestContext  $requestContext  Metadata of the originating request.
      */
     public function submit(User $user, array $attributes, RequestContext $requestContext): Plugin
     {

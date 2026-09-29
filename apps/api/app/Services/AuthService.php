@@ -20,6 +20,8 @@ final class AuthService
     ) {}
 
     /**
+     * @param  array{name: string, email: string, password: string}  $attributes  Validated registration payload.
+     * @param  RequestContext  $requestContext  Metadata of the originating request.
      * @return array{user: User, token: string}
      */
     public function register(array $attributes, RequestContext $requestContext): array
@@ -32,6 +34,9 @@ final class AuthService
     }
 
     /**
+     * @param  string  $email  Email address the user signs in with.
+     * @param  string  $password  Plain-text password to verify.
+     * @param  RequestContext  $requestContext  Metadata of the originating request.
      * @return array{user: User, token: string}
      */
     public function login(string $email, string $password, RequestContext $requestContext): array
@@ -60,6 +65,12 @@ final class AuthService
         return $this->toAuthPayload($result);
     }
 
+    /**
+     * Revoke every token of the user and dispatch the logout audit event.
+     *
+     * @param  User  $user  User whose tokens are revoked.
+     * @param  RequestContext  $requestContext  Metadata of the originating request.
+     */
     public function logout(User $user, RequestContext $requestContext): void
     {
         $revokedTokens = $this->authRepository->revokeTokens($user);
