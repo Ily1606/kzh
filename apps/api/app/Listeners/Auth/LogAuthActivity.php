@@ -3,6 +3,7 @@
 namespace App\Listeners\Auth;
 
 use App\Contracts\RecordsAuthActivity;
+use App\Listeners\Concerns\ResolvesRetryPolicy;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -15,17 +16,7 @@ use Throwable;
  */
 final class LogAuthActivity implements ShouldQueue
 {
-    /**
-     * Number of retries
-     */
-    public int $tries = 3;
-
-    /**
-     * Seconds to wait before each retry.
-     *
-     * @var array<int, int>
-     */
-    public array $backoff = [10, 60];
+    use ResolvesRetryPolicy;
 
     public function handle(RecordsAuthActivity $event): void
     {

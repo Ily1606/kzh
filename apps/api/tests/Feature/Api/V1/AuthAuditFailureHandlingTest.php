@@ -30,8 +30,23 @@ class AuthAuditFailureHandlingTest extends TestCase
     {
         $listener = new LogAuthActivity;
 
-        $this->assertSame(3, $listener->tries);
-        $this->assertSame([10, 60], $listener->backoff);
+        $this->assertSame(3, $listener->tries());
+        $this->assertSame([10, 60], $listener->backoff());
+    }
+
+    /**
+     * The policy is read from config rather than hard coded, so the same listener
+     * can be tuned per environment.
+     */
+    public function test_the_retry_policy_follows_the_configuration(): void
+    {
+        config()->set('queue.audit_retry.tries', 7);
+        config()->set('queue.audit_retry.backoff', '5,30,90');
+
+        $listener = new LogAuthActivity;
+
+        $this->assertSame(7, $listener->tries());
+        $this->assertSame([5, 30, 90], $listener->backoff());
     }
 
     public function test_the_retry_policy_reaches_the_queued_job(): void

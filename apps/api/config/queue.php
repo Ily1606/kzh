@@ -29,6 +29,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Audit listener retry policy
+    |--------------------------------------------------------------------------
+    |
+    | Shared retry policy for the queued audit listeners, applied through the
+    | App\Listeners\Concerns\ResolvesRetryPolicy trait. Keeping the numbers here
+    | rather than hard coding them in each listener lets operations tune them
+    | per environment without a code change or redeploy.
+    |
+    */
+
+    'audit_retry' => [
+        'tries' => (int) env('QUEUE_AUDIT_TRIES', 3),
+        'backoff' => env('QUEUE_AUDIT_BACKOFF', '10,60'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |
