@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Plugins\Tables;
 
 use App\Enums\PluginStatus;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
@@ -15,7 +17,7 @@ class PluginsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('user'))
+            ->modifyQueryUsing(fn(Builder $query) => $query->with('user'))
             ->columns([
 
                 TextColumn::make('name')
@@ -108,6 +110,29 @@ class PluginsTable
                     ->native(false),
             ])
             ->filtersLayout(FiltersLayout::Dropdown)
-            ->deferFilters();
+            ->deferFilters()
+            ->defaultSort('created_at', 'desc')
+            ->recordActions([
+                Action::make('reject')
+                    ->label(__('plugin.table.actions.reject'))
+                    ->icon('heroicon-m-x-circle')
+                    ->color('danger')
+                    ->visible(fn($record) => $record->status === PluginStatus::Pending)
+                    ->form([
+                        Textarea::make('rejected_reason')
+                            ->label(__('plugin.table.actions.reject_reason_label'))
+                            ->placeholder(__('plugin.table.actions.reject_reason_placeholder'))
+                            ->required()
+                            ->maxLength(500),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'status' => PluginStatus::Rejected,
+                        ]);
+                    })
+                    ->modalHeading(__('plugin.table.actions.reject_modal_heading'))
+                    ->modalDescription(__('plugin.table.actions.reject_modal_description'))
+                    ->modalSubmitActionLabel(__('plugin.table.actions.reject_modal_submit')),
+            ]);
     }
 }
