@@ -318,7 +318,7 @@ class SubmitPluginTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        $limit = (int) config('plugins.submit_per_minute');
+        $limit = (int) config('rate_limits.submit_plugin_per_minute');
 
         for ($index = 0; $index < $limit; $index++) {
             $this->postJson('/api/v1/plugins', $this->payload([
@@ -333,7 +333,7 @@ class SubmitPluginTest extends TestCase
 
     public function test_submit_rate_limit_is_configurable_per_environment(): void
     {
-        config()->set('plugins.submit_per_minute', 1);
+        config()->set('rate_limits.submit_plugin_per_minute', 1);
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/v1/plugins', $this->payload([
@@ -347,7 +347,7 @@ class SubmitPluginTest extends TestCase
 
     public function test_submit_rate_limit_never_blocks_everything_when_config_is_invalid(): void
     {
-        config()->set('plugins.submit_per_minute', 0);
+        config()->set('rate_limits.submit_plugin_per_minute', 0);
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/v1/plugins', $this->payload([

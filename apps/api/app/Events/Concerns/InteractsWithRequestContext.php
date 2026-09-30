@@ -17,6 +17,10 @@ use Illuminate\Support\Str;
  * request and would report 127.0.0.1 / "Symfony" instead of the client that
  * performed the action.
  *
+ * Scoped to the auth events on purpose. An event elsewhere (PluginSubmitted)
+ * carries the same RequestContext but reads it directly, because the trait
+ * would also pull in a masked email snapshot its payload has no use for.
+ *
  * @property-read User $user
  * @property-read RequestContext $requestContext
  * @property-read array{user_id: mixed, email: string} $snapshot

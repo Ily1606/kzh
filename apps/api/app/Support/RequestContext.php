@@ -7,9 +7,11 @@ use Illuminate\Http\Request;
 /**
  * Request metadata captured at the HTTP boundary.
  *
- * Only the controller may build this from a Request. Services and events
- * receive plain scalars so they stay usable from console/queue callers and
- * so the values can be snapshotted at dispatch time for queued listeners.
+ * Only the controller may build this from a Request, via fromRequest(). Services
+ * and events receive the object itself rather than reading the container, so the
+ * values are already a snapshot by the time a queued listener sees them: the
+ * worker has no originating request, and app(Request::class) there resolves to
+ * the console request (127.0.0.1 / "Symfony").
  */
 final class RequestContext
 {

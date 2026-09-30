@@ -17,6 +17,16 @@ namespace App\Listeners\Concerns;
 trait ResolvesAuditLogChannel
 {
     /**
+     * Channel the rescue is pinned to when the configured one is unusable.
+     *
+     * stderr does not touch the log file, which is what makes it a safe rescue
+     * when the disk is full. It is the last resort of the last resort, so it is
+     * named once here rather than repeated at every use site: if it ever needs to
+     * change, one edit has to cover every listener.
+     */
+    private const RESCUE_CHANNEL = 'stderr';
+
+    /**
      * Config key holding the channel the audit entries are written to.
      */
     abstract protected function auditChannelConfigKey(): string;
@@ -41,15 +51,15 @@ trait ResolvesAuditLogChannel
     /**
      * Channel the terminal failure is reported on, kept off the audit channel.
      *
-     * stderr does not touch the log file, which is what makes it a safe rescue
-     * when the disk is full. An operator pointing the failure channel at the
-     * audit channel by hand is stepped over, since that would defeat the point.
+     * An operator pointing the failure channel at the audit channel by hand is
+     * stepped over, since that would defeat the point: RESCUE_CHANNEL says why
+     * the rescue is safe there in the first place.
      */
     protected function failureChannel(): string
     {
         $auditChannel = $this->auditChannel();
-        $fallback = config($this->failureChannelConfigKey(), 'stderr');
+        $fallback = config($this->failureChannelConfigKey(), self::RESCUE_CHANNEL);
 
-        return $fallback === $auditChannel ? 'stderr' : $fallback;
+        return $fallback === $auditChannel ? self::RESCUE_CHANNEL : $fallback;
     }
 }

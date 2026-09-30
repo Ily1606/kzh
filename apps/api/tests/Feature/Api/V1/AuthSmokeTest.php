@@ -182,7 +182,6 @@ class AuthSmokeTest extends TestCase
         ])->assertTooManyRequests();
     }
 
-
     public function test_vue_origin_can_make_credentialed_cors_requests(): void
     {
         config()->set('cors.allowed_origins', ['http://localhost:5173']);

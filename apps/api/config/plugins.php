@@ -66,7 +66,4 @@ return [
         'age_offset' => env('PLUGIN_TRENDING_AGE_OFFSET', 2),
     ],
     'licenses' => array_column(PluginLicense::cases(), 'value'),
-    // Maximum plugin submissions per minute, counted per authenticated user.
-    // Read from env so each environment can tune it without a code change and redeploy.
-    'submit_per_minute' => (int) env('PLUGIN_SUBMIT_PER_MINUTE', 5),
 ];

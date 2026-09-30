@@ -19,10 +19,16 @@ trait ResolvesRetryPolicy
 {
     /**
      * Number of attempts before the job is marked as failed.
+     *
+     * Floored at 1, for the same reason AppServiceProvider::resolveRateLimit
+     * floors a rate limit: an empty or non-numeric QUEUE_AUDIT_TRIES casts to 0,
+     * and Laravel reads `tries` of 0 as "retry forever". A bad deploy would then
+     * keep the job alive for as long as the log sink is down, and failed() — the
+     * only thing that reports the failure to an operator — would never run.
      */
     public function tries(): int
     {
-        return (int) config('queue.audit_retry.tries', 3);
+        return max(1, (int) config('queue.audit_retry.tries', 3));
     }
 
     /**

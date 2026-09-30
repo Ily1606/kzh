@@ -72,6 +72,20 @@ class PluginAuditFailureHandlingTest extends TestCase
         $this->assertSame([5, 30, 90], (new LogPluginSubmission)->backoff());
     }
 
+    /**
+     * Same guard as the auth listener: `tries` of 0 means "retry forever" to
+     * Laravel, so an empty or non-numeric env value would keep the submission
+     * audit job alive for as long as the sink is down and never reach failed().
+     */
+    public function test_the_retry_policy_is_never_unlimited(): void
+    {
+        foreach ([0, '', 'not-a-number'] as $invalid) {
+            config()->set('queue.audit_retry.tries', $invalid);
+
+            $this->assertSame(1, (new LogPluginSubmission)->tries());
+        }
+    }
+
     public function test_the_retry_policy_reaches_the_queued_job(): void
     {
         Bus::fake();

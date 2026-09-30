@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
-use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginViewed;
 use App\Http\Resources\PluginResource;

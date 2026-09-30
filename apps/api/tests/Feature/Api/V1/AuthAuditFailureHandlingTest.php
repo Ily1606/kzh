@@ -52,6 +52,21 @@ class AuthAuditFailureHandlingTest extends TestCase
         $this->assertSame([5, 30, 90], $listener->backoff());
     }
 
+    /**
+     * An empty or non-numeric QUEUE_AUDIT_TRIES casts to 0, and Laravel reads
+     * `tries` of 0 as "retry forever": the job would outlive the outage that
+     * broke logging and failed() — the only report an operator gets — would
+     * never run. The listener must always end up with a finite policy.
+     */
+    public function test_the_retry_policy_is_never_unlimited(): void
+    {
+        foreach ([0, '', 'not-a-number'] as $invalid) {
+            config()->set('queue.audit_retry.tries', $invalid);
+
+            $this->assertSame(1, (new LogAuthActivity)->tries());
+        }
+    }
+
     public function test_the_retry_policy_reaches_the_queued_job(): void
     {
         Bus::fake();
