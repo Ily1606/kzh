@@ -75,7 +75,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (Throwable $exception, Request $request) {
             if ($exception instanceof HttpResponseException) {
-                return null;   // -> default Laravel (return $e -> getResponse())
+                // Let Laravel return the wrapped response as-is instead of converting it to a 500.
+                return null;
             }
 
             if (! $request->is('api/*')) {
