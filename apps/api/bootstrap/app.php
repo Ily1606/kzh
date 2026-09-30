@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
 use App\Exceptions\InvalidCredentialsException;
 use App\Support\ApiResponse;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -68,10 +69,15 @@ return Application::configure(basePath: dirname(__DIR__))
                 default => __('api.request_failed'),
             };
 
-            return ApiResponse::errorResponse($message, $status);
+            return ApiResponse::errorResponse($message, $status)
+                ->withHeaders($exception->getHeaders());
         });
 
         $exceptions->render(function (Throwable $exception, Request $request) {
+            if ($exception instanceof HttpResponseException) {
+                return null;   // -> default Laravel (return $e -> getResponse())
+            }
+
             if (! $request->is('api/*')) {
                 return null;
             }
