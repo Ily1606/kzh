@@ -25,11 +25,14 @@ class UserProfile extends Model
 
     public const AVATAR_DISK = 'public';
 
-    public function isLocalAvatar(?string $url = null): bool
+    public static function isLocalPath(?string $path): bool
     {
-        $url = $url ?? $this->avatar_link;
+        return $path !== null && $path !== '' && ! str_starts_with($path, 'http');
+    }
 
-        return $url && ! str_starts_with($url, 'http');
+    public function isLocalAvatar(): bool
+    {
+        return self::isLocalPath($this->avatar_link);
     }
 
     public function user(): BelongsTo

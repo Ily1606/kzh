@@ -7,7 +7,7 @@ return [
         'body' => 'Thank you for registering an account with us. We are excited to have you on board.',
         'button' => 'Visit Your Dashboard',
         'footer' => 'If you have any questions, feel free to reply to this email.',
-        'thanks' => 'Thanks,<br>',
+        'thanks' => 'Thanks,',
         'team' => ':app Team',
     ],
 ];

@@ -42,18 +42,22 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('register', fn(Request $request) => [
             Limit::perMinute(config('auth.limiters.register_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.register_per_account'))->by('account:' . $this->normalizedEmail($request)),
             Limit::perMinute(config('auth.limiters.register_per_ip'))->by($request->ip()),
         ]);
         RateLimiter::for('login', fn(Request $request) => [
             Limit::perMinute(config('auth.limiters.login_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.login_per_account'))->by('account:' . $this->normalizedEmail($request)),
             Limit::perMinute(config('auth.limiters.login_per_ip'))->by($request->ip()),
         ]);
         RateLimiter::for('password-reset-link', fn(Request $request) => [
             Limit::perMinute(config('auth.limiters.password_reset_link_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.password_reset_link_per_account'))->by('account:' . $this->normalizedEmail($request)),
             Limit::perMinute(config('auth.limiters.password_reset_link_per_ip'))->by($request->ip()),
         ]);
         RateLimiter::for('password-reset', fn(Request $request) => [
             Limit::perMinute(config('auth.limiters.password_reset_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.password_reset_per_account'))->by('account:' . $this->normalizedEmail($request)),
             Limit::perMinute(config('auth.limiters.password_reset_per_ip'))->by($request->ip()),
         ]);
 
@@ -75,10 +79,15 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    private function authThrottleKey(Request $request): string
+    private function normalizedEmail(Request $request): string
     {
         $email = $request->input('email');
 
-        return Str::lower(is_string($email) ? $email : '') . '|' . $request->ip();
+        return Str::lower(is_string($email) ? $email : '');
+    }
+
+    private function authThrottleKey(Request $request): string
+    {
+        return $this->normalizedEmail($request) . '|' . $request->ip();
     }
 }
