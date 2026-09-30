@@ -69,7 +69,8 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             $status = $exception->getStatusCode();
-            $message = $exception->getMessage() ?: match ($status) {
+
+            $message = match ($status) {
                 403 => __('api.unauthorized'),
                 404 => __('api.not_found'),
                 419 => __('api.invalid_token'),
