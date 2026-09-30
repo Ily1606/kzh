@@ -78,7 +78,7 @@ class PluginController extends Controller
 
     public function trackView(Request $request, string $id): JsonResponse
     {
-        $viewerId = (string) ($request->user('sanctum')?->getAuthIdentifier() ?? $request->fingerprint());
+        $viewerId = (string) ($request->user('sanctum')?->getAuthIdentifier() ?? 'guest:' . sha1($request->ip() . '|' . $request->userAgent()));
         $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
         $secondsInHour = 3600.0;
 

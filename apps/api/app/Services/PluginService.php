@@ -110,10 +110,8 @@ final class PluginService
 
         $cacheKey = "plugins:trending:{$limit}";
 
-        // Determine cache hit/miss
-        $result = Cache::get($cacheKey);
-
-        if ($result === null) {
+        // Cache only IDs using remember() to prevent stampedes and ensure deleted/rejected plugins are filtered on read
+        $pluginIds = Cache::remember($cacheKey, $cacheTtl, function () use ($daysLimit, $weightView, $weightComment, $weightStar, $gravity, $ageOffset, $limit) {
             $weights = [
                 'view' => $weightView,
                 'comment' => $weightComment,
@@ -127,13 +125,10 @@ final class PluginService
                 $plugins = $this->pluginRepository->getTopAllTimePlugins($limit);
             }
 
-            // Cache raw attributes to avoid Eloquent serialization issues (as demanded by test)
-            $result = $plugins->map->getRawOriginal()->toArray();
+            return $plugins->pluck('id')->toArray();
+        });
 
-            Cache::put($cacheKey, $result, $cacheTtl);
-        }
-
-        // Hydrate raw arrays back into Eloquent Models so the Controller can use PluginResource
-        return Plugin::hydrate($result);
+        // Load models and filter approved, maintaining trending order
+        return $this->pluginRepository->findApprovedByIds($pluginIds);
     }
 }

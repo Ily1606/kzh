@@ -258,6 +258,25 @@ class TrendingAlgorithmTest extends TestCase
 
         // Verify it is an array
         $this->assertIsArray($cachedData);
-        $this->assertIsArray($cachedData[0]);
+        $this->assertIsString($cachedData[0]);
+    }
+
+    public function test_trend_21_rejected_plugin_filtered_from_cache(): void
+    {
+        $plugin1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 10]);
+        $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 5]);
+
+        // First call caches both plugins' IDs
+        $response1 = $this->getJson('/api/v1/plugins/trending');
+        $response1->assertOk()->assertJsonCount(2, 'data.plugins');
+
+        // Reject plugin1
+        $plugin1->update(['status' => PluginStatus::Rejected]);
+
+        // Second call hits the cache (which still has plugin1's ID), but it should be filtered out when loaded from DB
+        $response2 = $this->getJson('/api/v1/plugins/trending');
+        $response2->assertOk()
+            ->assertJsonCount(1, 'data.plugins')
+            ->assertJsonPath('data.plugins.0.id', $plugin2->id);
     }
 }

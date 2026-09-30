@@ -51,6 +51,25 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         DB::table('plugins')->where('id', $pluginId)->increment('comment_count');
     }
 
+    /**
+     * @param array<int, string> $ids
+     * @return Collection<int, Plugin>
+     */
+    public function findApprovedByIds(array $ids): Collection
+    {
+        if (empty($ids)) {
+            return $this->model->newCollection();
+        }
+
+        $plugins = $this->model->newQuery()
+            ->approved()
+            ->whereIn('id', $ids)
+            ->get();
+
+        $order = array_flip($ids);
+        return $plugins->sortBy(fn (Plugin $plugin) => $order[$plugin->id] ?? 9999)->values();
+    }
+
     public function incrementViewCount(string $id, int $count): void
     {
         $this->model->newQuery()->where('id', $id)->increment('view_count', $count);

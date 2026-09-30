@@ -281,4 +281,30 @@ class PluginViewTest extends TestCase
         // Should only increment Redis once
         $this->assertEquals(1, Redis::hget(config('plugins.views_buffer_key'), $plugin->id));
     }
+
+    public function test_view_14_two_guests_same_ip_different_user_agent(): void
+    {
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        // Guest 1
+        $this->withHeaders([
+            'User-Agent' => 'TestBrowser 1.0',
+            'REMOTE_ADDR' => '192.168.1.100'
+        ])->postJson("/api/v1/plugins/{$plugin->id}/view")->assertOk();
+
+        // Guest 2 (Same IP, Different UA)
+        $response = $this->withHeaders([
+            'User-Agent' => 'AnotherBrowser 2.0',
+            'REMOTE_ADDR' => '192.168.1.100'
+        ])->postJson("/api/v1/plugins/{$plugin->id}/view");
+
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'success')
+            ->assertJsonPath('data.view_count', 2);
+
+        $this->assertEquals(2, Redis::hget(config('plugins.views_buffer_key'), $plugin->id));
+    }
 }
