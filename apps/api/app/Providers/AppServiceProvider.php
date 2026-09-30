@@ -45,7 +45,6 @@ class AppServiceProvider extends ServiceProvider
         ]);
         RateLimiter::for('login', fn(Request $request): array => [
             Limit::perMinute(config('auth.limiters.login_per_email'))->by($this->authThrottleKey($request)),
-            Limit::perMinute(config('auth.limiters.login_per_account'))->by('account:' . $this->normalizedEmail($request)),
             Limit::perMinute(config('auth.limiters.login_per_ip'))->by($request->ip()),
         ]);
         RateLimiter::for('password-reset-link', fn(Request $request): array => [

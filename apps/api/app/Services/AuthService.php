@@ -8,6 +8,9 @@ use App\Events\Auth\UserLoggedOut;
 use App\Events\Auth\UserRegistered;
 use App\Exceptions\InvalidCredentialsException;
 use App\Models\User;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 final class AuthService
 {
@@ -36,11 +39,22 @@ final class AuthService
      */
     public function login(string $email, string $password, ?string $ipAddress = null, ?string $userAgent = null): array
     {
+        $normalizedEmail = Str::lower($email);
+        $rateLimitKey = 'login_account:' . $normalizedEmail;
+        $maxAttempts = (int) config('auth.limiters.login_per_account', 30);
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
+            throw new ThrottleRequestsException('Too Many Attempts.');
+        }
+
         $user = $this->authRepository->findValidUser($email, $password);
 
         if ($user === null) {
+            RateLimiter::hit($rateLimitKey);
             throw new InvalidCredentialsException;
         }
+
+        RateLimiter::clear($rateLimitKey);
 
         $result = $this->issueToken($user);
 
