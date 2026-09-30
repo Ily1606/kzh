@@ -31,8 +31,8 @@ final class LogPluginSubmission implements ShouldQueue
     {
         try {
             Log::channel($this->failureChannel())->error('Plugin audit logging failed.', [
-                'plugin_id' => $event->plugin->getKey(),
-                'user_id' => $event->user->getKey(),
+                'plugin_id' => $event->snapshot['plugin_id'],
+                'user_id' => $event->snapshot['user_id'],
                 'ip_address' => $event->requestContext->ipAddress,
                 'exception' => $e::class,
                 'error' => $e->getMessage(),

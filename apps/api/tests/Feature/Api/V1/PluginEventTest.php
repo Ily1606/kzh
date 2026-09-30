@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\V1;
 
+use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
 use App\Listeners\Plugin\LogPluginSubmission;
 use App\Models\Plugin;
@@ -110,6 +111,35 @@ class PluginEventTest extends TestCase
         $this->assertSame('Plugin Review Agent', $workerSideEvent->requestContext->userAgent);
         $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
         $this->assertSame('Plugin Review Agent', $workerSideEvent->context()['user_agent']);
+    }
+
+    /**
+     * SerializesModels re-queries the models in the worker, so context() must
+     * not read the submission off the restored row. An admin approval between
+     * dispatch and the run (the audit retries after 10s/60s) would otherwise
+     * land a "Plugin submitted." entry carrying `status: approved`, which
+     * records a decision the event never described.
+     */
+    public function test_the_audit_context_reports_the_status_of_the_submission_not_the_current_one(): void
+    {
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Pending]);
+        $user = User::factory()->create();
+
+        $event = new PluginSubmitted(
+            plugin: $plugin,
+            user: $user,
+            requestContext: new RequestContext('198.51.100.7', 'Plugin Review Agent'),
+        );
+
+        $plugin->forceFill(['status' => PluginStatus::Approved])->save();
+
+        // Round-trip through the queue payload, exactly what CallQueuedListener
+        // does before it invokes the listener.
+        $workerSideEvent = unserialize(serialize($event));
+
+        $this->assertSame('approved', $plugin->fresh()->status->value);
+        $this->assertSame('pending', $workerSideEvent->context()['status']);
+        $this->assertSame($plugin->getKey(), $workerSideEvent->context()['plugin_id']);
     }
 
     /**

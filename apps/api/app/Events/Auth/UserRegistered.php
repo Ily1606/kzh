@@ -27,7 +27,9 @@ final class UserRegistered implements RecordsAuthActivity, ShouldDispatchAfterCo
     public function __construct(
         public readonly User $user,
         public readonly RequestContext $requestContext,
-    ) {}
+    ) {
+        $this->captureSnapshot($user);
+    }
 
     public function user(): User
     {

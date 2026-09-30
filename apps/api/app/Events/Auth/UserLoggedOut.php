@@ -22,7 +22,9 @@ final class UserLoggedOut implements RecordsAuthActivity, ShouldDispatchAfterCom
         public readonly User $user,
         public readonly RequestContext $requestContext,
         public readonly int $revokedTokensCount = 0,
-    ) {}
+    ) {
+        $this->captureSnapshot($user);
+    }
 
     public function user(): User
     {

@@ -108,6 +108,11 @@ class AuthAuditFailureHandlingTest extends TestCase
      * The failure report only needs the request origin, so it must read the
      * dedicated accessor. Calling context() would rebuild the whole audit
      * payload just to throw it away.
+     *
+     * `userId()` is the accessor it reads: it comes from the dispatch-time
+     * snapshot, so the report is written even when the account row is gone.
+     * `user()` is never asked for, since restoring the model on the failure
+     * path is exactly what throws once the row has been deleted.
      */
     public function test_the_failure_report_does_not_build_the_whole_event_context(): void
     {
@@ -117,9 +122,12 @@ class AuthAuditFailureHandlingTest extends TestCase
             $entries[] = $message;
         });
 
+        $user = User::factory()->create();
+
         $event = Mockery::mock(RecordsAuthActivity::class);
         $event->shouldReceive('eventType')->andReturn(AuthEventType::Registered);
-        $event->shouldReceive('user')->andReturn(User::factory()->create());
+        $event->shouldReceive('userId')->andReturn($user->getKey());
+        $event->shouldReceive('user')->never();
         $event->shouldReceive('ipAddress')->andReturn('198.51.100.7');
         $event->shouldReceive('context')->never();
 

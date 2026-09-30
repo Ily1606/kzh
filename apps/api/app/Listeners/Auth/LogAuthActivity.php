@@ -39,7 +39,7 @@ final class LogAuthActivity implements ShouldQueue
         try {
             Log::channel($this->failureChannel())->error('Auth audit logging failed.', [
                 'event_type' => $event->eventType()->value,
-                'user_id' => $event->user()->getKey(),
+                'user_id' => $event->userId(),
                 'ip_address' => $event->ipAddress(),
                 'exception' => $e::class,
                 'error' => $e->getMessage(),

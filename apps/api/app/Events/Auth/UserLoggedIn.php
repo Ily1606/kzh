@@ -23,7 +23,9 @@ final class UserLoggedIn implements RecordsAuthActivity, ShouldDispatchAfterComm
         public readonly User $user,
         public readonly string $tokenId,
         public readonly RequestContext $requestContext,
-    ) {}
+    ) {
+        $this->captureSnapshot($user);
+    }
 
     public function user(): User
     {

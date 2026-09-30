@@ -172,6 +172,36 @@ class AuthEventTest extends TestCase
     }
 
     /**
+     * SerializesModels re-queries the user in the worker, so the audit entry
+     * must not read the address off the restored row. A user who changes their
+     * email before the job runs (the audit retries after 10s/60s) would
+     * otherwise have the new address logged against the sign-in that used the
+     * old one.
+     */
+    public function test_the_audit_context_reports_the_email_of_the_sign_in_not_the_current_one(): void
+    {
+        $user = User::factory()->create(['email' => 'nguyen@example.com']);
+        $requestContext = new RequestContext('198.51.100.7', 'Audit Agent');
+
+        $events = [
+            new UserRegistered($user, $requestContext),
+            new UserLoggedIn($user, 'token-id', $requestContext),
+            new UserLoggedOut($user, $requestContext, 1),
+        ];
+
+        $user->forceFill(['email' => 'changed@example.com'])->save();
+
+        foreach ($events as $event) {
+            // Round-trip through the queue payload, exactly what
+            // CallQueuedListener does before it invokes the listener.
+            $workerSideEvent = unserialize(serialize($event));
+
+            $this->assertSame('ngu***************', $workerSideEvent->context()['email'], $event::class);
+            $this->assertSame($user->getKey(), $workerSideEvent->context()['user_id'], $event::class);
+        }
+    }
+
+    /**
      * Only the controller may read the HTTP request. The service must forward the
      * metadata it is given rather than resolving a request of its own, so it stays
      * usable from a console command or another non-HTTP caller.
