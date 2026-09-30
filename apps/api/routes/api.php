@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CommentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PluginController;
@@ -27,6 +28,11 @@ Route::prefix('v1')->group(function () {
         // ================ Plugin ======================
         Route::post('/plugins', [PluginController::class, 'store'])
             ->middleware('throttle:submit-plugin');
+
+        // ================ Comment ====================
+        Route::post('/plugins/{pluginId}/comments', [CommentController::class, 'store'])
+            ->whereUuid('pluginId')
+            ->middleware('throttle:create-comment');
     });
 
     Route::middleware('throttle:api')->group(function () {
@@ -34,5 +40,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/plugins/trending', [PluginController::class, 'trending']);
         Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
             ->whereUuid('id');
+
+        // ================ Comment ====================
+        Route::get('/plugins/{pluginId}/comments', [CommentController::class, 'index'])
+            ->whereUuid('pluginId');
+        Route::get('/plugins/{pluginId}/comments/{commentId}/replies', [CommentController::class, 'replies'])
+            ->whereUuid('pluginId')
+            ->whereUuid('commentId');
     });
 });
