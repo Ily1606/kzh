@@ -80,11 +80,12 @@ class PluginController extends Controller
     {
         $viewerId = (string) ($request->user('sanctum')?->getAuthIdentifier() ?? $request->fingerprint());
         $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
+        $secondsInHour = 3600.0;
 
         $ttl = (int) config('plugins.view_cache_ttl');
         $message = $result->counted
             ? __('api.plugin_view_counted')
-            : __('api.plugin_view_already_counted', ['hours' => max(1, (int) round($ttl / 3600))]);
+            : __('api.plugin_view_already_counted', ['hours' => max(1, (int) round($ttl / $secondsInHour))]);
 
         return ApiResponse::successResponse(
             (new PluginViewResource($result))->resolve(),
@@ -99,7 +100,7 @@ class PluginController extends Controller
         $plugins = $this->pluginService->getTrendingPlugins($limit);
 
         return ApiResponse::successResponse([
-            'plugins' => PluginResource::collection($plugins)->resolve(),
+            'plugins' => $plugins,
         ]);
     }
 }

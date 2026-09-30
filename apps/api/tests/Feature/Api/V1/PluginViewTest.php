@@ -225,13 +225,14 @@ class PluginViewTest extends TestCase
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
+        $secondsInHour = 3600.0;
 
         $plugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
         ]);
 
-        config()->set('plugins.view_cache_ttl', 3600); // 1 hour
+        config()->set('plugins.view_cache_ttl', $secondsInHour); // 1 hour
 
         $this->postJson("/api/v1/plugins/{$plugin->id}/view")->assertOk();
 

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\DTOs\PluginViewResult;
 use App\Contracts\PluginRepositoryInterface;
 use App\Events\Plugin\PluginSubmitted;
-use App\Events\Plugin\PluginViewed;
 use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
 use App\Models\User;
@@ -87,15 +86,18 @@ final class PluginService
     /**
      * Get trending plugins using the Hacker News Ranking Algorithm.
      *
-     * Formula: Score = P / (T + 2)^G
+     * Formula: Score = (P - 1) / (T + 2)^G
      * - P (Points): Composite score based on views, comments, and stars.
      * - T (Time): Age of the plugin in hours.
      * - G (Gravity): Decay rate. Higher gravity means older items drop faster.
      * - 2 (Age Offset): Prevents division by zero for brand new items.
      *
      * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
+     *
+     * @param int $limit
+     * @return array<int, array<string, mixed>>
      */
-    public function getTrendingPlugins(int $limit): Collection
+    public function getTrendingPlugins(int $limit): array
     {
         $cacheTtl = config('plugins.trending.cache_ttl');
         $daysLimit = config('plugins.trending.days_limit');
@@ -126,7 +128,8 @@ final class PluginService
                 $plugins = $this->pluginRepository->getTopAllTimePlugins($limit);
             }
 
-            $result = $plugins;
+            // Resolve resource to array BEFORE caching to avoid Eloquent serialization issues
+            $result = PluginResource::collection($plugins)->resolve();
 
             Cache::put($cacheKey, $result, $cacheTtl);
         }

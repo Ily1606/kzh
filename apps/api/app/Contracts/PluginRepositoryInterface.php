@@ -25,7 +25,7 @@ interface PluginRepositoryInterface
      * @param array{view: float, comment: float, star: float} $weights
      * @return Collection<int, Plugin>
      */
-    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection;
+    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit,): Collection;
 
     /**
      * @return Collection<int, Plugin>

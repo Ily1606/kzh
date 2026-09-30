@@ -3,7 +3,6 @@
 namespace App\Repositories;
 
 use App\Contracts\PluginRepositoryInterface;
-use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -67,17 +66,19 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     }
 
     /**
-     * @param array{view: float, comment: float, star: float} $weights
+     * @param  array{view: float, comment: float, star: float}  $weights
      * @return Collection<int, Plugin>
      */
-    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
+    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit,): Collection
     {
+        $secondsInHour = 3600.0;
+
         return $this->model->newQuery()
             ->approved()
             ->where('approved_at', '>=', now()->subDays($daysLimit))
             ->selectRaw("*, (
-                (view_count * {$weights['view']} + comment_count * {$weights['comment']} + star_count * {$weights['star']})
-                / POWER({$this->getAgeInSecondsSql()}/3600.0 + {$ageOffset}, {$gravity})
+                (view_count * {$weights['view']} + comment_count * {$weights['comment']} + star_count * {$weights['star']} - 1)
+                / POWER({$this->getAgeInSecondsSql()}/{$secondsInHour} + {$ageOffset}, {$gravity})
             ) as trending_score")
             ->orderByDesc('trending_score')
             ->orderByDesc('id')
