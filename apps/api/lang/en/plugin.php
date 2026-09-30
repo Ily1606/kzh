@@ -22,10 +22,16 @@ return [
     ],
     'table' => [
         'columns' => [
-            'plugin_name' => 'Plugin Name',
+            'name' => 'Name',
+            'title' => 'Title',
             'author' => 'Author',
             'status' => 'Status',
             'stars' => 'Stars',
+            'views' => 'Views',
+            'comments' => 'Comments',
+            'license' => 'License',
+            'source_link' => 'Source Link',
+            'approved_at' => 'Approved At',
             'created_at' => 'Created At',
         ],
         'filters' => [
