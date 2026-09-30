@@ -100,7 +100,7 @@ class PluginController extends Controller
         $plugins = $this->pluginService->getTrendingPlugins($limit);
 
         return ApiResponse::successResponse([
-            'plugins' => $plugins,
+            'plugins' => PluginResource::collection($plugins)->resolve(),
         ]);
     }
 }

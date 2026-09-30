@@ -5,7 +5,6 @@ namespace App\Services;
 use App\DTOs\PluginViewResult;
 use App\Contracts\PluginRepositoryInterface;
 use App\Events\Plugin\PluginSubmitted;
-use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -95,9 +94,9 @@ final class PluginService
      * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
      *
      * @param int $limit
-     * @return array<int, array<string, mixed>>
+     * @return Collection<int, Plugin>
      */
-    public function getTrendingPlugins(int $limit): array
+    public function getTrendingPlugins(int $limit): Collection
     {
         $cacheTtl = config('plugins.trending.cache_ttl');
         $daysLimit = config('plugins.trending.days_limit');
@@ -128,12 +127,13 @@ final class PluginService
                 $plugins = $this->pluginRepository->getTopAllTimePlugins($limit);
             }
 
-            // Resolve resource to array BEFORE caching to avoid Eloquent serialization issues
-            $result = PluginResource::collection($plugins)->resolve();
+            // Cache raw attributes to avoid Eloquent serialization issues (as demanded by test)
+            $result = $plugins->map->getRawOriginal()->toArray();
 
             Cache::put($cacheKey, $result, $cacheTtl);
         }
 
-        return $result;
+        // Hydrate raw arrays back into Eloquent Models so the Controller can use PluginResource
+        return Plugin::hydrate($result);
     }
 }

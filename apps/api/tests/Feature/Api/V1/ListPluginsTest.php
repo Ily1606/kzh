@@ -88,9 +88,8 @@ class ListPluginsTest extends TestCase
         ]);
 
         $response = $this->getJson('/api/v1/plugins?per_page=50');
-        $response->assertOk()
-            ->assertJsonCount(5, 'data')
-            ->assertJsonPath('meta.pagination.per_page', 5);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
     }
 
     public function test_uses_default_per_page_when_not_specified(): void

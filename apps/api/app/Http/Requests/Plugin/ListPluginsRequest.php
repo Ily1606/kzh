@@ -15,18 +15,6 @@ class ListPluginsRequest extends FormRequest
         return true;
     }
 
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('per_page')) {
-            $max = config('plugins.pagination.max_per_page');
-            if ((int) $this->per_page > $max) {
-                $this->merge([
-                    'per_page' => $max,
-                ]);
-            }
-        }
-    }
-
     /**
      * Get the validation rules that apply to the request.
      *
