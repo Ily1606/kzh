@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\ListCommentsRequest;
 use App\Http\Resources\CommentResource;
 use App\Services\CommentService;
 use App\Support\ApiResponse;
+use App\Support\RequestContext;
 use Illuminate\Http\JsonResponse;
 
 class CommentController extends Controller
@@ -87,6 +88,7 @@ class CommentController extends Controller
             $request->user(),
             $pluginId,
             $request->validated(),
+            RequestContext::fromRequest($request),
         );
 
         return ApiResponse::successResponse(

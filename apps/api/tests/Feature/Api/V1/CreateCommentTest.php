@@ -9,6 +9,7 @@ use App\Models\Plugin;
 use App\Models\User;
 use App\Repositories\CommentRepository;
 use App\Services\CommentService;
+use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Laravel\Sanctum\Sanctum;
@@ -430,7 +431,7 @@ class CreateCommentTest extends TestCase
             $this->app->make(CommentService::class)->create($user, $plugin->id, [
                 'content' => 'This should never persist.',
                 'parent_comment_id' => $parent->id,
-            ]);
+            ], new RequestContext(null, null));
 
             $this->fail('Expected the service to propagate the failure.');
         } catch (RuntimeException) {

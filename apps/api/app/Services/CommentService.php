@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Contracts\CommentRepositoryInterface;
 use App\Contracts\PluginRepositoryInterface;
+use App\Events\Comment\CommentCreated;
 use App\Models\Comment;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -48,8 +50,9 @@ final class CommentService
 
     /**
      * @param  array{content: string, parent_comment_id?: string|null}  $data
+     * @param  RequestContext  $requestContext  Metadata of the originating request.
      */
-    public function create(User $user, string $pluginId, array $data): Comment
+    public function create(User $user, string $pluginId, array $data, RequestContext $requestContext): Comment
     {
         // Ensure the plugin exists and is approved.
         $plugin = $this->pluginRepository->findApprovedById($pluginId);
@@ -95,6 +98,18 @@ final class CommentService
         //
         // refresh() re-reads the row *and* keeps `author.profile` loaded, so the
         // single query here is what buys a consistent payload.
-        return $comment->load('author.profile')->refresh();
+        $comment = $comment->load('author.profile')->refresh();
+
+        // Dispatched after the transaction above has committed, so a queued
+        // listener can never read a comment row that the rollback removed. The
+        // event carries the request snapshot the controller captured, because
+        // the listener runs in a worker where no originating request exists.
+        CommentCreated::dispatch(
+            comment: $comment,
+            author: $user,
+            requestContext: $requestContext,
+        );
+
+        return $comment;
     }
 }
