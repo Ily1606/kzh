@@ -8,6 +8,7 @@ use App\Models\UserProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Exception;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -16,13 +17,13 @@ class ProfileUpdateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_unauthenticated_user_cannot_update_profile()
+    public function test_unauthenticated_user_cannot_update_profile(): void
     {
         $response = $this->patchJson('/api/v1/user', ['name' => 'New Name']);
         $response->assertStatus(401);
     }
 
-    public function test_authenticated_user_can_update_name()
+    public function test_authenticated_user_can_update_name(): void
     {
         $user = User::factory()->create(['name' => 'Old Name']);
         Sanctum::actingAs($user);
@@ -30,7 +31,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.name', 'Nguyen Van Giap');
     }
 
-    public function test_authenticated_user_can_remove_avatar_via_upload_api()
+    public function test_authenticated_user_can_remove_avatar_via_upload_api(): void
     {
         $user = User::factory()->create();
         $user->profile()->create(['id' => (string) Str::uuid(), 'avatar_link' => 'avatars/old.png']);
@@ -39,7 +40,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.avatarLink', null);
     }
 
-    public function test_authenticated_user_can_update_github_name()
+    public function test_authenticated_user_can_update_github_name(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -47,7 +48,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.githubName', 'giapnguyen');
     }
 
-    public function test_authenticated_user_can_update_github_link()
+    public function test_authenticated_user_can_update_github_link(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -55,7 +56,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.githubLink', 'https://github.com/giapnguyen');
     }
 
-    public function test_authenticated_user_can_remove_github_link()
+    public function test_authenticated_user_can_remove_github_link(): void
     {
         $user = User::factory()->create();
         $user->profile()->create(['id' => (string) Str::uuid(), 'github_link' => 'https://github.com/giapnguyen']);
@@ -64,7 +65,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.githubLink', null);
     }
 
-    public function test_authenticated_user_can_update_multiple_fields()
+    public function test_authenticated_user_can_update_multiple_fields(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -77,7 +78,7 @@ class ProfileUpdateTest extends TestCase
             ->assertJsonPath('data.name', 'Nguyen Van Giap');
     }
 
-    public function test_sending_empty_payload_does_not_change_anything()
+    public function test_sending_empty_payload_does_not_change_anything(): void
     {
         $user = User::factory()->create(['name' => 'Original Name']);
         Sanctum::actingAs($user);
@@ -85,7 +86,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.name', 'Original Name');
     }
 
-    public function test_validation_fails_if_name_is_not_string()
+    public function test_validation_fails_if_name_is_not_string(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -93,7 +94,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['name']);
     }
 
-    public function test_validation_fails_if_name_is_too_long()
+    public function test_validation_fails_if_name_is_too_long(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -101,7 +102,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['name']);
     }
 
-    public function test_validation_fails_if_github_link_is_invalid_url()
+    public function test_validation_fails_if_github_link_is_invalid_url(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -109,7 +110,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['githubLink']);
     }
 
-    public function test_validation_fails_if_github_name_is_too_long()
+    public function test_validation_fails_if_github_name_is_too_long(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -117,7 +118,7 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['githubName']);
     }
 
-    public function test_user_cannot_update_unauthorized_fields()
+    public function test_user_cannot_update_unauthorized_fields(): void
     {
         $user = User::factory()->create(['is_admin' => false]);
         Sanctum::actingAs($user);
@@ -126,7 +127,7 @@ class ProfileUpdateTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $user->id, 'is_admin' => false]);
     }
 
-    public function test_authenticated_user_can_upload_avatar_image()
+    public function test_authenticated_user_can_upload_avatar_image(): void
     {
         $disk = Storage::fake(UserProfile::AVATAR_DISK);
         $user = User::factory()->create();
@@ -146,7 +147,7 @@ class ProfileUpdateTest extends TestCase
         $disk->assertExists($path);
     }
 
-    public function test_force_delete_cleans_up_avatar()
+    public function test_force_delete_cleans_up_avatar(): void
     {
         $disk = Storage::fake(UserProfile::AVATAR_DISK);
         $user = User::factory()->create();
@@ -166,7 +167,7 @@ class ProfileUpdateTest extends TestCase
         $disk->assertMissing($path);
     }
 
-    public function test_avatar_upload_cleans_up_new_file_if_db_fails()
+    public function test_avatar_upload_cleans_up_new_file_if_db_fails(): void
     {
         $disk = Storage::fake(UserProfile::AVATAR_DISK);
         $user = User::factory()->create();
@@ -174,7 +175,7 @@ class ProfileUpdateTest extends TestCase
         $file = UploadedFile::fake()->create('avatar.jpg', 100, 'image/jpeg');
 
         $this->mock(UserRepositoryInterface::class, function ($mock) {
-            $mock->shouldReceive('updateAvatar')->andThrow(new \Exception('DB Error'));
+            $mock->shouldReceive('updateAvatar')->andThrow(new Exception('DB Error'));
         });
 
         Sanctum::actingAs($user);

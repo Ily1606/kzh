@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 
+use Illuminate\Support\Str;
+
 #[Fillable([
     'user_id',
     'avatar_link',
@@ -27,7 +29,7 @@ class UserProfile extends Model
 
     public static function isLocalPath(?string $path): bool
     {
-        return $path !== null && $path !== '' && ! str_starts_with($path, 'http');
+        return $path !== null && $path !== '' && ! Str::startsWith($path, ['http://', 'https://']);
     }
 
     public function isLocalAvatar(): bool

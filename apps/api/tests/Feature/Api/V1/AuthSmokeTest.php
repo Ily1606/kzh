@@ -162,4 +162,24 @@ class AuthSmokeTest extends TestCase
             ->assertHeader('Access-Control-Allow-Origin', 'http://localhost:5173')
             ->assertHeader('Access-Control-Allow-Credentials', 'true');
     }
+
+    public function test_login_returns_429_when_rate_limit_exceeded(): void
+    {
+        $user = User::factory()->create();
+
+        $limit = (int) config('auth.limiters.login_per_email', 5);
+
+        for ($i = 0; $i < $limit; $i++) {
+            $this->postJson('/api/v1/login', [
+                'email' => $user->email,
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        // The next time should be rate limited (429 Too Many Requests)
+        $this->postJson('/api/v1/login', [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ])->assertStatus(429);
+    }
 }
