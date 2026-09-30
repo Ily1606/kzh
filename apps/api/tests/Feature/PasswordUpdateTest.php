@@ -144,7 +144,6 @@ class PasswordUpdateTest extends TestCase
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-
         ]);
 
         Sanctum::actingAs($user);

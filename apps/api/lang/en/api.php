@@ -24,8 +24,4 @@ return [
     'password_reset_link_sent_if_exists' => 'If your email exists in our system, we have sent a password reset link.',
     'plugin_view_counted' => 'View counted successfully.',
     'plugin_view_already_counted' => 'You have already viewed this plugin in the last 24 hours.',
-    'welcome_mail_greeting' => 'Welcome to :app, :name!',
-    'welcome_mail_body' => 'Thank you for registering an account with us. We are excited to have you on board.',
-    'welcome_mail_button' => 'Visit Your Dashboard',
-    'welcome_mail_footer' => 'If you have any questions, feel free to reply to this email.',
 ];

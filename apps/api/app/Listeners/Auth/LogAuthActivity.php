@@ -15,11 +15,8 @@ use Throwable;
  */
 final class LogAuthActivity implements ShouldQueue
 {
-
     /**
      * Number of retries
-     *
-     * @var int
      */
     public int $tries = 3;
 

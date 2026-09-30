@@ -14,6 +14,7 @@ final class PluginViewed
     use Dispatchable;
 
     public readonly ?string $ipAddress;
+
     public readonly ?string $userAgent;
 
     public function __construct(

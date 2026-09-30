@@ -7,7 +7,6 @@ use Exception;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 
 #[Signature('plugins:sync-views')]
@@ -28,6 +27,7 @@ class SyncPluginViews extends Command
             Redis::rename($bufferKey, $processingKey);
         } catch (Exception $e) {
             $this->info('No pending plugin views to sync.');
+
             return;
         }
 
@@ -35,10 +35,11 @@ class SyncPluginViews extends Command
 
         if (empty($views)) {
             Redis::del($processingKey);
+
             return;
         }
 
-        $this->info('Syncing views for ' . count($views) . ' plugins...');
+        $this->info('Syncing views for '.count($views).' plugins...');
 
         $failed = [];
 
@@ -57,13 +58,13 @@ class SyncPluginViews extends Command
             foreach ($failed as $pluginId => $count) {
                 Redis::hincrby($bufferKey, $pluginId, $count);
             }
-            $this->warn(count($failed) . ' plugin(s) failed to sync. Views pushed back to buffer.');
+            $this->warn(count($failed).' plugin(s) failed to sync. Views pushed back to buffer.');
         }
 
         // Clean up processing key
         Redis::del($processingKey);
 
         $synced = count($views) - count($failed);
-        $this->info("Done. Synced: {$synced}, Failed: " . count($failed));
+        $this->info("Done. Synced: {$synced}, Failed: ".count($failed));
     }
 }

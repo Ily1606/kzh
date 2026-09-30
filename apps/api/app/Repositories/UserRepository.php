@@ -92,8 +92,8 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user;
     }
 
-    public function revokeTokensExcept(User $user, mixed $exceptId = null): void
+    public function revokeTokensExcept(User $user, int|string|null $exceptId = null): void
     {
-        $user->tokens()->when($exceptId, fn($q) => $q->whereKeyNot($exceptId))->delete();
+        $user->tokens()->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->delete();
     }
 }

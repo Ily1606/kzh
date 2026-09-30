@@ -16,7 +16,7 @@ class UserProfileObserver
         if ($profile->isDirty('avatar_link')) {
             $oldAvatar = $profile->getOriginal('avatar_link');
             if (UserProfile::isLocalPath($oldAvatar)) {
-                DB::afterCommit(function () use ($oldAvatar) {
+                DB::afterCommit(function () use ($oldAvatar): void {
                     Storage::disk(UserProfile::AVATAR_DISK)->delete($oldAvatar);
                 });
             }
@@ -30,7 +30,8 @@ class UserProfileObserver
     {
         if ($profile->isLocalAvatar()) {
             $avatar = $profile->avatar_link;
-            DB::afterCommit(function () use ($avatar) {
+
+            DB::afterCommit(function () use ($avatar): void {
                 Storage::disk(UserProfile::AVATAR_DISK)->delete($avatar);
             });
         }

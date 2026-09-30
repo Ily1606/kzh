@@ -197,11 +197,11 @@ class TrendingAlgorithmTest extends TestCase
         $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
         // Cache miss
-        $this->assertFalse(Cache::has("plugins:trending:15"));
+        $this->assertFalse(Cache::has('plugins:trending:15'));
         $this->getJson('/api/v1/plugins/trending')->assertOk();
 
         // Cache hit
-        $this->assertTrue(Cache::has("plugins:trending:15"));
+        $this->assertTrue(Cache::has('plugins:trending:15'));
 
         // If we create a new plugin, it shouldn't appear because we hit cache
         $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 9999]);
@@ -239,10 +239,10 @@ class TrendingAlgorithmTest extends TestCase
                             'star_count',
                             'comment_count',
                             'view_count',
-                            'approved_at'
-                        ]
-                    ]
-                ]
+                            'approved_at',
+                        ],
+                    ],
+                ],
             ]);
     }
 
@@ -254,7 +254,7 @@ class TrendingAlgorithmTest extends TestCase
         $this->getJson('/api/v1/plugins/trending');
 
         // Retrieve from cache
-        $cachedData = Cache::get("plugins:trending:15");
+        $cachedData = Cache::get('plugins:trending:15');
 
         // Verify it is an array
         $this->assertIsArray($cachedData);

@@ -59,7 +59,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
                 $weights['comment'],
                 $weights['star'],
                 $ageOffset,
-                $gravity
+                $gravity,
             ])
             ->orderByDesc('trending_score')
             ->limit($limit)
@@ -70,8 +70,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     {
         return match ($this->model->getConnection()->getDriverName()) {
             'sqlite' => "(strftime('%s', 'now') - strftime('%s', approved_at))",
-            'pgsql'  => "EXTRACT(EPOCH FROM (NOW() - approved_at))",
-            default  => "(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(approved_at))",
+            'pgsql' => 'EXTRACT(EPOCH FROM (NOW() - approved_at))',
+            default => '(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(approved_at))',
         };
     }
 

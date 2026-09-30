@@ -13,6 +13,7 @@ final class PaginatedPluginsFetched
     use Dispatchable;
 
     public readonly ?string $ipAddress;
+
     public readonly ?string $userAgent;
 
     public function __construct(
