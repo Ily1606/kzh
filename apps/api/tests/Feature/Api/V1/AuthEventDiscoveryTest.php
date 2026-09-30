@@ -59,7 +59,7 @@ class AuthEventDiscoveryTest extends TestCase
      */
     public function test_every_auth_event_shares_the_same_base_context(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email' => 'nguyen@example.com']);
         $requestContext = new RequestContext('198.51.100.7', 'Audit Agent');
 
         $events = [
@@ -70,7 +70,7 @@ class AuthEventDiscoveryTest extends TestCase
 
         $expectedBase = [
             'user_id' => $user->getKey(),
-            'email' => $user->email,
+            'email' => 'ngu***************',
             'ip_address' => '198.51.100.7',
             'user_agent' => 'Audit Agent',
         ];

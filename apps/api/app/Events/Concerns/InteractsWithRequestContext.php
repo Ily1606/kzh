@@ -4,6 +4,7 @@ namespace App\Events\Concerns;
 
 use App\Models\User;
 use App\Support\RequestContext;
+use Illuminate\Support\Str;
 
 /**
  * Shared request metadata carried by every auth event.
@@ -56,7 +57,10 @@ trait InteractsWithRequestContext
     {
         return [
             'user_id' => $this->user->getKey(),
-            'email' => $this->user->email,
+            // PII: the audit entry only has to let a human recognise the
+            // account. The user id already identifies it, and a raw address
+            // in a log file is just something to harvest.
+            'email' => Str::mask($this->user->email, '*', 3),
             'ip_address' => $this->ipAddress(),
             'user_agent' => $this->userAgent(),
         ];

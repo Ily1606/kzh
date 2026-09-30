@@ -31,7 +31,7 @@ class AuthEventTest extends TestCase
 
         Event::assertDispatched(UserRegistered::class, function (UserRegistered $event): bool {
             return $event->user->email === 'nguyen@example.com'
-                && $event->context()['email'] === 'nguyen@example.com'
+                && $event->context()['email'] === 'ngu***************'
                 && $event->context()['user_id'] === $event->user->getKey();
         });
     }
