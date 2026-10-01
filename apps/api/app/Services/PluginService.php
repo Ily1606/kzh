@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\DTOs\PluginViewResult;
 use App\Contracts\PluginRepositoryInterface;
+use App\DTOs\PluginViewResult;
 use App\Events\Plugin\PluginSubmitted;
 use App\Models\Plugin;
 use App\Models\User;
@@ -11,6 +11,7 @@ use App\Support\RequestContext;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
@@ -75,10 +76,12 @@ final class PluginService
 
         if (Cache::add($cacheKey, true, $ttl)) {
             $bufferedViews = (int) Redis::hincrby($bufferKey, $plugin->id, 1);
+
             return new PluginViewResult(true, $plugin->view_count + $bufferedViews);
         }
 
         $bufferedViews = (int) Redis::hget($bufferKey, $plugin->id);
+
         return new PluginViewResult(false, $plugin->view_count + $bufferedViews);
     }
 
@@ -93,42 +96,30 @@ final class PluginService
      *
      * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
      *
-     * @param int $limit
      * @return Collection<int, Plugin>
      */
     public function getTrendingPlugins(int $limit): Collection
     {
-        $cacheTtl = config('plugins.trending.cache_ttl');
-        $daysLimit = config('plugins.trending.days_limit');
+        $zsetKey = config('plugins.trending.keys.zset');
+        $hashKey = config('plugins.trending.keys.objects');
 
-        $weightView = (float) config('plugins.trending.weights.view');
-        $weightComment = (float) config('plugins.trending.weights.comment');
-        $weightStar = (float) config('plugins.trending.weights.star');
+        $ids = Redis::zrevrange($zsetKey, 0, $limit - 1);
 
-        $gravity = (float) config('plugins.trending.gravity');
-        $ageOffset = (float) config('plugins.trending.age_offset');
+        if (empty($ids)) {
+            Artisan::call('plugins:refresh-trending');
+            $ids = Redis::zrevrange($zsetKey, 0, $limit - 1);
+        }
 
-        $cacheKey = "plugins:trending:{$limit}";
+        if (empty($ids)) {
+            return new Collection;
+        }
 
-        // Cache only IDs using remember() to prevent stampedes and ensure deleted/rejected plugins are filtered on read
-        $pluginIds = Cache::remember($cacheKey, $cacheTtl, function () use ($daysLimit, $weightView, $weightComment, $weightStar, $gravity, $ageOffset, $limit) {
-            $weights = [
-                'view' => $weightView,
-                'comment' => $weightComment,
-                'star' => $weightStar,
-            ];
+        $serializedPlugins = Redis::hmget($hashKey, $ids);
 
-            $plugins = $this->pluginRepository->getTrendingPlugins($daysLimit, $weights, $gravity, $ageOffset, $limit);
+        $plugins = collect($serializedPlugins)
+            ->filter()
+            ->map(fn ($serialized) => unserialize($serialized));
 
-            // Fallback: If no plugins are found within the last $daysLimit days, retrieve the all-time top plugins
-            if ($plugins->isEmpty()) {
-                $plugins = $this->pluginRepository->getTopAllTimePlugins($limit);
-            }
-
-            return $plugins->pluck('id')->toArray();
-        });
-
-        // Load models and filter approved, maintaining trending order
-        return $this->pluginRepository->findApprovedByIds($pluginIds);
+        return new Collection($plugins->values());
     }
 }

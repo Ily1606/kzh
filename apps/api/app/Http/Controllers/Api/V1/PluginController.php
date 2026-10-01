@@ -14,7 +14,6 @@ use App\Support\RequestContext;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PluginController extends Controller
 {
@@ -38,7 +37,7 @@ class PluginController extends Controller
                     'per_page' => $paginator->perPage(),
                     'current_page' => $paginator->currentPage(),
                     'last_page' => $paginator->lastPage(),
-                ]
+                ],
             ]
         );
     }
@@ -78,7 +77,7 @@ class PluginController extends Controller
 
     public function trackView(Request $request, string $id): JsonResponse
     {
-        $viewerId = (string) ($request->user('sanctum')?->getAuthIdentifier() ?? 'guest:' . sha1($request->ip() . '|' . $request->userAgent()));
+        $viewerId = (string) ($request->user('sanctum')?->getAuthIdentifier() ?? 'guest:'.sha1($request->ip().'|'.$request->userAgent()));
         $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
         $secondsInHour = 3600.0;
 

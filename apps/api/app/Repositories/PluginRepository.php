@@ -52,7 +52,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     }
 
     /**
-     * @param array<int, string> $ids
+     * @param  array<int, string>  $ids
      * @return Collection<int, Plugin>
      */
     public function findApprovedByIds(array $ids): Collection
@@ -67,6 +67,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->get();
 
         $order = array_flip($ids);
+
         return $plugins->sortBy(fn (Plugin $plugin) => $order[$plugin->id] ?? 9999)->values();
     }
 
@@ -88,7 +89,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
      * @param  array{view: float, comment: float, star: float}  $weights
      * @return Collection<int, Plugin>
      */
-    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit,): Collection
+    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
     {
         $secondsInHour = 3600.0;
 

@@ -262,7 +262,7 @@ class PluginViewTest extends TestCase
         $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
         // Mock request object
-        $request = new Request();
+        $request = new Request;
         $request->setUserResolver(function () use ($user) {
             return $user;
         });

@@ -26,11 +26,11 @@ class SyncPluginViews extends Command
     public function handle(): void
     {
         $bufferKey = config('plugins.views_buffer_key');
-        $processingKey = $bufferKey . '_processing';
+        $processingKey = $bufferKey.'_processing';
 
         // Process any leftover processing key from a previous interrupted run
         if (Redis::exists($processingKey)) {
-            $this->info("Found leftover processing key. Syncing it first...");
+            $this->info('Found leftover processing key. Syncing it first...');
             $this->processBuffer($processingKey, $bufferKey);
         }
 

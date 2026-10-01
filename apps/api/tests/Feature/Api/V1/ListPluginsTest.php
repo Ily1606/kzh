@@ -40,8 +40,8 @@ class ListPluginsTest extends TestCase
                     '*' => ['id', 'name', 'title', 'status', 'approved_at'],
                 ],
                 'meta' => [
-                    'pagination' => ['current_page', 'per_page', 'total', 'last_page']
-                ]
+                    'pagination' => ['current_page', 'per_page', 'total', 'last_page'],
+                ],
             ]);
     }
 
