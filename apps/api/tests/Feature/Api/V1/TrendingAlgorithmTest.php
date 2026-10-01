@@ -230,20 +230,18 @@ class TrendingAlgorithmTest extends TestCase
         $response->assertOk()
             ->assertJsonStructure([
                 'data' => [
-                    'plugins' => [
-                        '*' => [
-                            'id',
-                            'name',
-                            'title',
-                            'license',
-                            'source_link',
-                            'user_id',
-                            'status',
-                            'star_count',
-                            'comment_count',
-                            'view_count',
-                            'approved_at',
-                        ],
+                    '*' => [
+                        'id',
+                        'name',
+                        'title',
+                        'license',
+                        'source_link',
+                        'user_id',
+                        'status',
+                        'star_count',
+                        'comment_count',
+                        'view_count',
+                        'approved_at',
                     ],
                 ],
             ]);

@@ -48,9 +48,19 @@ class RefreshTrendingPlugins extends Command
         $zsetKey = config('plugins.trending.keys.zset');
         $hashKey = config('plugins.trending.keys.objects');
 
-        // Clear existing keys to fully refresh
-        Redis::del($zsetKey);
-        Redis::del($hashKey);
+        if ($results->isEmpty()) {
+            Redis::del($zsetKey);
+            Redis::del($hashKey);
+            $this->info("No plugins found. Cleared trending cache.");
+            return;
+        }
+
+        $tmpZsetKey = $zsetKey . '_tmp';
+        $tmpHashKey = $hashKey . '_tmp';
+
+        // Clear temporary keys just in case a previous run crashed
+        Redis::del($tmpZsetKey);
+        Redis::del($tmpHashKey);
 
         $baseScore = $masterLimit;
         foreach ($results as $index => $plugin) {
@@ -59,9 +69,13 @@ class RefreshTrendingPlugins extends Command
             // This avoids floating-point precision issues and simplifies the logic.
             $score = $baseScore - $index;
 
-            Redis::zadd($zsetKey, $score, $plugin->id);
-            Redis::hset($hashKey, $plugin->id, serialize($plugin));
+            Redis::zadd($tmpZsetKey, $score, $plugin->id);
+            Redis::hset($tmpHashKey, $plugin->id, serialize($plugin));
         }
+
+        // Atomically swap the temporary keys with the live keys to guarantee zero downtime
+        Redis::rename($tmpZsetKey, $zsetKey);
+        Redis::rename($tmpHashKey, $hashKey);
 
         $this->info("Successfully refreshed {$results->count()} trending plugins to Redis ZSET.");
     }
