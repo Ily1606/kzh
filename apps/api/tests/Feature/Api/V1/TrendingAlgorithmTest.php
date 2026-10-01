@@ -271,7 +271,8 @@ class TrendingAlgorithmTest extends TestCase
         $response1->assertOk()->assertJsonCount(2, 'data.plugins');
 
         // Reject plugin1
-        $plugin1->update(['status' => PluginStatus::Rejected]);
+        $plugin1->status = PluginStatus::Rejected;
+        $plugin1->save();
 
         // Second call hits the cache (which still has plugin1's ID), but it should be filtered out when loaded from DB
         $response2 = $this->getJson('/api/v1/plugins/trending');
