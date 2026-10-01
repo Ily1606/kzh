@@ -100,43 +100,14 @@ class ListCommentsRequestTest extends TestCase
     // sort()
     // -----------------------------------------------------------------------
 
-    public function test_it_falls_back_to_the_configured_default_sort(): void
+    public function test_it_defaults_to_newest_when_sort_is_omitted(): void
     {
-        config()->set('comments.default_sort', 'newest');
-        config()->set('comments.sorts', ['newest', 'oldest']);
-
         $this->assertSame('newest', $this->resolved([])->sort());
     }
 
     public function test_it_returns_the_requested_sort_when_it_is_supported(): void
     {
-        config()->set('comments.sorts', ['newest', 'oldest']);
-
         $this->assertSame('oldest', $this->resolved(['sort' => 'oldest'])->sort());
-    }
-
-    /**
-     * `sort()` re-checks the allow-list instead of trusting `validated()`. That
-     * guard is unreachable through the query string — an unknown `sort` is
-     * rejected by `Rule::in` before the controller runs — but it is reachable
-     * through config: if `comments.sorts` no longer contains
-     * `comments.default_sort`, the fallback must still hand the repository a
-     * key it knows, so `sort()` pins to the hardcoded `'newest'`.
-     */
-    public function test_it_falls_back_to_newest_when_the_configured_default_is_not_allowed(): void
-    {
-        config()->set('comments.default_sort', 'oldest');
-        config()->set('comments.sorts', ['newest']);
-
-        $this->assertSame('newest', $this->resolved([])->sort());
-    }
-
-    public function test_it_returns_the_configured_default_when_it_is_allowed(): void
-    {
-        config()->set('comments.default_sort', 'oldest');
-        config()->set('comments.sorts', ['newest', 'oldest']);
-
-        $this->assertSame('oldest', $this->resolved([])->sort());
     }
 
     // -----------------------------------------------------------------------

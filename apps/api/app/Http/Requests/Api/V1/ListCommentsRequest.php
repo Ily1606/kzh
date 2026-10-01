@@ -28,7 +28,7 @@ class ListCommentsRequest extends FormRequest
             // value is clamped in perPage() instead of being rejected, the same way
             // PluginController handles its own `per_page`.
             'per_page' => ['sometimes', 'integer', 'min:1'],
-            'sort' => ['sometimes', 'string', Rule::in((array) config('comments.sorts', []))],
+            'sort' => ['sometimes', 'string', Rule::in(['newest', 'oldest'])],
         ];
     }
 
@@ -42,15 +42,9 @@ class ListCommentsRequest extends FormRequest
         return min(max($perPage, 1), (int) config('comments.pagination.max_per_page'));
     }
 
-    /**
-     * Sort strategy to order by, falling back to the configured default.
-     */
+    // Returns the validated sort value, defaulting to `newest` when omitted.
     public function sort(): string
     {
-        $sort = (string) $this->validated('sort', config('comments.default_sort', 'newest'));
-
-        return in_array($sort, (array) config('comments.sorts', []), true)
-            ? $sort
-            : 'newest';
+        return $this->validated('sort', 'newest');
     }
 }

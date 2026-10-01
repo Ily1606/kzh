@@ -16,6 +16,10 @@ class CommentRepository extends BaseRepository implements CommentRepositoryInter
      * The sort strategies a client may ask for, mapped to the column and
      * direction to order by.
      *
+     * This map is the single source of truth: `ListCommentsRequest` validates
+     * `sort` against exactly these keys, so an unknown value never reaches
+     * {@see self::paginateLevel()} and needs no fallback here.
+     *
      * `id` is appended as a tie-breaker on every sort: comments created within
      * the same second are common (bulk seeds, tests, imports) and without a
      * deterministic tie-breaker paginated pages can repeat or skip rows.
@@ -77,7 +81,7 @@ class CommentRepository extends BaseRepository implements CommentRepositoryInter
      */
     private function paginateLevel(Builder $query, int $perPage, string $sort): LengthAwarePaginator
     {
-        [$column, $direction] = self::SORTS[$sort] ?? self::SORTS['newest'];
+        [$column, $direction] = self::SORTS[$sort];
 
         return $query
             ->with('author.profile')
