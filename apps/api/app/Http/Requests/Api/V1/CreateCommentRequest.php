@@ -21,11 +21,4 @@ class CreateCommentRequest extends FormRequest
             'parent_comment_id' => ['nullable', 'uuid'],
         ];
     }
-
-    protected function prepareForValidation(): void
-    {
-        if (is_string($this->input('content'))) {
-            $this->merge(['content' => trim($this->input('content'))]);
-        }
-    }
 }
