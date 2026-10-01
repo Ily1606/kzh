@@ -33,13 +33,16 @@ class ListCommentsRequest extends FormRequest
     }
 
     /**
-     * Page size to paginate with, always inside the configured bounds.
+     * Page size to paginate with, capped at the configured maximum.
+     *
+     * The lower bound is not enforced here: `min:1` in rules() already rejects 0
+     * and negatives from the query string, so `perPage()` never sees them.
      */
     public function perPage(): int
     {
         $perPage = (int) $this->validated('per_page', config('comments.pagination.default_per_page'));
 
-        return min(max($perPage, 1), (int) config('comments.pagination.max_per_page'));
+        return min($perPage, (int) config('comments.pagination.max_per_page'));
     }
 
     // Returns the validated sort value, defaulting to `newest` when omitted.
