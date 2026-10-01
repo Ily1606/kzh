@@ -65,11 +65,11 @@ class CommentRepository extends BaseRepository implements CommentRepositoryInter
         );
     }
 
-    public function findVisibleByIdAndPlugin(string $id, string $pluginId): Comment
+    public function findVisibleByIdAndPlugin(string $id, string $pluginId, bool $lock = false): Comment
     {
-        return $this->baseQuery()
-            ->where('plugin_id', $pluginId)
-            ->findOrFail($id);
+        $query = $this->baseQuery()->where('plugin_id', $pluginId);
+
+        return ($lock ? $query->lockForUpdate() : $query)->findOrFail($id);
     }
 
     /**

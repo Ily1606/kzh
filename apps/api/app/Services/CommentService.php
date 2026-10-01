@@ -59,18 +59,19 @@ final class CommentService
 
         $parentId = $data['parent_comment_id'] ?? null;
 
-        // If replying to a parent, verify it belongs to the same plugin.
-        //
-        // Both existence checks resolve before the transaction opens. The
-        // transaction does not swallow a ModelNotFoundException — it rolls back
-        // and rethrows the same instance — but resolving up front keeps the
-        // failure out of the write path altogether, so a bad parent id cannot
-        // open a transaction at all.
-        if ($parentId !== null) {
-            $this->commentRepository->findVisibleByIdAndPlugin($parentId, $plugin->id);
-        }
-
         $comment = DB::transaction(function () use ($user, $plugin, $parentId, $data): Comment {
+            // If replying to a parent, verify it belongs to the same plugin.
+            //
+            // The check and the insert share one transaction, and the parent row is
+            // locked `for update` first: a concurrent hide or delete of that comment
+            // now either waits for this transaction or happens before it, so it can
+            // no longer land between the check and the insert. Left unlocked, a hard
+            // delete in that gap would break the foreign key on insert and surface as
+            // a 500 instead of the documented 404.
+            if ($parentId !== null) {
+                $this->commentRepository->findVisibleByIdAndPlugin($parentId, $plugin->id, true);
+            }
+
             $comment = $this->commentRepository->create([
                 'plugin_id' => $plugin->id,
                 'author_id' => $user->getAuthIdentifier(),

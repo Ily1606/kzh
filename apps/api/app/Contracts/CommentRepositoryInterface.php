@@ -27,6 +27,11 @@ interface CommentRepositoryInterface
 
     /**
      * Find a visible (not hidden, not soft-deleted) comment by ID that belongs to the given plugin.
+     *
+     * Pass `$lock = true` when the row is about to be written to inside the same
+     * transaction: it appends `for update` so a concurrent hide or delete cannot
+     * slip in between the check and the write. Outside a transaction the clause is
+     * released immediately, so only the create path should set it.
      */
-    public function findVisibleByIdAndPlugin(string $id, string $pluginId): Comment;
+    public function findVisibleByIdAndPlugin(string $id, string $pluginId, bool $lock = false): Comment;
 }
