@@ -61,10 +61,11 @@ final class CommentService
 
         // If replying to a parent, verify it belongs to the same plugin.
         //
-        // Both existence checks stay OUTSIDE the transaction below: a
-        // ModelNotFoundException raised inside a transaction closure is swallowed
-        // by the rollback and rethrown, which would turn the documented 404 into a
-        // 500. Resolving them first keeps the 404 contract intact.
+        // Both existence checks resolve before the transaction opens. The
+        // transaction does not swallow a ModelNotFoundException — it rolls back
+        // and rethrows the same instance — but resolving up front keeps the
+        // failure out of the write path altogether, so a bad parent id cannot
+        // open a transaction at all.
         if ($parentId !== null) {
             $this->commentRepository->findVisibleByIdAndPlugin($parentId, $plugin->id);
         }
