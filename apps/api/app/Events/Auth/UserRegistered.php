@@ -4,9 +4,12 @@ namespace App\Events\Auth;
 
 use App\Contracts\RecordsAuthActivity;
 use App\Enums\AuthEventType;
+use App\Events\Concerns\InteractsWithRequestContext;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
 
 /**
  * Dispatched right after a brand new account has been persisted
@@ -19,13 +22,14 @@ use Illuminate\Foundation\Events\Dispatchable;
  */
 final class UserRegistered implements RecordsAuthActivity, ShouldDispatchAfterCommit
 {
-    use Dispatchable;
+    use Dispatchable, InteractsWithRequestContext, SerializesModels;
 
     public function __construct(
         public readonly User $user,
-        public readonly ?string $ipAddress = null,
-        public readonly ?string $userAgent = null,
-    ) {}
+        public readonly RequestContext $requestContext,
+    ) {
+        $this->captureSnapshot($user);
+    }
 
     public function user(): User
     {
@@ -42,11 +46,6 @@ final class UserRegistered implements RecordsAuthActivity, ShouldDispatchAfterCo
      */
     public function context(): array
     {
-        return [
-            'user_id' => $this->user->getKey(),
-            'email' => $this->user->email,
-            'ip_address' => $this->ipAddress,
-            'user_agent' => $this->userAgent,
-        ];
+        return $this->baseContext();
     }
 }

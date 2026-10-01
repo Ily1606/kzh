@@ -7,6 +7,7 @@ use App\Events\Auth\UserLoggedOut;
 use App\Events\Auth\UserRegistered;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -30,7 +31,7 @@ class AuthEventTest extends TestCase
 
         Event::assertDispatched(UserRegistered::class, function (UserRegistered $event): bool {
             return $event->user->email === 'nguyen@example.com'
-                && $event->context()['email'] === 'nguyen@example.com'
+                && $event->context()['email'] === 'ngu***************'
                 && $event->context()['user_id'] === $event->user->getKey();
         });
     }
@@ -126,67 +127,78 @@ class AuthEventTest extends TestCase
             ->assertOk();
 
         Event::assertDispatched(UserLoggedIn::class, function (UserLoggedIn $event): bool {
-            return $event->ipAddress === '198.51.100.7'
-                && $event->userAgent === 'Audit Agent'
+            return $event->requestContext->ipAddress === '198.51.100.7'
+                && $event->requestContext->userAgent === 'Audit Agent'
                 && $event->context()['ip_address'] === '198.51.100.7'
                 && $event->context()['user_agent'] === 'Audit Agent';
         });
     }
 
     /**
-     * The queued listener is executed by a worker, where app(Request::class) is the
-     * console request. The audit entry must describe the originating request, not
-     * the one the worker happens to be running.
+     * The queued listener runs in a worker, where the bound request is the
+     * console request (127.0.0.1 / "Symfony"). The context snapshotted at
+     * construction time has to survive the queue payload untouched and must
+     * never be rebuilt from the request the worker happens to see.
      */
-    public function test_audit_context_survives_serialization_into_a_queue_worker(): void
+    public function test_auth_event_context_stays_the_origin_request_after_the_queue_round_trip(): void
     {
-        $event = new UserRegistered(
-            user: User::factory()->create(),
-            ipAddress: '198.51.100.7',
-            userAgent: 'Audit Agent',
-        );
+        $user = User::factory()->create();
+        $requestContext = new RequestContext('198.51.100.7', 'Audit Agent');
 
-        // Round-trip through the queue payload, then build context while a console
-        // request is bound — exactly what CallQueuedListener does in the worker.
-        $workerSideEvent = unserialize(serialize($event));
+        $events = [
+            new UserRegistered($user, $requestContext),
+            new UserLoggedIn($user, 'token-id', $requestContext),
+            new UserLoggedOut($user, $requestContext, 1),
+        ];
 
-        $this->app->instance('request', Request::create('/'));
+        // A console request answers 127.0.0.1 / "Symfony"; binding it makes the
+        // fallback this test guards against observable.
+        $consoleRequest = Request::create('/');
+        $this->app->instance('request', $consoleRequest);
 
-        $this->assertSame('198.51.100.7', $workerSideEvent->ipAddress);
-        $this->assertSame('Audit Agent', $workerSideEvent->userAgent);
-        $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
-        $this->assertSame('Audit Agent', $workerSideEvent->context()['user_agent']);
+        $this->assertSame('127.0.0.1', $consoleRequest->ip());
+        $this->assertSame('Symfony', $consoleRequest->userAgent());
+
+        foreach ($events as $event) {
+            // Round-trip through the queue payload, exactly what
+            // CallQueuedListener does before it invokes the listener.
+            $workerSideEvent = unserialize(serialize($event));
+
+            $this->assertSame('198.51.100.7', $workerSideEvent->requestContext->ipAddress, $event::class);
+            $this->assertSame('Audit Agent', $workerSideEvent->requestContext->userAgent, $event::class);
+            $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address'], $event::class);
+            $this->assertSame('Audit Agent', $workerSideEvent->context()['user_agent'], $event::class);
+        }
     }
 
-    public function test_auth_event_context_does_not_fall_back_to_the_console_request(): void
+    /**
+     * SerializesModels re-queries the user in the worker, so the audit entry
+     * must not read the address off the restored row. A user who changes their
+     * email before the job runs (the audit retries after 10s/60s) would
+     * otherwise have the new address logged against the sign-in that used the
+     * old one.
+     */
+    public function test_the_audit_context_reports_the_email_of_the_sign_in_not_the_current_one(): void
     {
-        $event = new UserLoggedOut(
-            user: User::factory()->create(),
-            ipAddress: '198.51.100.7',
-            userAgent: 'Audit Agent',
-            revokedTokensCount: 1,
-        );
+        $user = User::factory()->create(['email' => 'nguyen@example.com']);
+        $requestContext = new RequestContext('198.51.100.7', 'Audit Agent');
 
-        $this->app->instance('request', Request::create('/'));
+        $events = [
+            new UserRegistered($user, $requestContext),
+            new UserLoggedIn($user, 'token-id', $requestContext),
+            new UserLoggedOut($user, $requestContext, 1),
+        ];
 
-        $context = $event->context();
+        $user->forceFill(['email' => 'changed@example.com'])->save();
 
-        $this->assertNotSame('127.0.0.1', $context['ip_address']);
-        $this->assertNotSame('Symfony', $context['user_agent']);
-    }
+        foreach ($events as $event) {
+            // Round-trip through the queue payload, exactly what
+            // CallQueuedListener does before it invokes the listener.
+            $workerSideEvent = unserialize(serialize($event));
 
-    public function test_auth_event_constructor_preserves_explicit_request_metadata(): void
-    {
-        $event = new UserRegistered(
-            user: User::factory()->make(),
-            ipAddress: '192.0.2.10',
-            userAgent: 'Console Runner',
-        );
-
-        $this->assertSame('192.0.2.10', $event->ipAddress);
-        $this->assertSame('192.0.2.10', $event->context()['ip_address']);
-        $this->assertSame('Console Runner', $event->userAgent);
-        $this->assertSame('Console Runner', $event->context()['user_agent']);
+            $this->assertSame('ngu***************', $workerSideEvent->context()['email'], $event::class);
+            $this->assertSame($user->getKey(), $workerSideEvent->context()['user_id'], $event::class);
+        }
     }
 
     /**
@@ -202,15 +214,20 @@ class AuthEventTest extends TestCase
             'name' => 'Service Metadata',
             'email' => 'service-metadata@example.com',
             'password' => 'secret-password',
-        ], '198.51.100.7', 'Console Runner');
+        ], new RequestContext('198.51.100.7', 'Console Runner'));
 
         Event::assertDispatched(
             UserRegistered::class,
-            fn (UserRegistered $event): bool => $event->ipAddress === '198.51.100.7'
-                && $event->userAgent === 'Console Runner',
+            fn (UserRegistered $event): bool => $event->requestContext->ipAddress === '198.51.100.7'
+                && $event->requestContext->userAgent === 'Console Runner',
         );
     }
 
+    /**
+     * A non-HTTP caller must opt in to missing metadata explicitly. The context
+     * itself is still required so a forgotten argument fails fast instead of
+     * silently dropping the audit metadata.
+     */
     public function test_auth_service_needs_no_http_request_to_dispatch_events(): void
     {
         Event::fake([UserRegistered::class]);
@@ -222,12 +239,12 @@ class AuthEventTest extends TestCase
             'name' => 'No Http',
             'email' => 'no-http@example.com',
             'password' => 'secret-password',
-        ]);
+        ], new RequestContext(null, null));
 
         Event::assertDispatched(
             UserRegistered::class,
-            fn (UserRegistered $event): bool => $event->ipAddress === null
-                && $event->userAgent === null,
+            fn (UserRegistered $event): bool => $event->requestContext->ipAddress === null
+                && $event->requestContext->userAgent === null,
         );
     }
 }

@@ -4,23 +4,27 @@ namespace App\Events\Auth;
 
 use App\Contracts\RecordsAuthActivity;
 use App\Enums\AuthEventType;
+use App\Events\Concerns\InteractsWithRequestContext;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
 
 /**
  * Dispatched right after the user's access tokens have been revoked.
  */
 final class UserLoggedOut implements RecordsAuthActivity, ShouldDispatchAfterCommit
 {
-    use Dispatchable;
+    use Dispatchable, InteractsWithRequestContext, SerializesModels;
 
     public function __construct(
         public readonly User $user,
+        public readonly RequestContext $requestContext,
         public readonly int $revokedTokensCount = 0,
-        public readonly ?string $ipAddress = null,
-        public readonly ?string $userAgent = null,
-    ) {}
+    ) {
+        $this->captureSnapshot($user);
+    }
 
     public function user(): User
     {
@@ -38,10 +42,7 @@ final class UserLoggedOut implements RecordsAuthActivity, ShouldDispatchAfterCom
     public function context(): array
     {
         return [
-            'user_id' => $this->user->getKey(),
-            'email' => $this->user->email,
-            'ip_address' => $this->ipAddress,
-            'user_agent' => $this->userAgent,
+            ...$this->baseContext(),
             'revoked_tokens' => $this->revokedTokensCount,
         ];
     }

@@ -7,7 +7,6 @@ use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Plugin>
@@ -20,7 +19,6 @@ class PluginFactory extends Factory
     public function definition(): array
     {
         return [
-            'id' => (string) Str::uuid(),
             'name' => fake()->unique()->words(2, true),
             'user_id' => User::factory(),
             'title' => fake()->sentence(3),

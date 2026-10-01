@@ -3,12 +3,12 @@
 namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
-use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginViewed;
 use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -23,9 +23,11 @@ final class PluginService
     ) {}
 
     /**
-     * @param  array{name: string, title: string, license: string, source_link: string}  $attributes
+     * @param  User  $user  Submitter the plugin belongs to.
+     * @param  array{name: string, title: string, license: string, source_link: string}  $attributes  Validated submission payload.
+     * @param  RequestContext  $requestContext  Metadata of the originating request.
      */
-    public function submit(User $user, array $attributes): Plugin
+    public function submit(User $user, array $attributes, RequestContext $requestContext): Plugin
     {
         try {
             $plugin = $this->pluginRepository->create([
@@ -34,12 +36,9 @@ final class PluginService
                 'license' => $attributes['license'],
                 'source_link' => $attributes['source_link'],
                 'user_id' => $user->getAuthIdentifier(),
-                'status' => PluginStatus::Pending,
-                'star_count' => 0,
-                'comment_count' => 0,
-                'view_count' => 0,
-                'approved_at' => null,
             ]);
+
+            $plugin->refresh();
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages([
                 'name' => __('api.plugin_name_already_exists'),
@@ -49,8 +48,7 @@ final class PluginService
         PluginSubmitted::dispatch(
             plugin: $plugin,
             user: $user,
-            ipAddress: request()->ip(),
-            userAgent: request()->userAgent(),
+            requestContext: $requestContext,
         );
 
         return $plugin;

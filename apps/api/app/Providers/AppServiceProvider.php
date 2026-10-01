@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        RateLimiter::for('submit-plugin', fn(Request $request): Limit => Limit::perMinute((int) config('plugins.submit_per_minute', 5))
+        RateLimiter::for('submit-plugin', fn(Request $request): Limit => Limit::perMinute($this->resolveRateLimit('rate_limits.submit_plugin_per_minute'))
             ->by($this->userOrIpKey($request)));
 
         RateLimiter::for('register', fn(Request $request): array => [
@@ -62,6 +62,11 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('strict', fn(Request $request): Limit => Limit::perMinute(config('app.limiters.strict'))->by($this->userOrIpKey($request)));
 
+        RateLimiter::for('auth', function (Request $request): Limit {
+            return Limit::perMinute($this->resolveRateLimit('rate_limits.auth_per_minute'))
+                ->by((string) $request->ip());
+        });
+
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $openApi): void {
                 $openApi->secure(SecurityScheme::http('bearer'));
@@ -87,5 +92,19 @@ class AppServiceProvider extends ServiceProvider
     private function authThrottleKey(Request $request): string
     {
         return $this->normalizedEmail($request) . '|' . $request->ip();
+    }
+
+    /**
+     * Read a rate limit from config, guaranteeing it is always greater than 0.
+     *
+     * A missing or invalid value (0, negative, empty string) would reject every
+     * request through Limit::perMinute(0), so floor it at 1 to avoid taking the
+     * endpoint down on a bad deploy.
+     *
+     * Minimum is 1
+     */
+    private function resolveRateLimit(string $configKey): int
+    {
+        return max(1, (int) config($configKey));
     }
 }

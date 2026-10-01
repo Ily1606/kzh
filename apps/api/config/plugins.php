@@ -3,15 +3,6 @@
 use App\Enums\PluginLicense;
 
 return [
-    'licenses' => [
-        PluginLicense::MIT->value,
-        PluginLicense::Apache20->value,
-        PluginLicense::Gpl20->value,
-        PluginLicense::Gpl30->value,
-        PluginLicense::Bsd3Clause->value,
-        PluginLicense::Proprietary->value,
-    ],
-    'submit_per_minute' => 5,
     /*
     |--------------------------------------------------------------------------
     | Plugin View Cache TTL (Time-To-Live)
@@ -74,4 +65,5 @@ return [
         'gravity' => env('PLUGIN_TRENDING_GRAVITY', 1.8),
         'age_offset' => env('PLUGIN_TRENDING_AGE_OFFSET', 2),
     ],
+    'licenses' => array_column(PluginLicense::cases(), 'value'),
 ];

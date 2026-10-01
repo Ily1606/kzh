@@ -5,6 +5,7 @@ namespace Tests\Unit\Services;
 use App\Contracts\PluginRepositoryInterface;
 use App\Models\User;
 use App\Services\PluginService;
+use App\Support\RequestContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Validation\ValidationException;
 use Mockery;
@@ -34,7 +35,7 @@ class PluginServiceTest extends TestCase
                     'title' => 'Debugbar for Laravel',
                     'license' => 'MIT',
                     'source_link' => 'https://github.com/barryvdh/laravel-debugbar',
-                ]);
+                ], new RequestContext(null, null));
         } catch (ValidationException $exception) {
             $this->assertSame(
                 ['You already submitted a plugin with this name.'],

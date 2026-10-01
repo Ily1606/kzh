@@ -150,6 +150,38 @@ class AuthSmokeTest extends TestCase
             ->assertJsonValidationErrors('email');
     }
 
+    public function test_auth_endpoints_are_rate_limited_per_ip(): void
+    {
+        $limit = (int) config('rate_limits.auth_per_minute');
+
+        for ($attempt = 0; $attempt < $limit; $attempt++) {
+            $this->postJson('/api/v1/login', [
+                'email' => 'missing@example.com',
+                'password' => 'wrong-password',
+            ])->assertUnprocessable();
+        }
+
+        $this->postJson('/api/v1/login', [
+            'email' => 'missing@example.com',
+            'password' => 'wrong-password',
+        ])->assertTooManyRequests();
+    }
+
+    public function test_auth_rate_limit_is_configurable_per_environment(): void
+    {
+        config()->set('rate_limits.auth_per_minute', 1);
+
+        $this->postJson('/api/v1/login', [
+            'email' => 'missing@example.com',
+            'password' => 'wrong-password',
+        ])->assertUnprocessable();
+
+        $this->postJson('/api/v1/login', [
+            'email' => 'missing@example.com',
+            'password' => 'wrong-password',
+        ])->assertTooManyRequests();
+    }
+
     public function test_vue_origin_can_make_credentialed_cors_requests(): void
     {
         config()->set('cors.allowed_origins', ['http://localhost:5173']);
