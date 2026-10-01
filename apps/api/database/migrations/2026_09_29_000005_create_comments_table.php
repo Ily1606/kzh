@@ -23,13 +23,21 @@ return new class extends Migration
             $table->index('author_id');
         });
 
-        // Self-referential foreign key must be added after table creation
-        // to avoid PostgreSQL constraint ordering issues
+        // Self-referential FK has to be added here, not inline above: Laravel
+        // emits `add primary key` AFTER the foreign key constraints, so an inline
+        // FK would reference `id` while it still has no unique constraint and
+        // PostgreSQL would reject the whole migration with 42830.
+        //
+        // `cascade` rather than `set null`: a deleted root takes its reply tree
+        // with it. `set null` would promote the children to root comments, which
+        // splits one thread into several and inflates `meta.total` on the list
+        // endpoint. It only fires on a hard delete — a soft delete leaves the
+        // replies in place, which is what the current soft-delete flow wants.
         Schema::table('comments', function (Blueprint $table): void {
             $table->foreign('parent_comment_id')
                 ->references('id')
                 ->on('comments')
-                ->onDelete('set null');
+                ->cascadeOnDelete();
         });
     }
 
