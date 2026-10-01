@@ -49,6 +49,7 @@ class ApiDocumentationTest extends TestCase
             '/v1/forgot-password' => 'post',
             '/v1/reset-password' => 'post',
             '/v1/plugins' => 'post',
+            '/v1/plugins/{pluginId}/comments' => 'post',
         ];
 
         foreach ($throttled as $path => $method) {
