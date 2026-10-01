@@ -31,9 +31,6 @@ class Comment extends Model
     {
         return [
             'hidden_at' => 'datetime',
-            'created_at' => 'datetime',
-            'updated_at' => 'datetime',
-            'deleted_at' => 'datetime',
         ];
     }
 
