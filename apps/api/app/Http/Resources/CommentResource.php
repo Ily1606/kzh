@@ -26,10 +26,12 @@ class CommentResource extends JsonResource
                 'name' => $author->name,
                 'avatar_url' => $author->profile?->avatar_url,
             ] : null,
-            // Number of visible direct replies. The client renders a
-            // "View N replies" affordance when this is greater than 0 and calls
-            // the replies endpoint to expand them.
-            'replies_count' => $this->visible_replies_count ?? $this->replies_count,
+            // Number of visible direct replies — the client renders a "View N
+            // replies" affordance when this is above 0 and calls the replies
+            // endpoint to expand them. The list queries compute it per row, so it
+            // is null on the create path, where a brand-new comment cannot have
+            // replies yet; the 0 fallback keeps that payload an integer too.
+            'replies_count' => $this->visible_replies_count ?? 0,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];
