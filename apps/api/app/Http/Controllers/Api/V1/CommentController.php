@@ -9,6 +9,7 @@ use App\Http\Resources\CommentResource;
 use App\Services\CommentService;
 use App\Support\ApiResponse;
 use App\Support\RequestContext;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 
 class CommentController extends Controller
@@ -76,12 +77,20 @@ class CommentController extends Controller
     /**
      * Create a new comment on an approved plugin (auth required).
      *
+     * The request is rate limited per authenticated user.
+     *
      * Responses:
      * - 201: comment created successfully.
      * - 401: unauthenticated.
      * - 404: plugin not found, not approved, or parent comment not found / belongs to another plugin.
      * - 422: validation failed.
+     *
+     * The 201 and 422 responses are inferred by Scramble from the return value and
+     * the validation rules on CreateCommentRequest, so they are not declared
+     * explicitly. The 429 response has to be declared because it comes from the
+     * `throttle:create-comment` middleware, which Scramble does not track.
      */
+    #[Response(status: 429, description: 'Too many comments. Retry after the rate limit window resets.')]
     public function store(CreateCommentRequest $request, string $pluginId): JsonResponse
     {
         $comment = $this->commentService->create(
