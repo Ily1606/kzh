@@ -70,10 +70,8 @@ class AppServiceProvider extends ServiceProvider
                 ->by((string) $request->ip());
         });
 
-        RateLimiter::for('create-comment', function (Request $request): Limit {
-            return Limit::perMinute($this->resolveRateLimit('comments.create_per_minute'))
-                ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
-        });
+        RateLimiter::for('create-comment', fn(Request $request): Limit => Limit::perMinute($this->resolveRateLimit('comments.create_per_minute'))
+            ->by($this->userOrIpKey($request)));
 
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $openApi): void {
