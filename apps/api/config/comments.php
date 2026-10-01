@@ -20,28 +20,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Comment Sorting
-    |--------------------------------------------------------------------------
-    |
-    | Supported values of the `sort` query parameter. `top` is intentionally
-    | absent: ranking needs a score column, which the comments table does not
-    | have yet.
-    |
-    */
-    'sorts' => ['newest', 'oldest'],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Default Comment Sort
-    |--------------------------------------------------------------------------
-    |
-    | Applied when the client omits `sort`. Must be one of the keys above.
-    |
-    */
-    'default_sort' => 'newest',
-
-    /*
-    |--------------------------------------------------------------------------
     | Comment Rate Limiting
     |--------------------------------------------------------------------------
     |

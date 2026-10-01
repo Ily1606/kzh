@@ -75,11 +75,6 @@ class AppServiceProvider extends ServiceProvider
                 ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
         });
 
-        RateLimiter::for('auth', function (Request $request): Limit {
-            return Limit::perMinute($this->resolveRateLimit('rate_limits.auth_per_minute'))
-                ->by((string) $request->ip());
-        });
-
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $openApi): void {
                 $openApi->secure(SecurityScheme::http('bearer'));

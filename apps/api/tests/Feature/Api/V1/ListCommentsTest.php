@@ -497,10 +497,8 @@ class ListCommentsTest extends TestCase
     }
 
     #[DataProvider('supportedSortProvider')]
-    public function test_accepts_every_configured_sort(string $sort): void
+    public function test_accepts_every_supported_sort(string $sort): void
     {
-        $this->assertContains($sort, (array) config('comments.sorts'));
-
         $plugin = $this->approvedPlugin();
         Comment::factory()->create(['plugin_id' => $plugin->id]);
 
