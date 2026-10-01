@@ -74,6 +74,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 403 => __('api.unauthorized'),
                 404 => __('api.not_found'),
                 419 => __('api.invalid_token'),
+                429 => __('api.too_many_requests'),
                 default => __('api.request_failed'),
             };
 
