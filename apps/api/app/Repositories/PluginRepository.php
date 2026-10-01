@@ -7,6 +7,7 @@ use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @extends BaseRepository<Plugin>
@@ -34,6 +35,21 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->model->newQuery()
             ->where('status', PluginStatus::Approved)
             ->findOrFail($id);
+    }
+
+    /**
+     * `DB::table()` returns the plain query builder, not the Eloquent one, and
+     * that is the point: Eloquent's `Builder::increment()` calls
+     * `addUpdatedAtColumn()`, which would rewrite `updated_at` on every comment.
+     * A new comment is not an edit of the plugin, so the timestamp stays put.
+     * `DB::table()` still shares the connection with the caller's transaction,
+     * so the bump rolls back with the insert like any other write.
+     *
+     * DB::table() will update `comment_count` but will not update the Plugin's `updated_at` field.
+     */
+    public function incrementCommentCount(string $pluginId): void
+    {
+        DB::table('plugins')->where('id', $pluginId)->increment('comment_count');
     }
 
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator

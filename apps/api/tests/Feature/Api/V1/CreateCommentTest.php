@@ -299,12 +299,9 @@ class CreateCommentTest extends TestCase
         // Let every real call through, then fail the plugin counter.
         $real = new PluginRepository($this->app);
 
-        $failing = new class($real, $plugin) implements PluginRepositoryInterface
+        $failing = new class($real) implements PluginRepositoryInterface
         {
-            public function __construct(
-                private readonly PluginRepository $real,
-                private readonly Plugin $plugin,
-            ) {}
+            public function __construct(private readonly PluginRepository $real) {}
 
             public function getModel(): string
             {
@@ -313,22 +310,12 @@ class CreateCommentTest extends TestCase
 
             public function findApprovedById(string $id): Plugin
             {
-                // Same row, but a model whose counter update always throws.
-                $failing = new class extends Plugin
-                {
-                    public function increment($column, $amount = 1, array $extra = [])
-                    {
-                        throw new RuntimeException('comment counter exploded');
-                    }
-                };
+                return $this->real->findApprovedById($id);
+            }
 
-                $real = $this->real->findApprovedById($id);
-
-                $failing->setRawAttributes($real->getAttributes());
-                $failing->exists = true;
-                $failing->setConnection($real->getConnectionName());
-
-                return $failing;
+            public function incrementCommentCount(string $pluginId): void
+            {
+                throw new RuntimeException('comment counter exploded');
             }
 
             /**
