@@ -77,7 +77,7 @@ final class CommentService
                 'content' => $data['content'],
             ]);
 
-            $plugin->increment('comment_count');
+            $this->pluginRepository->incrementCommentCount($plugin->id);
 
             return $comment;
         });
