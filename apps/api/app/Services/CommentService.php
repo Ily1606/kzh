@@ -100,13 +100,11 @@ final class CommentService
         // single query here is what buys a consistent payload.
         $comment = $comment->load('author.profile')->refresh();
 
-        // Dispatched after the transaction above has committed, so a queued
-        // listener can never read a comment row that the rollback removed. The
-        // event carries the request snapshot the controller captured, because
-        // the listener runs in a worker where no originating request exists.
         CommentCreated::dispatch(
-            comment: $comment,
-            author: $user,
+            commentId: $comment->getKey(),
+            pluginId: $comment->plugin_id,
+            authorId: $comment->author_id,
+            parentCommentId: $comment->parent_comment_id,
             requestContext: $requestContext,
         );
 

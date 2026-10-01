@@ -2,29 +2,37 @@
 
 namespace App\Events\Comment;
 
-use App\Models\Comment;
-use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Queue\SerializesModels;
 
-/**
- * Dispatched after a comment (or reply) has been persisted successfully.
- */
 final class CommentCreated implements ShouldDispatchAfterCommit
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable;
+
+    /**
+     * Identity of the comment, frozen at dispatch time.
+     *
+     * Scalars, so the queue payload holds no row content at all — the comment
+     * body is never part of an audit entry.
+     *
+     * @var array{comment_id: string, plugin_id: string, author_id: string, parent_comment_id: string|null}
+     */
+    public readonly array $snapshot;
 
     public function __construct(
-        public readonly Comment $comment,
-        public readonly User $author,
+        string $commentId,
+        string $pluginId,
+        string $authorId,
+        ?string $parentCommentId,
         public readonly RequestContext $requestContext,
-    ) {}
-
-    public function author(): User
-    {
-        return $this->author;
+    ) {
+        $this->snapshot = [
+            'comment_id' => $commentId,
+            'plugin_id' => $pluginId,
+            'author_id' => $authorId,
+            'parent_comment_id' => $parentCommentId,
+        ];
     }
 
     /**
@@ -33,10 +41,7 @@ final class CommentCreated implements ShouldDispatchAfterCommit
     public function context(): array
     {
         return [
-            'comment_id' => $this->comment->getKey(),
-            'plugin_id' => $this->comment->plugin_id,
-            'author_id' => $this->author->getKey(),
-            'parent_comment_id' => $this->comment->parent_comment_id,
+            ...$this->snapshot,
             'ip_address' => $this->requestContext->ipAddress,
             'user_agent' => $this->requestContext->userAgent,
         ];

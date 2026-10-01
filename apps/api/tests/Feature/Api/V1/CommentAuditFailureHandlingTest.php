@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1;
 use App\Events\Comment\CommentCreated;
 use App\Listeners\Comment\LogCommentCreation;
 use App\Models\Comment;
+use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Events\CallQueuedListener;
@@ -48,8 +49,10 @@ class CommentAuditFailureHandlingTest extends TestCase
         config()->set('queue.audit_retry.backoff', '5,30,90');
 
         CommentCreated::dispatch(
-            comment: Comment::factory()->create(),
-            author: User::factory()->create(),
+            commentId: '00000000-0000-0000-0000-000000000001',
+            pluginId: '00000000-0000-0000-0000-000000000002',
+            authorId: '00000000-0000-0000-0000-000000000003',
+            parentCommentId: null,
             requestContext: new RequestContext(null, null),
         );
 
@@ -77,8 +80,10 @@ class CommentAuditFailureHandlingTest extends TestCase
         Bus::fake();
 
         CommentCreated::dispatch(
-            comment: Comment::factory()->create(),
-            author: User::factory()->create(),
+            commentId: '00000000-0000-0000-0000-000000000001',
+            pluginId: '00000000-0000-0000-0000-000000000002',
+            authorId: '00000000-0000-0000-0000-000000000003',
+            parentCommentId: null,
             requestContext: new RequestContext(null, null),
         );
 
@@ -106,8 +111,10 @@ class CommentAuditFailureHandlingTest extends TestCase
         $comment = Comment::factory()->create(['author_id' => $user->getKey()]);
 
         $event = new CommentCreated(
-            comment: $comment,
-            author: $user,
+            commentId: $comment->getKey(),
+            pluginId: $comment->plugin_id,
+            authorId: $user->getKey(),
+            parentCommentId: null,
             requestContext: new RequestContext('198.51.100.7', 'Comment Review Agent'),
         );
 
@@ -129,12 +136,18 @@ class CommentAuditFailureHandlingTest extends TestCase
     }
 
     /**
-     * The reporter runs on the failure path, so it must not depend on model
-     * attributes that the audit context depends on. Reading `context()` here
-     * would touch a row that no longer resolves, turning a logged failure into
-     * a silent one.
+     * The reporter runs on the failure path, so it must not depend on any row
+     * still being there. A comment disappears when its plugin is deleted — the
+     * FK cascades — and the retry backoff is 10s/60s, so by the time a job is
+     * finally declared failed the comment is routinely gone.
+     *
+     * Reading context() or a model here would throw on exactly that path,
+     * turning a logged failure into a silent one: the report is the only trace
+     * left, and it is written from inside the failure handler. So the event
+     * carries dispatch-time scalars, and the report comes out complete even
+     * though nothing can be queried any more.
      */
-    public function test_the_failure_handler_does_not_depend_on_model_attributes(): void
+    public function test_the_failure_handler_reports_even_after_the_rows_are_gone(): void
     {
         $entries = [];
 
@@ -143,21 +156,41 @@ class CommentAuditFailureHandlingTest extends TestCase
         });
 
         $user = User::factory()->create();
+        $plugin = Plugin::factory()->create();
+        $comment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->getKey(),
+        ]);
 
-        // A row the worker could not re-resolve: no key, no parent to read.
+        $event = new CommentCreated(
+            commentId: $comment->getKey(),
+            pluginId: $plugin->id,
+            authorId: $user->getKey(),
+            parentCommentId: null,
+            requestContext: new RequestContext('198.51.100.7', null),
+        );
+
+        // Both rows are gone by the time the job runs out of attempts. Plugin is
+        // soft-deleting, so it takes forceDelete() to actually remove the row
+        // and let the FK cascade reach the comments.
+        $plugin->forceDelete();
+
+        $this->assertDatabaseMissing('comments', ['id' => $comment->getKey()]);
+
+        // The author is gone too: users soft-delete as well.
+        $user->forceDelete();
+
+        $this->assertDatabaseMissing('users', ['id' => $user->getKey()]);
+
         (new LogCommentCreation)->failed(
-            new CommentCreated(
-                comment: new Comment,
-                author: $user,
-                requestContext: new RequestContext('198.51.100.7', null),
-            ),
+            unserialize(serialize($event)),
             new RuntimeException('log sink unreachable'),
         );
 
         $this->assertCount(1, $entries);
         $this->assertSame('Comment audit logging failed.', $entries[0]->message);
-        $this->assertNull($entries[0]->context['comment_id']);
-        $this->assertNull($entries[0]->context['plugin_id']);
+        $this->assertSame($comment->getKey(), $entries[0]->context['comment_id']);
+        $this->assertSame($plugin->id, $entries[0]->context['plugin_id']);
         $this->assertSame($user->getKey(), $entries[0]->context['author_id']);
         $this->assertSame('198.51.100.7', $entries[0]->context['ip_address']);
         $this->assertSame('log sink unreachable', $entries[0]->context['error']);
@@ -182,8 +215,10 @@ class CommentAuditFailureHandlingTest extends TestCase
 
         (new LogCommentCreation)->failed(
             new CommentCreated(
-                comment: Comment::factory()->create(),
-                author: User::factory()->create(),
+                commentId: '00000000-0000-0000-0000-000000000001',
+                pluginId: '00000000-0000-0000-0000-000000000002',
+                authorId: '00000000-0000-0000-0000-000000000003',
+                parentCommentId: null,
                 requestContext: new RequestContext(null, null),
             ),
             new RuntimeException('log sink unreachable'),
@@ -203,8 +238,10 @@ class CommentAuditFailureHandlingTest extends TestCase
 
         (new LogCommentCreation)->failed(
             new CommentCreated(
-                comment: Comment::factory()->create(),
-                author: User::factory()->create(),
+                commentId: '00000000-0000-0000-0000-000000000001',
+                pluginId: '00000000-0000-0000-0000-000000000002',
+                authorId: '00000000-0000-0000-0000-000000000003',
+                parentCommentId: null,
                 requestContext: new RequestContext('198.51.100.7', null),
             ),
             new RuntimeException('log sink unreachable'),
@@ -228,8 +265,10 @@ class CommentAuditFailureHandlingTest extends TestCase
 
         (new LogCommentCreation)->failed(
             new CommentCreated(
-                comment: Comment::factory()->create(),
-                author: User::factory()->create(),
+                commentId: '00000000-0000-0000-0000-000000000001',
+                pluginId: '00000000-0000-0000-0000-000000000002',
+                authorId: '00000000-0000-0000-0000-000000000003',
+                parentCommentId: null,
                 requestContext: new RequestContext('198.51.100.7', null),
             ),
             new RuntimeException('log sink unreachable'),
@@ -250,8 +289,10 @@ class CommentAuditFailureHandlingTest extends TestCase
 
         (new LogCommentCreation)->failed(
             new CommentCreated(
-                comment: Comment::factory()->create(),
-                author: User::factory()->create(),
+                commentId: '00000000-0000-0000-0000-000000000001',
+                pluginId: '00000000-0000-0000-0000-000000000002',
+                authorId: '00000000-0000-0000-0000-000000000003',
+                parentCommentId: null,
                 requestContext: new RequestContext('198.51.100.7', null),
             ),
             new RuntimeException('log sink unreachable'),

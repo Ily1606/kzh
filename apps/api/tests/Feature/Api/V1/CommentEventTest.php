@@ -56,10 +56,9 @@ class CommentEventTest extends TestCase
         Event::assertDispatched(
             CommentCreated::class,
             function (CommentCreated $event) use ($user, $plugin): bool {
-                return $event->comment->author_id === $user->id
-                    && $event->author->is($user)
-                    && $event->comment->plugin_id === $plugin->id
-                    && $event->context()['comment_id'] === $event->comment->id
+                return $event->snapshot['author_id'] === $user->id
+                    && $event->snapshot['plugin_id'] === $plugin->id
+                    && $event->context()['comment_id'] === $event->snapshot['comment_id']
                     && $event->context()['plugin_id'] === $plugin->id
                     && $event->context()['author_id'] === $user->id
                     && $event->context()['parent_comment_id'] === null
@@ -84,9 +83,55 @@ class CommentEventTest extends TestCase
 
         Event::assertDispatched(
             CommentCreated::class,
-            fn (CommentCreated $event): bool => $event->comment->parent_comment_id === $parent->id
+            fn (CommentCreated $event): bool => $event->snapshot['parent_comment_id'] === $parent->id
                 && $event->context()['parent_comment_id'] === $parent->id,
         );
+    }
+
+    /**
+     * The event exists to be queued, so it must survive the queue payload
+     * round-trip that a worker performs. It carries identifiers instead of
+     * models, which is also what makes that round-trip safe: a plugin deletion
+     * cascades to its comments, so a row can genuinely disappear between the
+     * first attempt and a retry, and a model on the event would throw while the
+     * payload was being unserialised — before the listener, and before
+     * failed(), ever ran. The audit entry would be lost unreported.
+     */
+    public function test_event_survives_the_queue_round_trip_after_the_row_is_gone(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->approvedPlugin();
+        $comment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->getKey(),
+        ]);
+
+        $event = new CommentCreated(
+            commentId: $comment->getKey(),
+            pluginId: $plugin->id,
+            authorId: $user->getKey(),
+            parentCommentId: null,
+            requestContext: new RequestContext('198.51.100.7', 'Comment Review Agent'),
+        );
+
+        // Deleting the plugin cascades to its comments, so the row the event
+        // was built from no longer exists by the time a worker would run.
+        // Plugin is soft-deleting, so it takes forceDelete() to actually remove
+        // the row and let the FK cascade reach the comments.
+        $plugin->forceDelete();
+
+        $this->assertDatabaseMissing('comments', ['id' => $comment->getKey()]);
+
+        // Round-trip through the queue payload, exactly what CallQueuedListener
+        // does before it invokes the listener. Under the old model-carrying
+        // event this threw ModelNotFoundException here.
+        $workerSideEvent = unserialize(serialize($event));
+
+        $this->assertSame($comment->getKey(), $workerSideEvent->context()['comment_id']);
+        $this->assertSame($plugin->id, $workerSideEvent->context()['plugin_id']);
+        $this->assertSame($user->getKey(), $workerSideEvent->context()['author_id']);
+        $this->assertSame('198.51.100.7', $workerSideEvent->context()['ip_address']);
+        $this->assertSame('Comment Review Agent', $workerSideEvent->context()['user_agent']);
     }
 
     public function test_event_captures_the_real_ip_of_the_request(): void
@@ -119,8 +164,10 @@ class CommentEventTest extends TestCase
     public function test_event_context_stays_the_origin_request_after_the_queue_round_trip(): void
     {
         $event = new CommentCreated(
-            comment: Comment::factory()->create(),
-            author: User::factory()->create(),
+            commentId: '00000000-0000-0000-0000-000000000001',
+            pluginId: '00000000-0000-0000-0000-000000000002',
+            authorId: '00000000-0000-0000-0000-000000000003',
+            parentCommentId: null,
             requestContext: new RequestContext('198.51.100.7', 'Comment Review Agent'),
         );
 
