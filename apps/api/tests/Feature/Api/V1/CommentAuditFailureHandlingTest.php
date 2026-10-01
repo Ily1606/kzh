@@ -10,96 +10,31 @@ use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
-use Mockery;
-use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Tests\TestCase;
 
 /**
- * Guards the retry policy of the comment audit listener.
+ * Comment-specific guards for the audit listener.
  *
- * A creation audit entry records who commented on what, so a transient logging
- * failure must be retried rather than silently dropped, and a terminal failure
- * has to leave a trace of its own.
+ * The retry policy and the audit/failure channel split both live in the shared
+ * traits, and are covered once per trait by AuthAuditFailureHandlingTest and
+ * PluginAuditFailureHandlingTest. Re-running that matrix here would only prove
+ * the traits still work, so what is left is what is specific to comments: the
+ * identifiers the report carries, and the fact that it is still produced once
+ * the rows behind it are gone.
  */
 class CommentAuditFailureHandlingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_audit_listener_declares_a_retry_policy(): void
-    {
-        $listener = new LogCommentCreation;
-
-        $this->assertSame(3, $listener->tries());
-        $this->assertSame([10, 60], $listener->backoff());
-    }
-
     /**
-     * The policy is read from config rather than hard coded, so the same listener
-     * can be tuned per environment. This also guards the job payload, which is
-     * what the worker actually obeys.
+     * The identifiers are the listener's own concern — the traits do not know
+     * what a comment is. Driven through CallQueuedListener::failed(), the same
+     * path a worker takes on the final attempt, which keeps the argument order
+     * honest too.
      */
-    public function test_the_retry_policy_follows_the_configuration(): void
-    {
-        Bus::fake();
-
-        config()->set('queue.audit_retry.tries', 7);
-        config()->set('queue.audit_retry.backoff', '5,30,90');
-
-        CommentCreated::dispatch(
-            commentId: '00000000-0000-0000-0000-000000000001',
-            pluginId: '00000000-0000-0000-0000-000000000002',
-            authorId: '00000000-0000-0000-0000-000000000003',
-            parentCommentId: null,
-            requestContext: new RequestContext(null, null),
-        );
-
-        $job = Bus::dispatched(CallQueuedListener::class)->sole();
-
-        $this->assertSame(7, $job->tries);
-        $this->assertSame([5, 30, 90], $job->backoff);
-    }
-
-    /**
-     * The env value is a comma separated string, the array form is accepted too so
-     * a config override in a test or a seeder does not need the string syntax.
-     */
-    public function test_the_backoff_accepts_both_an_array_and_a_comma_separated_string(): void
-    {
-        config()->set('queue.audit_retry.backoff', [5, 30]);
-        $this->assertSame([5, 30], (new LogCommentCreation)->backoff());
-
-        config()->set('queue.audit_retry.backoff', '5, 30 ,90');
-        $this->assertSame([5, 30, 90], (new LogCommentCreation)->backoff());
-    }
-
-    public function test_the_retry_policy_reaches_the_queued_job(): void
-    {
-        Bus::fake();
-
-        CommentCreated::dispatch(
-            commentId: '00000000-0000-0000-0000-000000000001',
-            pluginId: '00000000-0000-0000-0000-000000000002',
-            authorId: '00000000-0000-0000-0000-000000000003',
-            parentCommentId: null,
-            requestContext: new RequestContext(null, null),
-        );
-
-        $job = Bus::dispatched(CallQueuedListener::class)->sole();
-
-        $this->assertSame(3, $job->tries);
-        $this->assertSame([10, 60], $job->backoff);
-    }
-
-    /**
-     * On the final attempt the worker goes through CallQueuedListener, which
-     * appends the throwable to the queued payload before calling
-     * failed($event, $e). Driving that same path keeps the argument order
-     * honest and pins the report an operator actually receives.
-     */
-    public function test_an_exhausted_job_reports_the_failure_with_enough_context(): void
+    public function test_the_failure_report_carries_the_comment_audit_identifiers(): void
     {
         $entries = [];
 
@@ -194,110 +129,5 @@ class CommentAuditFailureHandlingTest extends TestCase
         $this->assertSame($user->getKey(), $entries[0]->context['author_id']);
         $this->assertSame('198.51.100.7', $entries[0]->context['ip_address']);
         $this->assertSame('log sink unreachable', $entries[0]->context['error']);
-    }
-
-    /**
-     * The same regression the auth and plugin listeners guard: comment_channel is
-     * null whenever LOG_COMMENT_CHANNEL is unset, and Laravel resolves that null
-     * to logging.default, so one broken sink would take down both the audit entry
-     * and the report that it had failed.
-     */
-    public function test_the_failure_is_not_reported_on_the_channel_that_just_failed(): void
-    {
-        config()->set('logging.default', 'stack');
-        config()->set('logging.comment_channel', null);
-        config()->set('logging.comment_failure_channel', 'stderr');
-
-        $logger = Mockery::mock(LoggerInterface::class);
-        $logger->shouldReceive('error')->once();
-
-        Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
-
-        (new LogCommentCreation)->failed(
-            new CommentCreated(
-                commentId: '00000000-0000-0000-0000-000000000001',
-                pluginId: '00000000-0000-0000-0000-000000000002',
-                authorId: '00000000-0000-0000-0000-000000000003',
-                parentCommentId: null,
-                requestContext: new RequestContext(null, null),
-            ),
-            new RuntimeException('log sink unreachable'),
-        );
-    }
-
-    public function test_the_failure_channel_follows_the_configuration(): void
-    {
-        config()->set('logging.default', 'stack');
-        config()->set('logging.comment_channel', 'daily');
-        config()->set('logging.comment_failure_channel', 'syslog');
-
-        $logger = Mockery::mock(LoggerInterface::class);
-        $logger->shouldReceive('error')->once();
-
-        Log::shouldReceive('channel')->once()->with('syslog')->andReturn($logger);
-
-        (new LogCommentCreation)->failed(
-            new CommentCreated(
-                commentId: '00000000-0000-0000-0000-000000000001',
-                pluginId: '00000000-0000-0000-0000-000000000002',
-                authorId: '00000000-0000-0000-0000-000000000003',
-                parentCommentId: null,
-                requestContext: new RequestContext('198.51.100.7', null),
-            ),
-            new RuntimeException('log sink unreachable'),
-        );
-    }
-
-    /**
-     * An operator can point the failure channel at the audit channel by hand,
-     * which would defeat the whole point. The resolver steps over it.
-     */
-    public function test_a_failure_channel_pointing_at_the_audit_channel_is_skipped(): void
-    {
-        config()->set('logging.default', 'stack');
-        config()->set('logging.comment_channel', 'daily');
-        config()->set('logging.comment_failure_channel', 'daily');
-
-        $logger = Mockery::mock(LoggerInterface::class);
-        $logger->shouldReceive('error')->once();
-
-        Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
-
-        (new LogCommentCreation)->failed(
-            new CommentCreated(
-                commentId: '00000000-0000-0000-0000-000000000001',
-                pluginId: '00000000-0000-0000-0000-000000000002',
-                authorId: '00000000-0000-0000-0000-000000000003',
-                parentCommentId: null,
-                requestContext: new RequestContext('198.51.100.7', null),
-            ),
-            new RuntimeException('log sink unreachable'),
-        );
-    }
-
-    /**
-     * Even if the rescue channel itself is down, failed() must not throw —
-     * a terminal failure has to leave a trace, never raise a new exception.
-     */
-    public function test_failed_never_throws_when_the_failure_channel_is_down(): void
-    {
-        config()->set('logging.default', 'stack');
-        config()->set('logging.comment_channel', null);
-        config()->set('logging.comment_failure_channel', 'stderr');
-
-        Log::shouldReceive('channel')->once()->with('stderr')->andThrow(new RuntimeException('stderr down'));
-
-        (new LogCommentCreation)->failed(
-            new CommentCreated(
-                commentId: '00000000-0000-0000-0000-000000000001',
-                pluginId: '00000000-0000-0000-0000-000000000002',
-                authorId: '00000000-0000-0000-0000-000000000003',
-                parentCommentId: null,
-                requestContext: new RequestContext('198.51.100.7', null),
-            ),
-            new RuntimeException('log sink unreachable'),
-        );
-
-        $this->assertTrue(true);
     }
 }
