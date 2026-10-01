@@ -17,7 +17,7 @@ class CreateCommentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'content' => ['required', 'string', 'max:2000'],
+            'content' => ['required', 'string', 'max:'.config('comments.content.max_length')],
             'parent_comment_id' => ['nullable', 'uuid'],
         ];
     }
