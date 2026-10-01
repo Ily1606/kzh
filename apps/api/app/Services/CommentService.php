@@ -38,6 +38,13 @@ final class CommentService
      *
      * The parent is resolved through the plugin so a caller cannot walk a tree of
      * another plugin (nor an unpublished one) by guessing a comment ID.
+     *
+     * TODO(KDN-1538): only the comment passed in is checked for visibility, not
+     * its ancestors. With a hidden root A, a caller who knows the id of a reply B
+     * can still read `B`'s replies. Whatever moderation endpoint lands with
+     * KDN-1538 owns this: either walk the chain of ancestors (one recursive CTE
+     * up from the comment is enough — verified at ~7ms for a 51-level chain) or
+     * propagate `hidden_at` to the subtree and drop the lookup.
      */
     public function getReplies(string $pluginId, string $commentId, int $perPage, string $sort): LengthAwarePaginator
     {
@@ -68,6 +75,10 @@ final class CommentService
             // no longer land between the check and the insert. Left unlocked, a hard
             // delete in that gap would break the foreign key on insert and surface as
             // a 500 instead of the documented 404.
+            //
+            // TODO(KDN-1538): the lock makes this check race-free, not
+            // ancestor-aware — it proves the parent is visible right now, but not
+            // that nothing above it is hidden. Same gap as in getReplies().
             if ($parentId !== null) {
                 $this->commentRepository->findVisibleByIdAndPlugin($parentId, $plugin->id, true);
             }
