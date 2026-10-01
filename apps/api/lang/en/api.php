@@ -16,6 +16,7 @@ return [
     'unauthorized' => 'This action is unauthorized.',
     'not_found' => 'Resource not found.',
     'invalid_token' => 'The request token is invalid or expired.',
+    'too_many_requests' => 'Too many requests. Please try again later.',
     'request_failed' => 'The request could not be completed.',
     'unexpected_error' => 'An unexpected error occurred.',
     'profile_updated' => 'User profile updated successfully.',
