@@ -3,14 +3,18 @@
 namespace App\Services;
 
 use App\Contracts\UserRepositoryInterface;
-use App\Models\User;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Str;
-use App\Events\Profile\UserProfileUpdated;
 use App\Events\Profile\UserAvatarUpdated;
 use App\Events\Profile\UserPasswordUpdated;
+use App\Events\Profile\UserProfileUpdated;
+use App\Models\User;
+use App\Models\UserProfile;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
+use Throwable;
 
 class ProfileService
 {
@@ -18,6 +22,9 @@ class ProfileService
         private readonly UserRepositoryInterface $userRepository
     ) {}
 
+    /**
+     * Retrieve the user's profile.
+     */
     public function getProfile(User $user): User
     {
         return $user->loadMissing('profile');
@@ -31,11 +38,16 @@ class ProfileService
         $name = $data['name'] ?? null;
 
         $profileData = [];
-        if (array_key_exists('githubName', $data)) $profileData['github_name'] = $data['githubName'];
-        if (array_key_exists('githubLink', $data)) $profileData['github_link'] = $data['githubLink'];
+        if (array_key_exists('githubName', $data)) {
+            $profileData['github_name'] = $data['githubName'];
+        }
+        if (array_key_exists('githubLink', $data)) {
+            $profileData['github_link'] = $data['githubLink'];
+        }
 
         $user = $this->userRepository->updateProfile($user, $name, $profileData);
         UserProfileUpdated::dispatch($user);
+
         return $user;
     }
 
@@ -44,10 +56,18 @@ class ProfileService
      */
     public function updateAvatar(User $user, ?UploadedFile $file): User
     {
-        $avatarPath = $file?->store('avatars', 'public');
+        $avatarPath = $file?->store('avatars', UserProfile::AVATAR_DISK);
 
-        $user = $this->userRepository->updateAvatar($user, $avatarPath);
+        try {
+            $user = $this->userRepository->updateAvatar($user, $avatarPath);
+        } catch (Throwable $e) {
+            if ($avatarPath) {
+                Storage::disk(UserProfile::AVATAR_DISK)->delete($avatarPath);
+            }
+            throw $e;
+        }
         UserAvatarUpdated::dispatch($user);
+
         return $user;
     }
 
@@ -58,14 +78,24 @@ class ProfileService
      */
     public function updatePassword(User $user, string $currentPassword, string $newPassword): User
     {
-        if (!Hash::check($currentPassword, $user->password)) {
+        if (! Hash::check($currentPassword, $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => ['Current password is incorrect.'],
+                'current_password' => [__('api.current_password_incorrect')],
             ]);
         }
 
-        $user = $this->userRepository->updatePassword($user, $newPassword);
+        DB::transaction(function () use ($user, $newPassword): void {
+            $this->userRepository->updatePassword($user, $newPassword);
+
+            $currentToken = $user->currentAccessToken();
+            $this->userRepository->revokeTokensExcept(
+                $user,
+                $currentToken instanceof PersonalAccessToken ? $currentToken->getKey() : null,
+            );
+        });
+
         UserPasswordUpdated::dispatch($user);
+
         return $user;
     }
 }

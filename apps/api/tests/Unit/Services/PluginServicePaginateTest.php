@@ -13,6 +13,7 @@ use Tests\TestCase;
 class PluginServicePaginateTest extends TestCase
 {
     private PluginService $pluginService;
+
     private MockInterface|PluginRepositoryInterface $pluginRepositoryMock;
 
     protected function setUp(): void

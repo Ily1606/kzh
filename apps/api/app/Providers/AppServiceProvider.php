@@ -35,10 +35,32 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        RateLimiter::for('submit-plugin', function (Request $request): Limit {
-            return Limit::perMinute((int) config('plugins.submit_per_minute', 5))
-                ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip()));
-        });
+        RateLimiter::for('submit-plugin', fn(Request $request): Limit => Limit::perMinute((int) config('plugins.submit_per_minute', 5))
+            ->by($this->userOrIpKey($request)));
+
+        RateLimiter::for('register', fn(Request $request): array => [
+            Limit::perMinute(config('auth.limiters.register_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.register_per_account'))->by('account:' . $this->normalizedEmail($request)),
+            Limit::perMinute(config('auth.limiters.register_per_ip'))->by($request->ip()),
+        ]);
+        RateLimiter::for('login', fn(Request $request): array => [
+            Limit::perMinute(config('auth.limiters.login_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.login_per_ip'))->by($request->ip()),
+        ]);
+        RateLimiter::for('password-reset-link', fn(Request $request): array => [
+            Limit::perMinute(config('auth.limiters.password_reset_link_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.password_reset_link_per_account'))->by('account:' . $this->normalizedEmail($request)),
+            Limit::perMinute(config('auth.limiters.password_reset_link_per_ip'))->by($request->ip()),
+        ]);
+        RateLimiter::for('password-reset', fn(Request $request): array => [
+            Limit::perMinute(config('auth.limiters.password_reset_per_email'))->by($this->authThrottleKey($request)),
+            Limit::perMinute(config('auth.limiters.password_reset_per_account'))->by('account:' . $this->normalizedEmail($request)),
+            Limit::perMinute(config('auth.limiters.password_reset_per_ip'))->by($request->ip()),
+        ]);
+
+        RateLimiter::for('api', fn(Request $request): Limit => Limit::perMinute(config('app.limiters.api'))->by($this->userOrIpKey($request)));
+
+        RateLimiter::for('strict', fn(Request $request): Limit => Limit::perMinute(config('app.limiters.strict'))->by($this->userOrIpKey($request)));
 
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $openApi): void {
@@ -48,5 +70,22 @@ class AppServiceProvider extends ServiceProvider
         Scramble::routes(function (Route $route): bool {
             return Str::startsWith($route->uri(), 'api/v1');
         });
+    }
+
+    private function userOrIpKey(Request $request): string
+    {
+        return (string) ($request->user()?->getAuthIdentifier() ?? $request->ip());
+    }
+
+    private function normalizedEmail(Request $request): string
+    {
+        $email = $request->input('email');
+
+        return Str::lower(is_string($email) ? $email : '');
+    }
+
+    private function authThrottleKey(Request $request): string
+    {
+        return $this->normalizedEmail($request) . '|' . $request->ip();
     }
 }

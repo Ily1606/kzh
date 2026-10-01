@@ -2,11 +2,10 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
+use App\Support\UrlHelper;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Notifications\ResetPassword;
-use App\Support\UrlHelper;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 
 class PasswordResetService
@@ -24,7 +23,7 @@ class PasswordResetService
 
         $status = Password::sendResetLink($credentials);
 
-        if ($status === Password::INVALID_USER) {
+        if (in_array($status, [Password::INVALID_USER, Password::RESET_THROTTLED], true)) {
             return;
         }
 

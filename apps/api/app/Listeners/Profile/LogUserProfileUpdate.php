@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Listeners\Profile;
 
 use App\Events\Profile\UserProfileUpdated;

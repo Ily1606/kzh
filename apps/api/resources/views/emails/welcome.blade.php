@@ -1,14 +1,14 @@
 <x-mail::message>
-# Welcome to {{ config('app.name') }}, {{ $user->name }}!
+# {{ __('mail.welcome.greeting', ['app' => config('app.name'), 'name' => $user->name]) }}
 
-Thank you for registering an account with us. We are excited to have you on board.
+{{ __('mail.welcome.body') }}
 
 <x-mail::button :url="config('app.frontend_url')">
-Visit Your Dashboard
+{{ __('mail.welcome.button') }}
 </x-mail::button>
 
-If you have any questions, feel free to reply to this email.
+{{ __('mail.welcome.footer') }}
 
-Thanks,<br>
-{{ config('app.name') }} Team
+{{ __('mail.welcome.thanks') }}<br>
+{{ __('mail.welcome.team', ['app' => config('app.name')]) }}
 </x-mail::message>

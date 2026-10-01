@@ -125,4 +125,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Global API Rate Limits
+    |--------------------------------------------------------------------------
+    |
+    | Here you can configure the rate limits for global API requests.
+    |
+    */
+
+    'limiters' => [
+        'api' => (int) env('API_RATE_LIMIT', 60),
+        'strict' => (int) env('API_STRICT_RATE_LIMIT', 5),
+    ],
+
 ];

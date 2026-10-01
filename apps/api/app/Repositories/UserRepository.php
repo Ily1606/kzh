@@ -65,7 +65,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
                 $user->update(['name' => $name]);
             }
 
-            if (!empty($profileData)) {
+            if (! empty($profileData)) {
                 $user->profile()->updateOrCreate([], $profileData);
             }
 
@@ -75,11 +75,13 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
 
     public function updateAvatar(User $user, ?string $avatarPath): User
     {
-        $user->profile()->updateOrCreate([], [
-            'avatar_link' => $avatarPath
-        ]);
+        return DB::transaction(function () use ($user, $avatarPath) {
+            $user->profile()->updateOrCreate([], [
+                'avatar_link' => $avatarPath,
+            ]);
 
-        return $user->refresh();
+            return $user->refresh();
+        });
     }
 
     public function updatePassword(User $user, string $newPassword): User
@@ -88,5 +90,10 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         $user->save();
 
         return $user;
+    }
+
+    public function revokeTokensExcept(User $user, int|string|null $exceptId = null): void
+    {
+        $user->tokens()->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->delete();
     }
 }

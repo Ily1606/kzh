@@ -3,90 +3,90 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
-use Illuminate\Auth\Notifications\ResetPassword;
-use Carbon\Carbon;
 
 class PasswordResetTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_sends_reset_link_with_valid_email()
+    public function test_sends_reset_link_with_valid_email(): void
     {
         Notification::fake();
         $user = User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'user@example.com'
+            'email' => 'user@example.com',
         ]);
 
         $response->assertStatus(200);
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
-    public function test_fails_if_email_does_not_exist()
+    public function test_fails_if_email_does_not_exist(): void
     {
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'nonexistent@example.com'
+            'email' => 'nonexistent@example.com',
         ]);
 
         $response->assertStatus(200);
     }
 
-    public function test_fails_if_email_is_missing()
+    public function test_fails_if_email_is_missing(): void
     {
         $response = $this->postJson('/api/v1/forgot-password', []);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_email_is_empty()
+    public function test_fails_if_email_is_empty(): void
     {
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => ''
+            'email' => '',
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_email_format_is_invalid()
+    public function test_fails_if_email_format_is_invalid(): void
     {
         $invalidEmails = ['abc', 'user@', '@example.com'];
 
         foreach ($invalidEmails as $email) {
             $response = $this->postJson('/api/v1/forgot-password', [
-                'email' => $email
+                'email' => $email,
             ]);
 
             $response->assertStatus(422)
-                     ->assertJsonValidationErrors(['email']);
+                ->assertJsonValidationErrors(['email']);
         }
     }
 
-    public function test_trims_whitespace_from_email()
+    public function test_trims_whitespace_from_email(): void
     {
         Notification::fake();
         $user = User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => '  user@example.com  '
+            'email' => '  user@example.com  ',
         ]);
 
         $response->assertStatus(200);
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
-    public function test_handles_case_insensitive_email()
+    public function test_handles_case_insensitive_email(): void
     {
         if (config('database.default') === 'sqlite') {
             $this->markTestSkipped('SQLite string comparison is case-sensitive by default.');
@@ -96,39 +96,47 @@ class PasswordResetTest extends TestCase
         $user = User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'USER@EXAMPLE.COM'
+            'email' => 'USER@EXAMPLE.COM',
         ]);
 
         $response->assertStatus(200);
         Notification::assertSentTo($user, ResetPassword::class);
     }
 
-    public function test_throttles_reset_link_requests()
+    public function test_throttles_reset_link_requests(): void
     {
         Notification::fake();
-        User::factory()->create(['email' => 'user@example.com']);
+        $user = User::factory()->create(['email' => 'user@example.com']);
 
+        // First request succeeds and sends notification
         $this->postJson('/api/v1/forgot-password', ['email' => 'user@example.com'])
-             ->assertStatus(200);
+            ->assertStatus(200);
 
+        Notification::assertSentTo($user, ResetPassword::class);
+
+        // Reset fake to verify the second notification is throttled
+        Notification::fake();
+
+        // Second request is throttled but returns 200 silently
         $this->postJson('/api/v1/forgot-password', ['email' => 'user@example.com'])
-             ->assertStatus(422)
-             ->assertJsonValidationErrors(['email']);
+            ->assertStatus(200);
+
+        Notification::assertNothingSent();
     }
 
-    public function test_fails_if_email_is_too_long()
+    public function test_fails_if_email_is_too_long(): void
     {
-        $longEmail = Str::random(250) . '@example.com';
-        
+        $longEmail = Str::random(250).'@example.com';
+
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => $longEmail
+            'email' => $longEmail,
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['email']);
+            ->assertJsonValidationErrors(['email']);
     }
 
-    public function test_resets_password_successfully()
+    public function test_resets_password_successfully(): void
     {
         Event::fake([PasswordReset::class]);
 
@@ -150,7 +158,7 @@ class PasswordResetTest extends TestCase
         });
     }
 
-    public function test_fails_if_token_does_not_exist()
+    public function test_fails_if_token_does_not_exist(): void
     {
         User::factory()->create(['email' => 'user@example.com']);
 
@@ -164,13 +172,13 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_token_is_expired()
+    public function test_fails_if_token_is_expired(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
 
         DB::table('password_reset_tokens')->where('email', $user->email)->update([
-            'created_at' => Carbon::now()->subMinutes(config('auth.passwords.users.expire') + 1)
+            'created_at' => Carbon::now()->subMinutes(config('auth.passwords.users.expire') + 1),
         ]);
 
         $response = $this->postJson('/api/v1/reset-password', [
@@ -183,7 +191,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_token_is_already_used()
+    public function test_fails_if_token_is_already_used(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -203,7 +211,7 @@ class PasswordResetTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_email_is_random()
+    public function test_fails_if_email_is_random(): void
     {
         $response = $this->postJson('/api/v1/reset-password', [
             'token' => 'some-token',
@@ -215,7 +223,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_email_does_not_match_token()
+    public function test_fails_if_email_does_not_match_token(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -230,7 +238,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_token_is_missing_or_empty()
+    public function test_fails_if_token_is_missing_or_empty(): void
     {
         $responseMissing = $this->postJson('/api/v1/reset-password', [
             'email' => 'user@example.com',
@@ -248,7 +256,7 @@ class PasswordResetTest extends TestCase
         $responseEmpty->assertStatus(422)->assertJsonValidationErrors(['token']);
     }
 
-    public function test_fails_if_email_is_missing_in_reset()
+    public function test_fails_if_email_is_missing_in_reset(): void
     {
         $response = $this->postJson('/api/v1/reset-password', [
             'token' => 'some-token',
@@ -258,7 +266,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_email_format_is_invalid_in_reset()
+    public function test_fails_if_email_format_is_invalid_in_reset(): void
     {
         $response = $this->postJson('/api/v1/reset-password', [
             'token' => 'some-token',
@@ -269,7 +277,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
     }
 
-    public function test_fails_if_password_is_missing_or_empty()
+    public function test_fails_if_password_is_missing_or_empty(): void
     {
         $responseMissing = $this->postJson('/api/v1/reset-password', [
             'token' => 'some-token',
@@ -285,7 +293,7 @@ class PasswordResetTest extends TestCase
         $responseEmpty->assertStatus(422)->assertJsonValidationErrors(['password']);
     }
 
-    public function test_fails_if_password_is_too_short()
+    public function test_fails_if_password_is_too_short(): void
     {
         $response = $this->postJson('/api/v1/reset-password', [
             'token' => 'some-token',
@@ -296,7 +304,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['password']);
     }
 
-    public function test_succeeds_with_8_character_password()
+    public function test_succeeds_with_8_character_password(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -310,7 +318,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_fails_if_confirmation_is_missing()
+    public function test_fails_if_confirmation_is_missing(): void
     {
         $response = $this->postJson('/api/v1/reset-password', [
             'token' => 'some-token',
@@ -320,7 +328,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['password']);
     }
 
-    public function test_fails_if_confirmation_does_not_match()
+    public function test_fails_if_confirmation_does_not_match(): void
     {
         $response = $this->postJson('/api/v1/reset-password', [
             'token' => 'some-token',
@@ -331,7 +339,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(422)->assertJsonValidationErrors(['password']);
     }
 
-    public function test_succeeds_with_special_characters_password()
+    public function test_succeeds_with_special_characters_password(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -345,7 +353,7 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_succeeds_with_unicode_password()
+    public function test_succeeds_with_unicode_password(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -358,12 +366,12 @@ class PasswordResetTest extends TestCase
             'password' => $unicodePassword,
             'password_confirmation' => $unicodePassword,
         ]);
-        
+
         $response->assertStatus(200);
         $this->assertTrue(Hash::check($unicodePassword, $user->fresh()->password));
     }
 
-    public function test_handles_very_long_password()
+    public function test_handles_very_long_password(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -376,16 +384,16 @@ class PasswordResetTest extends TestCase
             'password' => $longPassword,
             'password_confirmation' => $longPassword,
         ]);
-        
+
         $response->assertStatus(200);
         $this->assertTrue(Hash::check($longPassword, $user->fresh()->password));
     }
 
-    public function test_allows_new_password_same_as_old()
+    public function test_allows_new_password_same_as_old(): void
     {
         $user = User::factory()->create([
             'email' => 'user@example.com',
-            'password' => Hash::make('same_password123')
+            'password' => Hash::make('same_password123'),
         ]);
         $token = Password::createToken($user);
 
@@ -395,11 +403,11 @@ class PasswordResetTest extends TestCase
             'password' => 'same_password123',
             'password_confirmation' => 'same_password123',
         ]);
-        
+
         $response->assertStatus(200);
     }
 
-    public function test_hashes_password_on_reset()
+    public function test_hashes_password_on_reset(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -416,13 +424,11 @@ class PasswordResetTest extends TestCase
         $this->assertTrue(Hash::check('new_password123', $dbPassword));
     }
 
-    public function test_login_works_with_new_password_and_fails_with_old()
+    public function test_login_works_with_new_password_and_fails_with_old(): void
     {
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-            
-            
         ]);
         $token = Password::createToken($user);
 
@@ -437,14 +443,14 @@ class PasswordResetTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'old_password',
         ])->assertStatus(422);
-        
+
         $this->withHeader('Origin', 'http://localhost:5173')->postJson('/api/v1/login', [
             'email' => 'test@example.com',
             'password' => 'new_password123',
         ])->assertStatus(200);
     }
 
-    public function test_revokes_all_tokens_on_reset()
+    public function test_revokes_all_tokens_on_reset(): void
     {
         $user = User::factory()->create([
             'email' => 'user@example.com',
@@ -466,7 +472,7 @@ class PasswordResetTest extends TestCase
         $this->assertCount(0, $user->fresh()->tokens);
     }
 
-    public function test_works_without_authentication()
+    public function test_works_without_authentication(): void
     {
         $user = User::factory()->create(['email' => 'user@example.com']);
         $token = Password::createToken($user);
@@ -481,13 +487,13 @@ class PasswordResetTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_token_is_not_exposed_in_api_response()
+    public function test_token_is_not_exposed_in_api_response(): void
     {
         Notification::fake();
         User::factory()->create(['email' => 'user@example.com']);
 
         $response = $this->postJson('/api/v1/forgot-password', [
-            'email' => 'user@example.com'
+            'email' => 'user@example.com',
         ]);
 
         $response->assertStatus(200);
@@ -495,15 +501,15 @@ class PasswordResetTest extends TestCase
         $this->assertNull($response->json('data'));
     }
 
-    public function test_reset_link_uses_frontend_url_and_encoded_email()
+    public function test_reset_link_uses_frontend_url_and_encoded_email(): void
     {
         Notification::fake();
         config()->set('app.frontend_url', 'https://my-vue-app.com');
-        
+
         $user = User::factory()->create(['email' => 'test+1@example.com']);
 
         $this->postJson('/api/v1/forgot-password', [
-            'email' => 'test+1@example.com'
+            'email' => 'test+1@example.com',
         ]);
 
         Notification::assertSentTo($user, ResetPassword::class, function ($notification, $channels) use ($user) {
@@ -511,17 +517,17 @@ class PasswordResetTest extends TestCase
             $actionUrl = $mail->actionUrl;
 
             $expectedUrlPrefix = 'https://my-vue-app.com/reset-password?token=';
-            $expectedEmailParam = '&email=' . urlencode($user->email);
+            $expectedEmailParam = '&email='.urlencode($user->email);
 
             return str_starts_with($actionUrl, $expectedUrlPrefix) && str_ends_with($actionUrl, $expectedEmailParam);
         });
     }
 
-    public function test_cannot_reset_other_users_password_with_mismatched_token()
+    public function test_cannot_reset_other_users_password_with_mismatched_token(): void
     {
         $userA = User::factory()->create(['email' => 'usera@example.com']);
         $userB = User::factory()->create(['email' => 'userb@example.com']);
-        
+
         $tokenA = Password::createToken($userA);
 
         $response = $this->postJson('/api/v1/reset-password', [
@@ -532,8 +538,64 @@ class PasswordResetTest extends TestCase
         ]);
 
         $response->assertStatus(422)->assertJsonValidationErrors(['email']);
-        
+
         $this->assertFalse(Hash::check('hacked_password123', $userA->fresh()->password));
         $this->assertFalse(Hash::check('hacked_password123', $userB->fresh()->password));
+    }
+
+    public function test_named_limiter_returns_429_when_exceeded(): void
+    {
+        $email = 'test@example.com';
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/v1/forgot-password', ['email' => $email]);
+        }
+
+        $this->postJson('/api/v1/forgot-password', ['email' => $email])
+            ->assertStatus(429);
+    }
+
+    public function test_named_limiter_does_not_block_different_emails(): void
+    {
+        $email1 = 'test1@example.com';
+        $email2 = 'test2@example.com';
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/v1/forgot-password', ['email' => $email1]);
+        }
+
+        // $email1 should be blocked
+        $this->postJson('/api/v1/forgot-password', ['email' => $email1])
+            ->assertStatus(429);
+
+        // $email2 should still work
+        $this->postJson('/api/v1/forgot-password', ['email' => $email2])
+            ->assertStatus(200);
+    }
+
+    public function test_named_limiter_returns_422_if_email_is_array(): void
+    {
+        $this->postJson('/api/v1/forgot-password', ['email' => ['test@example.com']])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_forgot_and_reset_password_limiters_are_independent(): void
+    {
+        $email = 'test@example.com';
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->postJson('/api/v1/forgot-password', ['email' => $email]);
+        }
+
+        $this->postJson('/api/v1/forgot-password', ['email' => $email])->assertStatus(429);
+
+        // The reset-password endpoint should not be rate limited
+        $this->postJson('/api/v1/reset-password', [
+            'token' => 'invalid-token',
+            'email' => $email,
+            'password' => 'new_password123',
+            'password_confirmation' => 'new_password123',
+        ])->assertStatus(422); // Fails validation, but NOT 429
     }
 }

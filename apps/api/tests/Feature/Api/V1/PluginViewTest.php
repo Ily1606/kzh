@@ -5,7 +5,9 @@ namespace Tests\Feature\Api\V1;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Services\PluginService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Laravel\Sanctum\Sanctum;
@@ -97,7 +99,7 @@ class PluginViewTest extends TestCase
 
         $response = $this->withHeaders([
             'User-Agent' => 'TestBrowser 1.0',
-            'REMOTE_ADDR' => '192.168.1.1'
+            'REMOTE_ADDR' => '192.168.1.1',
         ])->postJson("/api/v1/plugins/{$plugin->id}/view");
 
         $response->assertOk()
@@ -115,7 +117,7 @@ class PluginViewTest extends TestCase
 
         $headers = [
             'User-Agent' => 'TestBrowser 1.0',
-            'REMOTE_ADDR' => '192.168.1.1'
+            'REMOTE_ADDR' => '192.168.1.1',
         ];
 
         // First view
@@ -140,13 +142,13 @@ class PluginViewTest extends TestCase
         // Guest 1
         $this->withHeaders([
             'User-Agent' => 'TestBrowser 1.0',
-            'REMOTE_ADDR' => '192.168.1.1'
+            'REMOTE_ADDR' => '192.168.1.1',
         ])->postJson("/api/v1/plugins/{$plugin->id}/view")->assertOk();
 
         // Guest 2 (Different IP)
         $response = $this->withHeaders([
             'User-Agent' => 'TestBrowser 1.0',
-            'REMOTE_ADDR' => '192.168.1.2'
+            'REMOTE_ADDR' => '192.168.1.2',
         ])->postJson("/api/v1/plugins/{$plugin->id}/view");
 
         $response->assertOk()
@@ -158,7 +160,7 @@ class PluginViewTest extends TestCase
 
     public function test_view_07_plugin_not_found(): void
     {
-        $response = $this->postJson("/api/v1/plugins/99999999-9999-9999-9999-999999999999/view");
+        $response = $this->postJson('/api/v1/plugins/99999999-9999-9999-9999-999999999999/view');
         $response->assertNotFound();
 
         $this->assertFalse(Redis::hget('plugins:views_buffer', '99999999-9999-9999-9999-999999999999'));
@@ -251,12 +253,12 @@ class PluginViewTest extends TestCase
         $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved]);
 
         // Mock request object
-        $request = new \Illuminate\Http\Request();
+        $request = new Request;
         $request->setUserResolver(function () use ($user) {
             return $user;
         });
 
-        $service = app(\App\Services\PluginService::class);
+        $service = app(PluginService::class);
 
         // Verify Cache::add logic by calling the service method twice in sequence.
         // The second call will hit the Cache::add returning false branch.

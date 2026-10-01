@@ -6,14 +6,14 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Tests\TestCase;
 use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
 
 class PasswordUpdateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_unauthenticated_user_cannot_update_password()
+    public function test_unauthenticated_user_cannot_update_password(): void
     {
         $response = $this->patchJson('/api/v1/user/password', [
             'current_password' => 'password',
@@ -23,7 +23,7 @@ class PasswordUpdateTest extends TestCase
         $response->assertStatus(401);
     }
 
-    public function test_user_can_update_password_successfully()
+    public function test_user_can_update_password_successfully(): void
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
 
@@ -38,7 +38,7 @@ class PasswordUpdateTest extends TestCase
         $this->assertTrue(Hash::check('new_password123', $user->fresh()->password));
     }
 
-    public function test_validation_fails_if_current_password_is_incorrect()
+    public function test_validation_fails_if_current_password_is_incorrect(): void
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
 
@@ -50,10 +50,10 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['current_password']);
+            ->assertJsonValidationErrors(['current_password']);
     }
 
-    public function test_validation_fails_if_current_password_is_missing()
+    public function test_validation_fails_if_current_password_is_missing(): void
     {
         $user = User::factory()->create();
 
@@ -64,10 +64,10 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['current_password']);
+            ->assertJsonValidationErrors(['current_password']);
     }
 
-    public function test_validation_fails_if_new_password_is_missing()
+    public function test_validation_fails_if_new_password_is_missing(): void
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
 
@@ -77,10 +77,10 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
-    public function test_validation_fails_if_new_password_is_too_short()
+    public function test_validation_fails_if_new_password_is_too_short(): void
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
 
@@ -92,10 +92,10 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
-    public function test_user_can_update_password_with_exactly_8_characters()
+    public function test_user_can_update_password_with_exactly_8_characters(): void
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
 
@@ -110,7 +110,7 @@ class PasswordUpdateTest extends TestCase
         $this->assertTrue(Hash::check('12345678', $user->fresh()->password));
     }
 
-    public function test_validation_fails_if_password_confirmation_is_missing()
+    public function test_validation_fails_if_password_confirmation_is_missing(): void
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
 
@@ -121,10 +121,10 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
-    public function test_validation_fails_if_password_confirmation_does_not_match()
+    public function test_validation_fails_if_password_confirmation_does_not_match(): void
     {
         $user = User::factory()->create(['password' => Hash::make('old_password')]);
 
@@ -136,16 +136,14 @@ class PasswordUpdateTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['new_password']);
+            ->assertJsonValidationErrors(['new_password']);
     }
 
-    public function test_user_can_login_with_new_password_and_fails_with_old_password()
+    public function test_user_can_login_with_new_password_and_fails_with_old_password(): void
     {
         $user = User::factory()->create([
             'email' => 'test@example.com',
             'password' => Hash::make('old_password'),
-            
-            
         ]);
 
         Sanctum::actingAs($user);
@@ -168,5 +166,30 @@ class PasswordUpdateTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'new_password123',
         ])->assertStatus(200);
+    }
+
+    public function test_changing_password_revokes_other_tokens_but_keeps_current_token(): void
+    {
+        $user = User::factory()->create([
+            'password' => Hash::make('old_password'),
+        ]);
+
+        $otherToken = $user->createToken('other_device')->plainTextToken;
+        $currentToken = $user->createToken('current_device')->plainTextToken;
+
+        $this->assertCount(2, $user->tokens);
+
+        $this->withToken($currentToken)->patchJson('/api/v1/user/password', [
+            'current_password' => 'old_password',
+            'new_password' => 'new_password123',
+            'new_password_confirmation' => 'new_password123',
+        ])->assertStatus(200);
+
+        $this->assertCount(1, $user->fresh()->tokens);
+
+        Auth::forgetGuards();
+
+        $this->withToken($otherToken)->getJson('/api/v1/user')->assertStatus(401);
+        $this->withToken($currentToken)->getJson('/api/v1/user')->assertStatus(200);
     }
 }

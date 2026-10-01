@@ -13,6 +13,7 @@ final class TrendingPluginsFetched
     use Dispatchable;
 
     public readonly ?string $ipAddress;
+
     public readonly ?string $userAgent;
 
     public function __construct(

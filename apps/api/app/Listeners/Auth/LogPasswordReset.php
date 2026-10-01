@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Listeners\Auth;
 
 use Illuminate\Auth\Events\PasswordReset;

@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\UserProfile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class UserProfileObserver
@@ -14,9 +15,10 @@ class UserProfileObserver
     {
         if ($profile->isDirty('avatar_link')) {
             $oldAvatar = $profile->getOriginal('avatar_link');
-            
-            if ($oldAvatar && !str_starts_with($oldAvatar, 'http')) {
-                Storage::disk('public')->delete($oldAvatar);
+            if (UserProfile::isLocalPath($oldAvatar)) {
+                DB::afterCommit(function () use ($oldAvatar): void {
+                    Storage::disk(UserProfile::AVATAR_DISK)->delete($oldAvatar);
+                });
             }
         }
     }
@@ -26,8 +28,12 @@ class UserProfileObserver
      */
     public function deleted(UserProfile $profile): void
     {
-        if ($profile->avatar_link && !str_starts_with($profile->avatar_link, 'http')) {
-            Storage::disk('public')->delete($profile->avatar_link);
+        if ($profile->isLocalAvatar()) {
+            $avatar = $profile->avatar_link;
+
+            DB::afterCommit(function () use ($avatar): void {
+                Storage::disk(UserProfile::AVATAR_DISK)->delete($avatar);
+            });
         }
     }
 }

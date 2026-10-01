@@ -13,13 +13,13 @@ class AuthSmokeTest extends TestCase
     public function test_user_can_register_and_receive_a_token(): void
     {
         $response = $this
-        ->withHeader('Origin', 'http://localhost:5173')
-        ->postJson('/api/v1/register', [
-            'name' => 'Nguyen Van A',
-            'email' => 'nguyen@example.com',
-            'password' => 'secret-password',
-            'password_confirmation' => 'secret-password',
-        ]);
+            ->withHeader('Origin', 'http://localhost:5173')
+            ->postJson('/api/v1/register', [
+                'name' => 'Nguyen Van A',
+                'email' => 'nguyen@example.com',
+                'password' => 'secret-password',
+                'password_confirmation' => 'secret-password',
+            ]);
 
         $response->assertCreated()
             ->assertJsonPath('data.user.name', 'Nguyen Van A')
@@ -161,5 +161,62 @@ class AuthSmokeTest extends TestCase
             ->assertNoContent()
             ->assertHeader('Access-Control-Allow-Origin', 'http://localhost:5173')
             ->assertHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
+    public function test_login_returns_429_when_rate_limit_exceeded(): void
+    {
+        $user = User::factory()->create();
+
+        $limit = (int) config('auth.limiters.login_per_email', 5);
+
+        for ($i = 0; $i < $limit; $i++) {
+            $this->postJson('/api/v1/login', [
+                'email' => $user->email,
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        // The next time should be rate limited (429 Too Many Requests)
+        $this->postJson('/api/v1/login', [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ])->assertStatus(429);
+    }
+
+    /**
+     * Test: Attacker (IP 2) tries to brute-force Victim (IP 1).
+     * Attacker hits the email|ip limit (5) and gets 429.
+     * The account limit is 30, so Victim's login counter is only at 5.
+     * Victim logs in correctly from their own IP, which succeeds (200 OK) and clears the account counter.
+     */
+    public function test_login_from_victim_ip_succeeds_even_when_attacker_hits_ip_limit(): void
+    {
+        $user = User::factory()->create(['password' => 'secret-password']);
+
+        $limit = (int) config('auth.limiters.login_per_email');
+
+        // Attacker uses IP 2.2.2.2 and hits the email|ip limit.
+        for ($i = 0; $i < $limit; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '2.2.2.2'])
+                ->postJson('/api/v1/login', [
+                    'email' => $user->email,
+                    'password' => 'wrong-password',
+                ]);
+        }
+
+        // Attacker gets 429 from the middleware because they hit the email|ip limit
+        $this->withServerVariables(['REMOTE_ADDR' => '2.2.2.2'])
+            ->postJson('/api/v1/login', [
+                'email' => $user->email,
+                'password' => 'wrong-password',
+            ])->assertStatus(429);
+
+        // Victim logs in from their normal IP 1.1.1.1
+        // Expected: 200 OK because the global account limit (30) is not reached.
+        $this->withServerVariables(['REMOTE_ADDR' => '1.1.1.1'])
+            ->postJson('/api/v1/login', [
+                'email' => $user->email,
+                'password' => 'secret-password',
+            ])->assertOk();
     }
 }

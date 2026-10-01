@@ -4,10 +4,8 @@ namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
-use App\Events\Plugin\PaginatedPluginsFetched;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginViewed;
-use App\Events\Plugin\TrendingPluginsFetched;
 use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
 use App\Models\User;
@@ -118,9 +116,6 @@ final class PluginService
      * - 2 (Age Offset): Prevents division by zero for brand new items.
      *
      * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
-     *
-     * @param int $limit
-     * @return array
      */
     public function getTrendingPlugins(int $limit): array
     {
@@ -140,7 +135,7 @@ final class PluginService
         $result = Cache::get($cacheKey);
         $cacheHit = $result !== null;
 
-        if (!$cacheHit) {
+        if (! $cacheHit) {
             $weights = [
                 'view' => $weightView,
                 'comment' => $weightComment,

@@ -11,6 +11,7 @@ return [
     'plugin_name_already_exists' => 'You already submitted a plugin with this name.',
     'invalid_data' => 'The given data was invalid.',
     'invalid_credentials' => 'Email or password is incorrect.',
+    'current_password_incorrect' => 'Current password is incorrect.',
     'unauthenticated' => 'Unauthenticated.',
     'unauthorized' => 'This action is unauthorized.',
     'not_found' => 'Resource not found.',

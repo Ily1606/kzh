@@ -11,7 +11,5 @@ class UserPasswordUpdated
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public User $user)
-    {
-    }
+    public function __construct(public User $user) {}
 }

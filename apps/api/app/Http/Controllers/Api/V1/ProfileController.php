@@ -3,24 +3,24 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\UserResource;
-use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\UpdateAvatarRequest;
 use App\Http\Requests\UpdatePasswordRequest;
-use App\Support\ApiResponse;
+use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Resources\UserResource;
 use App\Services\ProfileService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProfileController extends Controller
 {
-    public function __construct(private readonly ProfileService $profileService)
-    {
-    }
+    public function __construct(private readonly ProfileService $profileService) {}
 
     public function show(Request $request): JsonResponse
     {
-        return ApiResponse::successResponse(new UserResource($request->user()->loadMissing('profile')), __('api.user_retrieved'));
+        $user = $this->profileService->getProfile($request->user());
+
+        return ApiResponse::successResponse(new UserResource($user), __('api.user_retrieved'));
     }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
@@ -40,7 +40,7 @@ class ProfileController extends Controller
     public function updatePassword(UpdatePasswordRequest $request): JsonResponse
     {
         $data = $request->validated();
-        
+
         $user = $this->profileService->updatePassword(
             $request->user(),
             $data['current_password'],

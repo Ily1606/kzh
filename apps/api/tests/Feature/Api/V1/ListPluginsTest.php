@@ -39,10 +39,10 @@ class ListPluginsTest extends TestCase
             // Assert paginated structure
             ->assertJsonStructure([
                 'data' => [
-                    '*' => ['id', 'name', 'title', 'status', 'approved_at']
+                    '*' => ['id', 'name', 'title', 'status', 'approved_at'],
                 ],
                 'links' => ['first', 'last', 'prev', 'next'],
-                'meta' => ['current_page', 'per_page', 'total']
+                'meta' => ['current_page', 'per_page', 'total'],
             ]);
     }
 
