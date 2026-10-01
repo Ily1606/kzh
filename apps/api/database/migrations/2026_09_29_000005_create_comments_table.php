@@ -19,10 +19,8 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            // Serves both list queries: root comments (parent_comment_id IS NULL)
-            // and the direct replies of a single comment. Both filter by
-            // plugin_id, filter out hidden rows and sort by created_at.
             $table->index(['plugin_id', 'parent_comment_id', 'created_at']);
+            $table->index(['parent_comment_id', 'created_at']);
             $table->index('author_id');
         });
 
