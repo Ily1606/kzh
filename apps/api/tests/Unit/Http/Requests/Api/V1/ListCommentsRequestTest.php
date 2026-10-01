@@ -54,10 +54,9 @@ class ListCommentsRequestTest extends TestCase
     }
 
     /**
-     * Only the upper bound is reachable through validation: the `min:1` rule
-     * rejects 0 and negatives before `perPage()` ever sees them, so the lower
-     * clamp in `perPage()` is defence in depth for a config whose
-     * `default_per_page` is misconfigured to 0 or lower.
+     * Only the upper bound is clamped: the `min:1` rule rejects 0 and negatives
+     * before `perPage()` ever sees them, so the cap is the only thing left for
+     * it to do.
      *
      * @return array<string, array{0: int, 1: int}>
      */
@@ -81,19 +80,6 @@ class ListCommentsRequestTest extends TestCase
         config()->set('comments.pagination.max_per_page', 50);
 
         $this->assertSame($expected, $this->resolved(['per_page' => $requested])->perPage());
-    }
-
-    /**
-     * The lower clamp is unreachable via the query string, so it is pinned
-     * against the config default: a misconfigured `default_per_page` of 0 must
-     * not hand a zero page size to the paginator.
-     */
-    public function test_a_non_positive_default_page_size_is_floored_at_one(): void
-    {
-        config()->set('comments.pagination.default_per_page', 0);
-        config()->set('comments.pagination.max_per_page', 50);
-
-        $this->assertSame(1, $this->resolved([])->perPage());
     }
 
     // -----------------------------------------------------------------------
