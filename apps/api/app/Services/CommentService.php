@@ -65,7 +65,7 @@ final class CommentService
         // ModelNotFoundException raised inside a transaction closure is swallowed
         // by the rollback and rethrown, which would turn the documented 404 into a
         // 500. Resolving them first keeps the 404 contract intact.
-        if (! empty($parentId)) {
+        if ($parentId !== null) {
             $this->commentRepository->findVisibleByIdAndPlugin($parentId, $plugin->id);
         }
 
@@ -77,28 +77,12 @@ final class CommentService
                 'content' => $data['content'],
             ]);
 
-            // Keep the denormalised counters the list endpoints expose in sync.
-            // The insert and both counter updates commit or roll back together, so
-            // a failure here can never leave a comment whose counters were never
-            // bumped — that drift would be permanent, with no reconciliation job.
             $plugin->increment('comment_count');
-
-            if (! empty($parentId)) {
-                $this->commentRepository->incrementRepliesCount($parentId);
-            }
 
             return $comment;
         });
 
-        // `create()` only sets the four attributes it was handed, so the model has
-        // no in-memory `replies_count` even though the column exists and defaults
-        // to 0. Without a refresh, CommentResource falls through to a null
-        // `replies_count` and the 201 payload disagrees with the list endpoints,
-        // which read the same field as an integer.
-        //
-        // refresh() re-reads the row *and* keeps `author.profile` loaded, so the
-        // single query here is what buys a consistent payload.
-        $comment = $comment->load('author.profile')->refresh();
+        $comment->load('author.profile');
 
         CommentCreated::dispatch(
             commentId: $comment->getKey(),

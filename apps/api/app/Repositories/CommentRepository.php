@@ -68,13 +68,6 @@ class CommentRepository extends BaseRepository implements CommentRepositoryInter
             ->findOrFail($id);
     }
 
-    public function incrementRepliesCount(string $commentId): void
-    {
-        $this->model->newQuery()
-            ->whereKey($commentId)
-            ->increment('replies_count');
-    }
-
     /**
      * Shared skeleton for both tree levels: the level filter is supplied by the
      * caller, everything else (visibility, eager loads, reply counter, sort and

@@ -15,7 +15,6 @@ return new class extends Migration
             $table->uuid('parent_comment_id')->nullable();
             $table->text('content');
             $table->timestamp('hidden_at')->nullable();
-            $table->unsignedInteger('replies_count')->default(0);
             $table->timestamps();
             $table->softDeletes();
 
