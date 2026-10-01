@@ -31,9 +31,9 @@ final class LogCommentCreation implements ShouldQueue
     {
         try {
             Log::channel($this->failureChannel())->error('Comment audit logging failed.', [
-                'comment_id' => $event->comment->getKey(),
-                'plugin_id' => $event->comment->plugin_id,
-                'author_id' => $event->author->getKey(),
+                'comment_id' => $event->snapshot['comment_id'],
+                'plugin_id' => $event->snapshot['plugin_id'],
+                'author_id' => $event->snapshot['author_id'],
                 'ip_address' => $event->requestContext->ipAddress,
                 'exception' => $e::class,
                 'error' => $e->getMessage(),
