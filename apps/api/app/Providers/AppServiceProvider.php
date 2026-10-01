@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        RateLimiter::for('submit-plugin', fn(Request $request): Limit => Limit::perMinute((int) config('plugins.submit_per_minute', 5))
+        RateLimiter::for('submit-plugin', fn(Request $request): Limit => Limit::perMinute($this->resolveRateLimit('rate_limits.submit_plugin_per_minute'))
             ->by($this->userOrIpKey($request)));
 
         RateLimiter::for('register', fn(Request $request): array => [
