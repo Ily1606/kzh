@@ -27,6 +27,7 @@ return [
     'auth_queue' => env('QUEUE_AUTH_QUEUE', 'default'),
     'plugin_queue' => env('QUEUE_PLUGIN_QUEUE', 'default'),
     'comment_queue' => env('QUEUE_COMMENT_QUEUE', 'default'),
+    'star_queue' => env('QUEUE_STAR_QUEUE', 'default'),
 
     /*
     |--------------------------------------------------------------------------

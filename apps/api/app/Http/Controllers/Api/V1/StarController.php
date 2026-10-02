@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SetStarRequest;
 use App\Services\StarService;
 use App\Support\ApiResponse;
+use App\Support\RequestContext;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,6 +65,7 @@ class StarController extends Controller
             $request->user(),
             $pluginId,
             $request->boolean('starred'),
+            RequestContext::fromRequest($request),
         );
 
         $message = $result['starred']
