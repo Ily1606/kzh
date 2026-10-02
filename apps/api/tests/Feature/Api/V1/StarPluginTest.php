@@ -8,6 +8,7 @@ use App\Models\Plugin;
 use App\Models\User;
 use App\Repositories\PluginRepository;
 use App\Services\StarService;
+use App\Support\RequestContext;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -231,7 +232,7 @@ class StarPluginTest extends TestCase
         $this->app->instance(PluginRepositoryInterface::class, $failing);
 
         try {
-            $this->app->make(StarService::class)->setStarred($user, $plugin->id, true);
+            $this->app->make(StarService::class)->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
             $this->fail('Expected the service to propagate the failure.');
         } catch (RuntimeException) {

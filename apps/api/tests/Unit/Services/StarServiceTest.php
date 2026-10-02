@@ -6,6 +6,7 @@ use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Services\StarService;
+use App\Support\RequestContext;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -32,7 +33,7 @@ class StarServiceTest extends TestCase
         $user = User::factory()->create();
         $plugin = $this->approvedPlugin();
 
-        $result = app(StarService::class)->setStarred($user, $plugin->id, true);
+        $result = app(StarService::class)->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
         $this->assertTrue($result['starred']);
         $this->assertSame(1, $result['star_count']);
@@ -52,8 +53,8 @@ class StarServiceTest extends TestCase
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
 
-        $first = $service->setStarred($user, $plugin->id, true);
-        $second = $service->setStarred($user, $plugin->id, true);
+        $first = $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
+        $second = $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
         $this->assertSame(1, $first['star_count']);
         $this->assertSame(1, $second['star_count']);
@@ -70,9 +71,9 @@ class StarServiceTest extends TestCase
         $user = User::factory()->create();
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
-        $service->setStarred($user, $plugin->id, true);
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
-        $result = $service->setStarred($user, $plugin->id, false);
+        $result = $service->setStarred($user, $plugin->id, false, new RequestContext(null, null));
 
         $this->assertFalse($result['starred']);
         $this->assertSame(0, $result['star_count']);
@@ -84,7 +85,7 @@ class StarServiceTest extends TestCase
         $user = User::factory()->create();
         $plugin = $this->approvedPlugin();
 
-        $result = app(StarService::class)->setStarred($user, $plugin->id, false);
+        $result = app(StarService::class)->setStarred($user, $plugin->id, false, new RequestContext(null, null));
 
         $this->assertFalse($result['starred']);
         $this->assertSame(0, $result['star_count']);
@@ -96,10 +97,10 @@ class StarServiceTest extends TestCase
         $user = User::factory()->create();
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
-        $service->setStarred($user, $plugin->id, true);
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
-        $service->setStarred($user, $plugin->id, false);
-        $result = $service->setStarred($user, $plugin->id, false);
+        $service->setStarred($user, $plugin->id, false, new RequestContext(null, null));
+        $result = $service->setStarred($user, $plugin->id, false, new RequestContext(null, null));
 
         $this->assertSame(0, $result['star_count']);
     }
@@ -110,10 +111,10 @@ class StarServiceTest extends TestCase
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
 
-        $service->setStarred($user, $plugin->id, true);
-        $service->setStarred($user, $plugin->id, false);
-        $service->setStarred($user, $plugin->id, false);
-        $result = $service->setStarred($user, $plugin->id, false);
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
+        $service->setStarred($user, $plugin->id, false, new RequestContext(null, null));
+        $service->setStarred($user, $plugin->id, false, new RequestContext(null, null));
+        $result = $service->setStarred($user, $plugin->id, false, new RequestContext(null, null));
 
         $this->assertSame(0, $result['star_count']);
     }
@@ -124,9 +125,9 @@ class StarServiceTest extends TestCase
         $other = User::factory()->create();
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
-        $service->setStarred($owner, $plugin->id, true);
+        $service->setStarred($owner, $plugin->id, true, new RequestContext(null, null));
 
-        $result = $service->setStarred($other, $plugin->id, false);
+        $result = $service->setStarred($other, $plugin->id, false, new RequestContext(null, null));
 
         $this->assertSame(1, $result['star_count']);
         $this->assertDatabaseHas('stars', [
@@ -146,8 +147,8 @@ class StarServiceTest extends TestCase
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
 
-        $service->setStarred($first, $plugin->id, true);
-        $result = $service->setStarred($second, $plugin->id, true);
+        $service->setStarred($first, $plugin->id, true, new RequestContext(null, null));
+        $result = $service->setStarred($second, $plugin->id, true, new RequestContext(null, null));
 
         $this->assertSame(2, $result['star_count']);
     }
@@ -163,7 +164,7 @@ class StarServiceTest extends TestCase
 
         $this->expectException(ModelNotFoundException::class);
 
-        app(StarService::class)->setStarred($user, $plugin->id, true);
+        app(StarService::class)->setStarred($user, $plugin->id, true, new RequestContext(null, null));
     }
 
     // -----------------------------------------------------------------------
@@ -175,7 +176,7 @@ class StarServiceTest extends TestCase
         $user = User::factory()->create();
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
-        $service->setStarred($user, $plugin->id, true);
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
         $this->assertTrue($service->getStarredState($user, $plugin->id));
     }
@@ -194,7 +195,7 @@ class StarServiceTest extends TestCase
         $other = User::factory()->create();
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
-        $service->setStarred($owner, $plugin->id, true);
+        $service->setStarred($owner, $plugin->id, true, new RequestContext(null, null));
 
         $this->assertFalse($service->getStarredState($other, $plugin->id));
     }
