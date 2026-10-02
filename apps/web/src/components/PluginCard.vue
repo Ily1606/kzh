@@ -18,48 +18,61 @@ defineProps<{
   rank?: number;
 }>();
 
-async function copyPluginCommand(pluginName: string) {
+import { useRouter } from "vue-router";
+
+const router = useRouter();
+
+async function copyPluginCommand(pluginName: string, event: Event) {
+  event.stopPropagation();
   try {
     await navigator.clipboard.writeText(`npx dsh add ${pluginName}`);
   } catch {
     // ignore
   }
 }
+
+function goToDetail(id: string | undefined) {
+  if (id) {
+    router.push({ name: 'plugin-detail', params: { id } });
+  }
+}
 </script>
 
 <template>
   <Card v-if="plugin" class="relative gap-0 py-5 group px-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-lg hover:shadow-primary/5 flex flex-col h-full min-w-[320px] max-w-[350px] w-full shrink-0 snap-start">
-    <div v-if="rank === 1" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-yellow-500 text-sm font-bold text-white shadow-sm ring-4 ring-background">1</div>
-    <div v-else-if="rank === 2" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-slate-300 text-sm font-bold text-slate-800 shadow-sm ring-4 ring-background">2</div>
-    <div v-else-if="rank === 3" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-amber-700 text-sm font-bold text-white shadow-sm ring-4 ring-background">3</div>
+    <div @click="goToDetail(plugin?.id)" class="absolute inset-0 cursor-pointer z-0"></div>
     
-    <div class="flex flex-wrap items-center gap-2 mb-2">
+    <div v-if="rank === 1" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-yellow-500 text-sm font-bold text-white shadow-sm ring-4 ring-background z-10">1</div>
+    <div v-else-if="rank === 2" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-slate-300 text-sm font-bold text-slate-800 shadow-sm ring-4 ring-background z-10">2</div>
+    <div v-else-if="rank === 3" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-amber-700 text-sm font-bold text-white shadow-sm ring-4 ring-background z-10">3</div>
+    
+    <div class="flex flex-wrap items-center gap-2 mb-2 relative z-10 pointer-events-none">
       <span class="rounded-full bg-emerald-100/80 text-emerald-700 px-2.5 py-0.5 text-[11px] font-medium border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900">Manifest checked</span>
       <span class="rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-[11px] font-medium border border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900">UI & workspace</span>
     </div>
 
-    <h3 class="text-lg font-semibold text-foreground truncate" :title="plugin.name">{{ plugin.name }}</h3>
-    <p class="text-[13px] text-muted-foreground mt-0.5 truncate">DSH plugin · Publisher: {{ plugin.user_id?.substring(0, 8) || 'community' }}</p>
+    <h3 class="text-lg font-semibold text-foreground truncate relative z-10 pointer-events-none" :title="plugin.name">{{ plugin.name }}</h3>
+    <p class="text-[13px] text-muted-foreground mt-0.5 truncate relative z-10 pointer-events-none">DSH plugin · Publisher: {{ plugin.user_id?.substring(0, 8) || 'community' }}</p>
 
-    <p class="mt-2.5 text-[14px] leading-relaxed text-foreground min-h-[46px] line-clamp-2">
+    <p class="mt-2.5 text-[14px] leading-relaxed text-foreground min-h-[46px] line-clamp-2 relative z-10 pointer-events-none">
       {{ plugin.title }}
     </p>
 
-    <div class="mt-3 flex flex-wrap gap-1.5">
+    <div class="mt-3 flex flex-wrap gap-1.5 relative z-10 pointer-events-none">
       <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">May read files</span>
       <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">May write files</span>
       <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">May run commands</span>
     </div>
 
-    <div class="mt-3 text-[13px] text-muted-foreground">
+    <div class="mt-3 text-[13px] text-muted-foreground relative z-10 pointer-events-none">
       License: {{ plugin.license }} · Checked: {{ plugin.updated_at ? plugin.updated_at.split('T')[0] : '2026-08-14' }}
     </div>
 
-    <div class="mt-auto flex items-center justify-between border-t pt-3">
-      <a :href="plugin.source_link" target="_blank" rel="noopener noreferrer" class="text-[13px] font-semibold text-primary hover:underline inline-flex items-center gap-1">
+    <div class="mt-auto flex items-center justify-between border-t pt-3 relative z-10">
+      <a :href="plugin.source_link" target="_blank" rel="noopener noreferrer" class="text-[13px] font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer">
         View publisher source <ArrowUpRight class="size-3" />
       </a>
-      <Button size="sm" class="rounded-full font-semibold px-4 shadow-sm" @click="copyPluginCommand(plugin.name)">Copy install</Button>
+      <Button size="sm" class="rounded-full font-semibold px-4 shadow-sm" @click="copyPluginCommand(plugin.name, $event)">Copy install</Button>
     </div>
   </Card>
 

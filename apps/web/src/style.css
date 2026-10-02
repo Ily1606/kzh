@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 /* ---------------------------------------------------------------------------
    Typography — self-hosted (no CDN), latin + vietnamese subsets only.

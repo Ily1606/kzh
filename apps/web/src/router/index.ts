@@ -34,6 +34,12 @@ export const router = createRouter({
       meta: { layout: 'auth', title: 'Create a publisher account', guestOnly: true }
     },
     {
+      path: "/plugins/:id",
+      name: "plugin-detail",
+      component: () => import("@/views/PluginDetailView.vue"),
+      meta: { layout: 'default' }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),
