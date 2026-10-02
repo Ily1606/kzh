@@ -313,6 +313,16 @@ class CreateCommentTest extends TestCase
                 return $this->real->findApprovedById($id);
             }
 
+            public function findApprovedByIds(array $ids): Collection
+            {
+                return $this->real->findApprovedByIds($ids);
+            }
+
+            public function incrementViewCount(string $id, int $count): void
+            {
+                $this->real->incrementViewCount($id, $count);
+            }
+
             public function incrementCommentCount(string $pluginId): void
             {
                 throw new RuntimeException('comment counter exploded');
