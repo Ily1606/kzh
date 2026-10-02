@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PluginController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\StarController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -33,6 +34,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/plugins/{pluginId}/comments', [CommentController::class, 'store'])
             ->whereUuid('pluginId')
             ->middleware('throttle:create-comment');
+
+        // ================ Star ======================
+        Route::post('/plugins/{pluginId}/star', [StarController::class, 'store'])
+            ->whereUuid('pluginId')
+            ->middleware('throttle:star-plugin');
+        Route::get('/plugins/{pluginId}/star', [StarController::class, 'show'])
+            ->whereUuid('pluginId');
     });
 
     Route::middleware('throttle:api')->group(function () {

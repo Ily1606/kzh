@@ -52,6 +52,43 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         DB::table('plugins')->where('id', $pluginId)->increment('comment_count');
     }
 
+    /**
+     * Move `star_count` by a signed amount: positive adds, negative subtracts,
+     * zero returns without touching the database.
+     *
+     * Three branches because the floor-at-zero rule only makes sense in one of
+     * them. Decrementing adds `where star_count >= abs($amount)` so the statement
+     * matches nothing once the counter would go negative — `unsignedInteger` is
+     * enforced by MySQL alone, and on PostgreSQL an unguarded decrement would
+     * happily store -1. That guard is what makes two concurrent unstars safe:
+     * the loser of the race matches zero rows and its decrement does nothing.
+     *
+     * Incrementing needs no such guard, since it cannot exceed a ceiling.
+     *
+     * `DB::table()` throughout, for the same reason as incrementCommentCount():
+     * Eloquent's `increment()` adds `updated_at` to the statement, and starring
+     * is not an edit of the plugin.
+     */
+    public function changeStarCount(string $pluginId, int $amount): void
+    {
+        if ($amount === 0) {
+            return;
+        }
+
+        if ($amount > 0) {
+            DB::table('plugins')->where('id', $pluginId)->increment('star_count', $amount);
+
+            return;
+        }
+
+        $decrement = abs($amount);
+
+        DB::table('plugins')
+            ->where('id', $pluginId)
+            ->where('star_count', '>=', $decrement)
+            ->decrement('star_count', $decrement);
+    }
+
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
     {
         return $this->model->newQuery()
