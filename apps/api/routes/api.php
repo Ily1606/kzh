@@ -51,6 +51,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['set.api.guard', 'throttle:api'])->group(function () {
         Route::get('/plugins', [PluginController::class, 'index']);
         Route::get('/plugins/trending', [PluginController::class, 'trending']);
+        Route::get('/plugins/{id}', [PluginController::class, 'show'])->whereUuid('id');
         Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
             ->whereUuid('id');
 

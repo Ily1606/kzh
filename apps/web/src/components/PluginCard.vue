@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ArrowUpRight, Boxes, Download, Search, ShieldCheck } from "lucide-vue-next";
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { ArrowUpRight, Boxes, Check, Download, Search, ShieldCheck } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { PluginResource } from "@/api/generated/model";
@@ -18,11 +20,25 @@ defineProps<{
   rank?: number;
 }>();
 
-async function copyPluginCommand(pluginName: string) {
+const router = useRouter();
+const copied = ref(false);
+
+async function copyPluginCommand(pluginName: string, event?: Event) {
+  event?.stopPropagation();
   try {
     await navigator.clipboard.writeText(`npx dsh add ${pluginName}`);
+    copied.value = true;
+    setTimeout(() => {
+      copied.value = false;
+    }, 2000);
   } catch {
     // ignore
+  }
+}
+
+function goToDetail(id: string | undefined) {
+  if (id) {
+    router.push({ name: 'plugin-detail', params: { id } });
   }
 }
 </script>
@@ -30,7 +46,8 @@ async function copyPluginCommand(pluginName: string) {
 <template>
   <Card
     v-if="plugin"
-    class="relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start"
+    @click="goToDetail(plugin.id)"
+    class="relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start cursor-pointer"
     :class="{
       'border-amber-400/50 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10': rank === 1,
       'border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:shadow-xl hover:shadow-slate-400/10': rank === 2,
@@ -41,7 +58,7 @@ async function copyPluginCommand(pluginName: string) {
     <!-- Rank 1: Minimalist Metallic Gold #1 -->
     <div
       v-if="rank === 1"
-      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 font-mono text-xs font-black tracking-wider shadow-sm shadow-amber-500/30 ring-2 ring-background border border-amber-300 select-none"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 font-mono text-xs font-black tracking-wider shadow-sm shadow-amber-500/30 ring-2 ring-background border border-amber-300 select-none z-10"
     >
       #1
     </div>
@@ -49,7 +66,7 @@ async function copyPluginCommand(pluginName: string) {
     <!-- Rank 2: Minimalist Metallic Silver #2 -->
     <div
       v-else-if="rank === 2"
-      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-slate-100 via-slate-200 to-slate-400 text-slate-800 font-mono text-xs font-black tracking-wider shadow-sm shadow-slate-400/20 ring-2 ring-background border border-slate-300/80 select-none"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-slate-100 via-slate-200 to-slate-400 text-slate-800 font-mono text-xs font-black tracking-wider shadow-sm shadow-slate-400/20 ring-2 ring-background border border-slate-300/80 select-none z-10"
     >
       #2
     </div>
@@ -57,7 +74,7 @@ async function copyPluginCommand(pluginName: string) {
     <!-- Rank 3: Minimalist Metallic Bronze #3 -->
     <div
       v-else-if="rank === 3"
-      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-500 via-orange-600 to-amber-700 text-white font-mono text-xs font-black tracking-wider shadow-sm shadow-orange-600/25 ring-2 ring-background border border-amber-400/50 select-none"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-500 via-orange-600 to-amber-700 text-white font-mono text-xs font-black tracking-wider shadow-sm shadow-orange-600/25 ring-2 ring-background border border-amber-400/50 select-none z-10"
     >
       #3
     </div>
@@ -67,7 +84,7 @@ async function copyPluginCommand(pluginName: string) {
       <span class="rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-xs font-medium border border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900">UI & workspace</span>
     </div>
 
-    <h3 class="text-base sm:text-lg font-semibold text-foreground truncate" :title="plugin.name">{{ plugin.name }}</h3>
+    <h3 class="text-base sm:text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors" :title="plugin.name">{{ plugin.name }}</h3>
     <p class="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">DSH plugin · Publisher: {{ plugin.user_id?.substring(0, 8) || 'community' }}</p>
 
     <p class="mt-2 text-xs sm:text-sm leading-relaxed text-foreground min-h-11 line-clamp-2">
@@ -84,11 +101,24 @@ async function copyPluginCommand(pluginName: string) {
       License: {{ plugin.license }} · Checked: {{ plugin.updated_at ? plugin.updated_at.split('T')[0] : '2026-08-14' }}
     </div>
 
-    <div class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-      <a :href="plugin.source_link" target="_blank" rel="noopener noreferrer" class="text-xs sm:text-sm font-semibold text-primary hover:underline inline-flex items-center gap-1">
+    <div class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3 z-10">
+      <a
+        :href="plugin.source_link"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xs sm:text-sm font-semibold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
+        @click.stop
+      >
         View source <ArrowUpRight class="size-3" />
       </a>
-      <Button size="sm" class="rounded-full text-xs font-semibold px-3 h-8 shadow-sm" @click="copyPluginCommand(plugin.name)">Copy install</Button>
+      <Button
+        size="sm"
+        class="rounded-full text-xs font-semibold px-3 h-8 shadow-sm cursor-pointer inline-flex items-center gap-1"
+        @click.stop="copyPluginCommand(plugin.name, $event)"
+      >
+        <Check v-if="copied" class="size-3.5 text-emerald-400" />
+        <span>{{ copied ? 'Copied' : 'Copy install' }}</span>
+      </Button>
     </div>
   </Card>
 
