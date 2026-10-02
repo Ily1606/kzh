@@ -27,4 +27,6 @@ return [
     'plugin_view_already_counted' => 'You have already viewed this plugin in the last 24 hours.',
     'comment_created_successfully' => 'Comment created successfully.',
     'comment_max_depth_reached' => 'You cannot reply to this comment because the thread has reached its maximum depth.',
+    'plugin_starred_successfully' => 'Plugin starred successfully.',
+    'plugin_unstarred_successfully' => 'Plugin unstarred successfully.',
 ];
