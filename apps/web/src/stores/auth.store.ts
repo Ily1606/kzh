@@ -20,16 +20,28 @@ const authStorage = {
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
-  const isAuthenticated = computed(() => !!user.value);
+  const token = ref<string | null>(null);
+  const isAuthenticated = computed(() => !!user.value && !!token.value);
   const isLoading = ref(true); // For initial load
 
   function setUser(newUser: User | null) {
     user.value = newUser;
   }
 
+  function setToken(newToken: string | null) {
+    token.value = newToken;
+    if (newToken) {
+      localStorage.setItem('auth_token', newToken);
+    } else {
+      localStorage.removeItem('auth_token');
+    }
+  }
+
   function clearAuth() {
     user.value = null;
+    token.value = null;
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem('auth_token');
   }
 
   function setLoading(status: boolean) {
@@ -38,9 +50,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
+    token,
     isAuthenticated,
     isLoading,
     setUser,
+    setToken,
     clearAuth,
     setLoading
   };
@@ -48,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
   persist: {
     key: AUTH_STORAGE_KEY,
     storage: authStorage,
-    pick: ['user']
+    pick: ['user', 'token']
   }
 });
 

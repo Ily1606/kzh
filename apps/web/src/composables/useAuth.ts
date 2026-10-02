@@ -1,3 +1,4 @@
+import { computed, reactive } from 'vue';
 import { useAuthStore } from '@/stores';
 import { api } from '@/services/api';
 import type { User } from '@/types';
@@ -8,12 +9,9 @@ export function useAuth() {
 
   async function login(credentials: Record<string, string>) {
     try {
-      await api.get(API_ENDPOINTS.GET_COOKIE, {
-        headers: { Accept: 'application/json' }
-      });
-
-      await api.post(API_ENDPOINTS.LOGIN, credentials);
-      await fetchUser();
+      const response = await api.post<{ data: { user: User, token: string } }>(API_ENDPOINTS.LOGIN, credentials);
+      store.setToken(response.data.data.token);
+      store.setUser(response.data.data.user);
       return true;
     } catch (e) {
       throw e;
@@ -22,12 +20,9 @@ export function useAuth() {
 
   async function register(data: Record<string, string>) {
     try {
-      await api.get(API_ENDPOINTS.GET_COOKIE, {
-        headers: { Accept: 'application/json' }
-      });
-
-      await api.post(API_ENDPOINTS.REGISTER, data);
-      await fetchUser();
+      const response = await api.post<{ data: { user: User, token: string } }>(API_ENDPOINTS.REGISTER, data);
+      store.setToken(response.data.data.token);
+      store.setUser(response.data.data.user);
       return true;
     } catch (e) {
       throw e;
@@ -45,8 +40,8 @@ export function useAuth() {
   async function fetchUser() {
     store.setLoading(true);
     try {
-      const { data } = await api.get<{ data: User }>(API_ENDPOINTS.USER);
-      store.setUser(data);
+      const response = await api.get<{ data: User }>(API_ENDPOINTS.USER);
+      store.setUser(response.data.data);
     } catch (e) {
       store.clearAuth();
     } finally {
@@ -54,15 +49,14 @@ export function useAuth() {
     }
   }
 
-  return {
-    user: store.user,
-    isAuthenticated: store.isAuthenticated,
-    isLoading: store.isLoading,
+  return reactive({
+    user: computed(() => store.user),
+    isAuthenticated: computed(() => store.isAuthenticated),
+    isLoading: computed(() => store.isLoading),
 
     login,
     register,
     logout,
     fetchUser
-  };
+  });
 }
-

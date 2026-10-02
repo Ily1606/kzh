@@ -13,7 +13,8 @@ const installCommand = "npx dsh add @dsh/hello-world";
 
 onMounted(async () => {
   try {
-    health.value = await api.get<HealthResponse>("/api/v1/health");
+    const response = await api.get<HealthResponse>("/api/v1/health");
+    health.value = response.data;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Unknown error";
   }
