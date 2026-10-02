@@ -44,6 +44,7 @@ return [
             'reject_modal_heading' => 'Reject Plugin',
             'reject_modal_description' => 'Are you sure you want to reject this plugin? The author will receive the reason entered below.',
             'reject_modal_submit' => 'Confirm Rejection',
+            'approve' => 'Approve'
         ],
     ],
     'tabs' => [
