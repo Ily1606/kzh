@@ -43,6 +43,7 @@ class PluginsTable
                 TextColumn::make('status')
                     ->label(__('plugin.table.columns.status'))
                     ->badge()
+                    ->formatStateUsing(fn ($state) => ucfirst($state->value))
                     ->color(fn($state): string => match ($state) {
                         PluginStatus::Pending, 'pending' => 'warning',
                         PluginStatus::Approved, 'approved' => 'success',
@@ -51,17 +52,17 @@ class PluginsTable
                     }),
                 TextColumn::make('star_count')
                     ->label(__('plugin.table.columns.stars'))
-                    ->icon('heroicon-m-star')
+                    ->alignCenter()
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('view_count')
                     ->label(__('plugin.table.columns.views'))
-                    ->icon('heroicon-m-eye')
+                    ->alignCenter()
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('comment_count')
                     ->label(__('plugin.table.columns.comments'))
-                    ->icon('heroicon-m-chat-bubble-left')
+                    ->alignCenter()
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('license')
@@ -89,11 +90,10 @@ class PluginsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('updated_at')
-                    ->dateTime()
+                    ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('deleted_at')
-                    ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -133,6 +133,16 @@ class PluginsTable
                     ->modalHeading(__('plugin.table.actions.reject_modal_heading'))
                     ->modalDescription(__('plugin.table.actions.reject_modal_description'))
                     ->modalSubmitActionLabel(__('plugin.table.actions.reject_modal_submit')),
+                Action::make('approve')
+                    ->label(__('plugin.table.actions.approve'))
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn($record) => $record->status === PluginStatus::Pending)
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'status' => PluginStatus::Approved,
+                        ]);
+                    })
             ]);
     }
 }
