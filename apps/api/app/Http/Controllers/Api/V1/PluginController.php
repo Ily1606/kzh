@@ -32,6 +32,15 @@ class PluginController extends Controller
         return PluginResource::collection($paginator);
     }
 
+    public function show(string $id): JsonResponse
+    {
+        $plugin = $this->pluginService->getPlugin($id);
+
+        return ApiResponse::successResponse([
+            'plugin' => new PluginResource($plugin),
+        ]);
+    }
+
     /**
      * Submit a new plugin for review.
      *
