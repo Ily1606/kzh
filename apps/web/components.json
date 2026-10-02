@@ -1,0 +1,14 @@
+{
+  "$schema": "https://shadcn-vue.com/schema.json",
+  "style": "nova",
+  "typescript": true,
+  "tailwind": { "config": "", "css": "src/style.css", "baseColor": "neutral", "cssVariables": true, "prefix": "" },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/utils/cn",
+    "ui": "@/components/ui",
+    "lib": "@/utils",
+    "hooks": "@/composables"
+  }
+}
