@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import type { HealthResponse } from "@dsh/shared";
 import { ArrowRight, Boxes, Check, CheckCircle2, CircleAlert, Copy, Download, LoaderCircle, PackageOpen, Search, ShieldCheck, Terminal, UploadCloud } from "lucide-vue-next";
-import { api } from "@/services/api";
+import { getHealth } from "@/api/generated/endpoints";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -10,11 +10,12 @@ const health = ref<HealthResponse | null>(null);
 const error = ref<string | null>(null);
 const copied = ref(false);
 const installCommand = "npx dsh add @dsh/hello-world";
+const { v1Health } = getHealth();
 
 onMounted(async () => {
   try {
-    const response = await api.get<HealthResponse>("/api/v1/health");
-    health.value = response.data;
+    const response = await v1Health();
+    health.value = response.data as unknown as HealthResponse;
   } catch (e) {
     error.value = e instanceof Error ? e.message : "Unknown error";
   }

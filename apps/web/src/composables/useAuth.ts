@@ -1,28 +1,29 @@
 import { computed, reactive } from 'vue';
 import { useAuthStore } from '@/stores';
-import { api } from '@/services/api';
-import type { User } from '@/types';
-import { API_ENDPOINTS } from '@/utils/constants';
+import { getAuth, getProfile } from '@/api/generated/endpoints';
+import type { LoginRequest, RegisterRequest } from '@/api/generated/model';
 
 export function useAuth() {
   const store = useAuthStore();
+  const { authLogin, authRegister, authLogout } = getAuth();
+  const { profileShow } = getProfile();
 
-  async function login(credentials: Record<string, string>) {
+  async function login(credentials: LoginRequest) {
     try {
-      const response = await api.post<{ data: { user: User, token: string } }>(API_ENDPOINTS.LOGIN, credentials);
-      store.setToken(response.data.data.token);
-      store.setUser(response.data.data.user);
+      const response = await authLogin(credentials);
+      store.setToken(response.data?.token || null);
+      store.setUser(response.data?.user || null);
       return true;
     } catch (e) {
       throw e;
     }
   }
 
-  async function register(data: Record<string, string>) {
+  async function register(data: RegisterRequest) {
     try {
-      const response = await api.post<{ data: { user: User, token: string } }>(API_ENDPOINTS.REGISTER, data);
-      store.setToken(response.data.data.token);
-      store.setUser(response.data.data.user);
+      const response = await authRegister(data);
+      store.setToken(response.data?.token || null);
+      store.setUser(response.data?.user || null);
       return true;
     } catch (e) {
       throw e;
@@ -31,7 +32,7 @@ export function useAuth() {
 
   async function logout() {
     try {
-      await api.post(API_ENDPOINTS.LOGOUT, {});
+      await authLogout();
     } finally {
       store.clearAuth();
     }
@@ -40,8 +41,8 @@ export function useAuth() {
   async function fetchUser() {
     store.setLoading(true);
     try {
-      const response = await api.get<{ data: User }>(API_ENDPOINTS.USER);
-      store.setUser(response.data.data);
+      const response = await profileShow();
+      store.setUser(response.data || null);
     } catch (e) {
       store.clearAuth();
     } finally {
