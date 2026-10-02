@@ -22,20 +22,32 @@ const form = ref<SubmitPluginRequest>({
 })
 
 const error = ref('')
+const fieldErrors = ref<Record<string, string[]>>({})
 const isSubmitting = ref(false)
+const isSuccess = ref(false)
 
 async function onSubmit() {
   error.value = ''
+  fieldErrors.value = {}
   isSubmitting.value = true
+  isSuccess.value = false
 
   try {
     // Gọi API submit plugin qua hàm của Orval
     await pluginStore(form.value)
 
-    // Đẩy về trang chủ (hoặc trang dashboard)
-    router.push('/')
+    // Đánh dấu thành công và hiển thị confirmation
+    isSuccess.value = true
+    
+    // Tự động chuyển trang sau 2 giây
+    setTimeout(() => {
+      router.push('/')
+    }, 2000)
   } catch (err: any) {
     // Bắt lỗi trả về từ Backend (thường là 422 Validation Error)
+    if (err?.response?.status === 422 && err?.response?.data?.errors) {
+      fieldErrors.value = err.response.data.errors
+    }
     error.value = err?.response?.data?.message || 'Có lỗi xảy ra khi submit plugin.'
   } finally {
     isSubmitting.value = false
@@ -53,7 +65,17 @@ async function onSubmit() {
         </p>
       </div>
 
-      <div>
+      <div v-if="isSuccess" class="text-center py-10 space-y-4">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-600 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 class="text-xl font-medium">Plugin Submitted Successfully!</h3>
+        <p class="text-muted-foreground">Your plugin is now pending review by an administrator. You will be redirected shortly...</p>
+      </div>
+
+      <div v-else>
         <form @submit.prevent="onSubmit" class="space-y-5">
           <!-- Tên Plugin -->
           <div class="space-y-2">
@@ -63,8 +85,10 @@ async function onSubmit() {
               v-model="form.name"
               placeholder="e.g., @my-org/my-plugin"
               required
+              :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.name }"
             />
-            <p class="text-xs text-muted-foreground">The npm package name of your plugin.</p>
+            <p v-if="fieldErrors.name" class="text-xs text-destructive">{{ fieldErrors.name[0] }}</p>
+            <p v-else class="text-xs text-muted-foreground">The npm package name of your plugin.</p>
           </div>
 
           <!-- Tiêu đề -->
@@ -75,7 +99,9 @@ async function onSubmit() {
               v-model="form.title"
               placeholder="My Awesome Plugin"
               required
+              :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.title }"
             />
+            <p v-if="fieldErrors.title" class="text-xs text-destructive">{{ fieldErrors.title[0] }}</p>
           </div>
 
           <!-- License (Liệt kê dựa trên enum từ Orval) -->
@@ -85,6 +111,7 @@ async function onSubmit() {
               id="license"
               v-model="form.license"
               class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.license }"
             >
               <option
                 v-for="lic in Object.values(SubmitPluginRequestLicense)"
@@ -94,6 +121,7 @@ async function onSubmit() {
                 {{ lic }}
               </option>
             </select>
+            <p v-if="fieldErrors.license" class="text-xs text-destructive">{{ fieldErrors.license[0] }}</p>
           </div>
 
           <!-- Đường dẫn Source Code -->
@@ -105,7 +133,9 @@ async function onSubmit() {
               v-model="form.source_link"
               placeholder="https://github.com/username/repo"
               required
+              :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.source_link }"
             />
+            <p v-if="fieldErrors.source_link" class="text-xs text-destructive">{{ fieldErrors.source_link[0] }}</p>
           </div>
 
           <!-- Hiển thị Lỗi -->
