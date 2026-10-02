@@ -5,10 +5,12 @@ namespace App\Providers;
 use App\Contracts\AuthRepositoryInterface;
 use App\Contracts\CommentRepositoryInterface;
 use App\Contracts\PluginRepositoryInterface;
+use App\Contracts\StarRepositoryInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Repositories\AuthRepository;
 use App\Repositories\CommentRepository;
 use App\Repositories\PluginRepository;
+use App\Repositories\StarRepository;
 use App\Repositories\UserRepository;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -31,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
         $this->app->bind(PluginRepositoryInterface::class, PluginRepository::class);
         $this->app->bind(CommentRepositoryInterface::class, CommentRepository::class);
+        $this->app->bind(StarRepositoryInterface::class, StarRepository::class);
     }
 
     /**
@@ -71,6 +74,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('create-comment', fn(Request $request): Limit => Limit::perMinute($this->resolveRateLimit('comments.create_per_minute'))
+            ->by($this->userOrIpKey($request)));
+
+        RateLimiter::for('star-plugin', fn(Request $request): Limit => Limit::perMinute($this->resolveRateLimit('rate_limits.star_plugin_per_minute'))
             ->by($this->userOrIpKey($request)));
 
         Scramble::configure()
