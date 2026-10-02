@@ -54,25 +54,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-            ->renderHook(
-                \Filament\View\PanelsRenderHook::HEAD_END,
-                fn (): string => '<style>
-                    /* Ép cột cuối (thường là Actions) bám dính vào lề phải */
-                    .fi-ta table th:last-child,
-                    .fi-ta table td:last-child {
-                        position: sticky;
-                        right: 0;
-                        background-color: rgb(255 255 255);
-                        z-index: 10;
-                        box-shadow: -4px 0 6px -4px rgba(0, 0, 0, 0.1);
-                    }
-                    /* Màu nền cho chế độ Dark Mode */
-                    .dark .fi-ta table th:last-child,
-                    .dark .fi-ta table td:last-child {
-                        background-color: rgb(24 24 27);
-                    }
-                </style>'
-            );
+            ]);
     }
 }
