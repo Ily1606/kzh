@@ -16,6 +16,7 @@ return [
     'unauthorized' => 'This action is unauthorized.',
     'not_found' => 'Resource not found.',
     'invalid_token' => 'The request token is invalid or expired.',
+    'too_many_requests' => 'Too many requests. Please try again later.',
     'request_failed' => 'The request could not be completed.',
     'unexpected_error' => 'An unexpected error occurred.',
     'profile_updated' => 'User profile updated successfully.',
@@ -24,4 +25,5 @@ return [
     'password_reset_link_sent_if_exists' => 'If your email exists in our system, we have sent a password reset link.',
     'plugin_view_counted' => 'View counted successfully.',
     'plugin_view_already_counted' => 'You have already viewed this plugin in the last 24 hours.',
+    'comment_created_successfully' => 'Comment created successfully.',
 ];

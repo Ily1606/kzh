@@ -72,6 +72,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Comment event log channel
+    |--------------------------------------------------------------------------
+    |
+    | Channel used by comment lifecycle listeners.
+    |
+    */
+
+    'comment_channel' => env('LOG_COMMENT_CHANNEL'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Comment event failure channel
+    |--------------------------------------------------------------------------
+    |
+    | Same reasoning as auth_failure_channel: a different channel from the one
+    | the comment audit entries went to.
+    |
+    */
+
+    'comment_failure_channel' => env('LOG_COMMENT_FAILURE_CHANNEL', 'stderr'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Log Channels
     |--------------------------------------------------------------------------
     |

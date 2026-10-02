@@ -103,10 +103,10 @@ class PluginAuditFailureHandlingTest extends TestCase
     }
 
     /**
-     * On the final attempt the worker goes through CallQueuedListener, which
-     * appends the throwable to the queued payload before calling
-     * failed($event, $e). Driving that same path keeps the argument order
-     * honest and pins the report an operator actually receives.
+     * Driving the real `CallQueuedListener::failed()` is what keeps the argument
+     * order honest: the worker calls `failed(...$event, $e)`, so a handler with
+     * the parameters swapped raises a TypeError here instead of silently
+     * reporting the wrong context to an operator.
      */
     public function test_an_exhausted_job_reports_the_failure_with_enough_context(): void
     {

@@ -15,6 +15,8 @@ interface PluginRepositoryInterface
 
     public function findApprovedById(string $id): Plugin;
 
+    public function incrementCommentCount(string $pluginId): void;
+
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator;
 
     /**
