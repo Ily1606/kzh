@@ -4,6 +4,8 @@ import LoginView from "@/views/LoginView.vue";
 import RegisterView from "@/views/RegisterView.vue";
 import { useAuth } from "@/composables/useAuth";
 
+import PublishPluginView from "@/views/PublishPluginView.vue";
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -12,6 +14,12 @@ export const router = createRouter({
       name: "home",
       component: HomeView,
       meta: { layout: 'default' }
+    },
+    {
+      path: "/publish",
+      name: "publish",
+      component: PublishPluginView,
+      meta: { layout: 'default', requiresAuth: true }
     },
     {
       path: "/login",
@@ -51,5 +59,9 @@ router.beforeEach((to) => {
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
     return { name: 'home' };
+  }
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } };
   }
 });
