@@ -3,7 +3,6 @@
 namespace App\Repositories;
 
 use App\Contracts\PluginRepositoryInterface;
-use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -33,7 +32,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     public function findApprovedById(string $id): Plugin
     {
         return $this->model->newQuery()
-            ->where('status', PluginStatus::Approved)
+            ->approved()
             ->findOrFail($id);
     }
 
@@ -52,32 +51,57 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         DB::table('plugins')->where('id', $pluginId)->increment('comment_count');
     }
 
+    /**
+     * @param  array<int, string>  $ids
+     * @return Collection<int, Plugin>
+     */
+    public function findApprovedByIds(array $ids): Collection
+    {
+        if (empty($ids)) {
+            return $this->model->newCollection();
+        }
+
+        $plugins = $this->model->newQuery()
+            ->approved()
+            ->whereIn('id', $ids)
+            ->get();
+
+        $order = array_flip($ids);
+
+        return $plugins->sortBy(fn (Plugin $plugin) => $order[$plugin->id] ?? 9999)->values();
+    }
+
+    public function incrementViewCount(string $id, int $count): void
+    {
+        $this->model->newQuery()->where('id', $id)->increment('view_count', $count);
+    }
+
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
     {
         return $this->model->newQuery()
-            ->where('status', PluginStatus::Approved)
-            ->whereNotNull('approved_at')
+            ->approved()
             ->orderByDesc('approved_at')
+            ->orderByDesc('id')
             ->paginate($perPage);
     }
 
+    /**
+     * @param  array{view: float, comment: float, star: float}  $weights
+     * @return Collection<int, Plugin>
+     */
     public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
     {
+        $secondsInHour = 3600.0;
+
         return $this->model->newQuery()
-            ->where('status', PluginStatus::Approved)
-            ->whereNotNull('approved_at')
+            ->approved()
             ->where('approved_at', '>=', now()->subDays($daysLimit))
             ->selectRaw("*, (
-                (view_count * ? + comment_count * ? + star_count * ?)
-                / POWER({$this->getAgeInSecondsSql()}/3600.0 + ?, ?)
-            ) as trending_score", [
-                $weights['view'],
-                $weights['comment'],
-                $weights['star'],
-                $ageOffset,
-                $gravity,
-            ])
+                (view_count * {$weights['view']} + comment_count * {$weights['comment']} + star_count * {$weights['star']} - 1)
+                / POWER({$this->getAgeInSecondsSql()}/{$secondsInHour} + {$ageOffset}, {$gravity})
+            ) as trending_score")
             ->orderByDesc('trending_score')
+            ->orderByDesc('id')
             ->limit($limit)
             ->get();
     }
@@ -94,10 +118,10 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     public function getTopAllTimePlugins(int $limit): Collection
     {
         return $this->model->newQuery()
-            ->where('status', PluginStatus::Approved)
-            ->whereNotNull('approved_at')
+            ->approved()
             ->orderByDesc('view_count')
             ->orderByDesc('star_count')
+            ->orderByDesc('id')
             ->limit($limit)
             ->get();
     }

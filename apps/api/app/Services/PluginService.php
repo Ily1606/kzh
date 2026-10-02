@@ -3,15 +3,15 @@
 namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\DTOs\PluginViewResult;
 use App\Events\Plugin\PluginSubmitted;
-use App\Events\Plugin\PluginViewed;
-use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
@@ -66,42 +66,23 @@ final class PluginService
      * - Guests: identified via fingerprint (IP + User-Agent)
      * - Redis stores the key with a 24h TTL to prevent view spam
      */
-    public function incrementViewIfNotViewed(string $id, Request $request): array
+    public function incrementViewIfNotViewed(string $id, string $viewerId): PluginViewResult
     {
         $plugin = $this->pluginRepository->findApprovedById($id);
 
-        $viewerId = $request->user('sanctum')?->id ?? $request->fingerprint();
-
         $cacheKey = "plugin_view:{$plugin->id}:{$viewerId}";
-
-        // Retrieve TTL from configuration (default 86400 seconds / 24 hours)
+        $bufferKey = config('plugins.views_buffer_key');
         $ttl = config('plugins.view_cache_ttl');
 
-        // Use Cache::add for atomic operation to prevent race conditions (VIEW-13)
         if (Cache::add($cacheKey, true, $ttl)) {
-            // Buffer the view count in Redis instead of hitting DB directly (avoid locking bottleneck)
-            Redis::hincrby('plugins:views_buffer', $plugin->id, 1);
+            $bufferedViews = (int) Redis::hincrby($bufferKey, $plugin->id, 1);
 
-            PluginViewed::dispatch($plugin, (string) $viewerId);
-
-            // Calculate estimated real-time view count for the API response
-            $bufferedViews = (int) Redis::hget('plugins:views_buffer', $plugin->id);
-
-            return [
-                'status' => 'success',
-                'message' => __('api.plugin_view_counted'),
-                'view_count' => $plugin->view_count + $bufferedViews,
-            ];
+            return new PluginViewResult(true, $plugin->view_count + $bufferedViews);
         }
 
-        // Add any buffered views to the current DB count so the user sees the latest estimated total
-        $bufferedViews = (int) Redis::hget('plugins:views_buffer', $plugin->id);
+        $bufferedViews = (int) Redis::hget($bufferKey, $plugin->id);
 
-        return [
-            'status' => 'ignored',
-            'message' => __('api.plugin_view_already_counted'),
-            'view_count' => $plugin->view_count + $bufferedViews,
-        ];
+        return new PluginViewResult(false, $plugin->view_count + $bufferedViews);
     }
 
     /**
@@ -114,45 +95,31 @@ final class PluginService
      * - 2 (Age Offset): Prevents division by zero for brand new items.
      *
      * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
+     *
+     * @return Collection<int, Plugin>
      */
-    public function getTrendingPlugins(int $limit): array
+    public function getTrendingPlugins(int $limit): Collection
     {
-        $cacheTtl = config('plugins.trending.cache_ttl');
-        $daysLimit = config('plugins.trending.days_limit');
+        $zsetKey = config('plugins.trending.keys.zset');
+        $hashKey = config('plugins.trending.keys.objects');
 
-        $weightView = (float) config('plugins.trending.weights.view');
-        $weightComment = (float) config('plugins.trending.weights.comment');
-        $weightStar = (float) config('plugins.trending.weights.star');
+        $ids = Redis::zrevrange($zsetKey, 0, $limit - 1);
 
-        $gravity = (float) config('plugins.trending.gravity');
-        $ageOffset = (float) config('plugins.trending.age_offset');
-
-        $cacheKey = "plugins:trending:{$limit}";
-
-        // Use Cache::get first to atomically determine cache hit/miss
-        $result = Cache::get($cacheKey);
-        $cacheHit = $result !== null;
-
-        if (! $cacheHit) {
-            $weights = [
-                'view' => $weightView,
-                'comment' => $weightComment,
-                'star' => $weightStar,
-            ];
-
-            $plugins = $this->pluginRepository->getTrendingPlugins($daysLimit, $weights, $gravity, $ageOffset, $limit);
-
-            // Fallback: If no plugins are found within the last $daysLimit days, retrieve the all-time top plugins
-            if ($plugins->isEmpty()) {
-                $plugins = $this->pluginRepository->getTopAllTimePlugins($limit);
-            }
-
-            // Resolve resource to array BEFORE caching to avoid Eloquent serialization issues
-            $result = PluginResource::collection($plugins)->resolve();
-
-            Cache::put($cacheKey, $result, $cacheTtl);
+        if (empty($ids)) {
+            Artisan::call('plugins:refresh-trending');
+            $ids = Redis::zrevrange($zsetKey, 0, $limit - 1);
         }
 
-        return $result;
+        if (empty($ids)) {
+            return new Collection;
+        }
+
+        $serializedPlugins = Redis::hmget($hashKey, $ids);
+
+        $plugins = collect($serializedPlugins)
+            ->filter()
+            ->map(fn ($serialized) => unserialize($serialized));
+
+        return new Collection($plugins->values());
     }
 }

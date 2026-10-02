@@ -8,7 +8,12 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Sync buffered plugin views from Redis to Database every 5 minutes
+// Sync buffered plugin views from Redis to Database
 Schedule::command('plugins:sync-views')
-    ->everyFiveMinutes()
+    ->cron(config('plugins.sync_views_schedule'))
+    ->withoutOverlapping();
+
+// Calculate and cache trending plugins
+Schedule::command('plugins:refresh-trending')
+    ->cron(config('plugins.trending.schedule'))
     ->withoutOverlapping();
