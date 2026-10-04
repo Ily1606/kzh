@@ -29,4 +29,6 @@ return [
     'comment_max_depth_reached' => 'You cannot reply to this comment because the thread has reached its maximum depth.',
     'plugin_starred_successfully' => 'Plugin starred successfully.',
     'plugin_unstarred_successfully' => 'Plugin unstarred successfully.',
+    'plugin_updated_successfully' => 'Plugin updated successfully.',
+    'plugin_update_requires_field' => 'At least one of name, title, license, or source_link is required.',
 ];

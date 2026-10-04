@@ -6,6 +6,7 @@ use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -35,6 +36,28 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->model->newQuery()
             ->where('status', PluginStatus::Approved)
             ->findOrFail($id);
+    }
+
+    public function findById(string $id): Plugin
+    {
+        return $this->model->newQuery()->findOrFail($id);
+    }
+
+    /**
+     * Write the given attributes onto the plugin and return it re-read.
+     *
+     * `updated_at` moving is correct here, unlike in incrementCommentCount() or
+     * changeStarCount(): those are bookkeeping writes, while this is a real
+     * edit of the plugin's content.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function update(Model $model, array $attributes): Plugin
+    {
+        /** @var Plugin $updated */
+        $updated = parent::update($model, $attributes);
+
+        return $updated;
     }
 
     /**

@@ -27,8 +27,15 @@ Route::prefix('v1')->group(function () {
         Route::patch('/user/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:strict');
 
         // ================ Plugin ======================
-        Route::post('/plugins', [PluginController::class, 'store'])
-            ->middleware('throttle:submit-plugin');
+        Route::prefix('plugins')
+            ->controller(PluginController::class)
+            ->group(function () {
+                Route::post('/', 'store')
+                    ->middleware('throttle:submit-plugin');
+
+                Route::patch('/{pluginId}', 'update')
+                    ->whereUuid('pluginId');
+            });
 
         // ================ Comment ====================
         Route::post('/plugins/{pluginId}/comments', [CommentController::class, 'store'])

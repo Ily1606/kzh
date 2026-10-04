@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
+use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
 use App\Services\PluginService;
 use App\Support\ApiResponse;
@@ -65,6 +66,39 @@ class PluginController extends Controller
             ['plugin' => new PluginResource($plugin)],
             __('api.plugin_submitted_successfully'),
             201,
+        );
+    }
+
+    /**
+     * Update a plugin you own.
+     * 
+     * Editing does not affect review state: an approved plugin stays approved
+     * with its original `approved_at`.
+     *
+     * Responses:
+     * - 200: the updated plugin in `data.plugin`.
+     * - 401: the request is not authenticated.
+     * - 403: the plugin belongs to another user.
+     * - 404: the plugin does not exist or is soft-deleted.
+     * - 422: validation failed, no editable field was sent, or the name is taken.
+     *
+     * The 200 and 422 responses are inferred by Scramble from the return value
+     * and the validation rules on UpdatePluginRequest, so they are not declared
+     * explicitly. No 429 is declared because this route rides the shared
+     * `throttle:api` limiter rather than one of its own, exactly like
+     * `PATCH /user`.
+     */
+    public function update(UpdatePluginRequest $request, string $pluginId): JsonResponse
+    {
+        $plugin = $this->pluginService->update(
+            $request->user(),
+            $pluginId,
+            $request->validated(),
+        );
+
+        return ApiResponse::successResponse(
+            ['plugin' => new PluginResource($plugin)],
+            __('api.plugin_updated_successfully'),
         );
     }
 

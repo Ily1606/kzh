@@ -10,6 +10,7 @@ use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -54,6 +55,37 @@ final class PluginService
         );
 
         return $plugin;
+    }
+
+    /**
+     * Apply a partial edit to a plugin the caller owns.
+     *
+     * @param  array<string, mixed>  $attributes  Validated patch payload.
+     *
+     * @throws AuthorizationException the plugin belongs to another user.
+     * @throws ValidationException the new name is already taken by this user.
+     */
+    public function update(User $user, string $pluginId, array $attributes): Plugin
+    {
+        $plugin = $this->pluginRepository->findById($pluginId);
+
+        if ($plugin->user_id !== $user->getAuthIdentifier()) {
+            throw new AuthorizationException;
+        }
+
+        try {
+            $updated = $this->pluginRepository->update($plugin, $attributes);
+        } catch (UniqueConstraintViolationException) {
+            // Same shape as submit(): a name already held by this user comes
+            // back as a field-level validation error, not a 500. Two requests
+            // renaming to the same value at once both pass validation and one
+            // loses here — the same trade-off submit() already makes.
+            throw ValidationException::withMessages([
+                'name' => [__('api.plugin_name_already_exists')],
+            ]);
+        }
+
+        return $updated;
     }
 
     /**
