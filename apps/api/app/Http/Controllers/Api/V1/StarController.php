@@ -9,36 +9,12 @@ use App\Support\ApiResponse;
 use App\Support\RequestContext;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class StarController extends Controller
 {
     public function __construct(
         private readonly StarService $starService,
     ) {}
-
-    /**
-     * Whether the authenticated user has starred this plugin.
-     *
-     * Deliberately reports only `starred`, not the plugin's star count: this
-     * endpoint answers "did *I* star this", and `star_count` already ships in
-     * PluginResource. Keeping them apart stops a client from reading a count
-     * that was never scoped to them.
-     *
-     * Responses:
-     * - 200: the current state in `data.starred`.
-     * - 401: unauthenticated.
-     * - 404: plugin not found, soft-deleted, or not approved.
-     *
-     * Takes a plain Request, not SetStarRequest: a read carries no payload, so
-     * validating one would make the endpoint reject its own callers.
-     */
-    public function show(Request $request, string $pluginId): JsonResponse
-    {
-        $starred = $this->starService->getStarredState($request->user(), $pluginId);
-
-        return ApiResponse::successResponse(['starred' => $starred]);
-    }
 
     /**
      * Star or unstar a plugin (auth required).

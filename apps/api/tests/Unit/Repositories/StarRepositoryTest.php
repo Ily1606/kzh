@@ -7,6 +7,7 @@ use App\Models\Plugin;
 use App\Models\User;
 use App\Repositories\StarRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class StarRepositoryTest extends TestCase
@@ -18,12 +19,66 @@ class StarRepositoryTest extends TestCase
         $this->assertInstanceOf(StarRepository::class, app(StarRepositoryInterface::class));
     }
 
-    public function test_is_starred_is_false_when_no_row_exists(): void
+    public function test_starred_plugin_ids_excludes_plugins_without_a_row(): void
     {
         $plugin = Plugin::factory()->create();
         $user = User::factory()->create();
 
-        $this->assertFalse(app(StarRepositoryInterface::class)->isStarred($plugin->id, $user->id));
+        $this->assertSame([], app(StarRepositoryInterface::class)->starredPluginIds([$plugin->id], $user->id));
+    }
+
+    /**
+     * An empty page has nothing to resolve, so the repository must short-circuit
+     * before it reaches the database.
+     */
+    public function test_starred_plugin_ids_returns_empty_without_querying_when_given_no_ids(): void
+    {
+        $user = User::factory()->create();
+
+        DB::connection()->enableQueryLog();
+
+        $result = app(StarRepositoryInterface::class)->starredPluginIds([], $user->id);
+
+        $this->assertSame([], $result);
+        $this->assertSame([], DB::getQueryLog());
+    }
+
+    public function test_starred_plugin_ids_returns_only_the_starred_plugins(): void
+    {
+        $user = User::factory()->create();
+        $starred = Plugin::factory()->create();
+        $notStarred = Plugin::factory()->create();
+        $repository = app(StarRepositoryInterface::class);
+        $repository->insertIgnore($starred->id, $user->id);
+
+        $result = $repository->starredPluginIds([$starred->id, $notStarred->id], $user->id);
+
+        $this->assertSame([$starred->id], $result);
+    }
+
+    public function test_starred_plugin_ids_only_covers_the_given_ids(): void
+    {
+        $user = User::factory()->create();
+        $inPage = Plugin::factory()->create();
+        $offPage = Plugin::factory()->create();
+        $repository = app(StarRepositoryInterface::class);
+        $repository->insertIgnore($inPage->id, $user->id);
+        $repository->insertIgnore($offPage->id, $user->id);
+
+        $result = $repository->starredPluginIds([$inPage->id], $user->id);
+
+        $this->assertSame([$inPage->id], $result);
+    }
+
+    public function test_starred_plugin_ids_is_scoped_to_the_user(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $plugin = Plugin::factory()->create();
+        $repository = app(StarRepositoryInterface::class);
+        $repository->insertIgnore($plugin->id, $owner->id);
+
+        $this->assertSame([], $repository->starredPluginIds([$plugin->id], $other->id));
     }
 
     public function test_insert_ignore_returns_true_on_first_insert(): void

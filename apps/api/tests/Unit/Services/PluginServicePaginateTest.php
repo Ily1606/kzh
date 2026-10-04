@@ -3,6 +3,9 @@
 namespace Tests\Unit\Services;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\Contracts\StarRepositoryInterface;
+use App\Models\Plugin;
+use App\Models\User;
 use App\Services\PluginService;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -16,12 +19,15 @@ class PluginServicePaginateTest extends TestCase
 
     private MockInterface|PluginRepositoryInterface $pluginRepositoryMock;
 
+    private MockInterface|StarRepositoryInterface $starRepositoryMock;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->pluginRepositoryMock = Mockery::mock(PluginRepositoryInterface::class);
-        $this->pluginService = new PluginService($this->pluginRepositoryMock);
+        $this->starRepositoryMock = Mockery::mock(StarRepositoryInterface::class);
+        $this->pluginService = new PluginService($this->pluginRepositoryMock, $this->starRepositoryMock);
     }
 
     protected function tearDown(): void
@@ -133,5 +139,51 @@ class PluginServicePaginateTest extends TestCase
         $this->assertEquals(10, $result->perPage());
         $this->assertEquals(3, $result->currentPage());
         $this->assertEquals('/api/v1/plugins', $result->path());
+    }
+
+    // -----------------------------------------------------------------------
+    // is_star flag
+    // -----------------------------------------------------------------------
+
+    public function test_marks_is_star_on_each_plugin_for_a_signed_in_user(): void
+    {
+        // Mocked, not persisted: this suite runs without migrations, and the
+        // service only reads the auth identifier off the user.
+        $user = Mockery::mock(User::class);
+        $user->shouldReceive('getAuthIdentifier')->andReturn('user-uuid');
+
+        $starred = (new Plugin)->forceFill(['id' => '11111111-1111-1111-1111-111111111111']);
+        $other = (new Plugin)->forceFill(['id' => '22222222-2222-2222-2222-222222222222']);
+
+        $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
+            ->with(10)
+            ->once()
+            ->andReturn(new LengthAwarePaginator([$starred, $other], 2, 10));
+
+        $this->starRepositoryMock->shouldReceive('starredPluginIds')
+            ->with([$starred->id, $other->id], 'user-uuid')
+            ->once()
+            ->andReturn([$starred->id]);
+
+        $result = $this->pluginService->getPaginatedApprovedPlugins(10, $user);
+
+        $this->assertTrue($result->items()[0]->is_star);
+        $this->assertFalse($result->items()[1]->is_star);
+    }
+
+    public function test_does_not_resolve_stars_for_a_guest(): void
+    {
+        $plugin = (new Plugin)->forceFill(['id' => '11111111-1111-1111-1111-111111111111']);
+
+        $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
+            ->with(10)
+            ->once()
+            ->andReturn(new LengthAwarePaginator([$plugin], 1, 10));
+
+        $this->starRepositoryMock->shouldNotReceive('starredPluginIds');
+
+        $result = $this->pluginService->getPaginatedApprovedPlugins(10);
+
+        $this->assertNull($result->items()[0]->is_star);
     }
 }

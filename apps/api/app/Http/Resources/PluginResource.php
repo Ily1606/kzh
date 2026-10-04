@@ -22,6 +22,13 @@ class PluginResource extends JsonResource
             'status' => $this->status->value,
             'source_link' => $this->source_link,
             'star_count' => $this->star_count,
+
+            // Viewer-specific: whether the signed-in user starred this plugin.
+            // The attribute is only set by the list endpoint for authenticated
+            // viewers, so guests (and the trending/submit responses) omit it
+            // entirely instead of reporting a misleading `false`.
+            'is_star' => $this->when($this->is_star !== null, (bool) $this->is_star),
+
             'comment_count' => $this->comment_count,
             'view_count' => $this->view_count,
             'created_at' => $this->created_at?->toISOString(),

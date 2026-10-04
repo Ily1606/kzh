@@ -27,7 +27,10 @@ class PluginController extends Controller
         $perPage = (int) $request->query('per_page', $defaultPerPage);
         $perPage = max(1, min($perPage, $maxPerPage));
 
-        $paginator = $this->pluginService->getPaginatedApprovedPlugins($perPage);
+        $paginator = $this->pluginService->getPaginatedApprovedPlugins(
+            $perPage,
+            $request->user('sanctum'),
+        );
 
         return PluginResource::collection($paginator);
     }

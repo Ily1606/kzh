@@ -39,8 +39,6 @@ Route::prefix('v1')->group(function () {
         Route::post('/plugins/{pluginId}/star', [StarController::class, 'store'])
             ->whereUuid('pluginId')
             ->middleware('throttle:star-plugin');
-        Route::get('/plugins/{pluginId}/star', [StarController::class, 'show'])
-            ->whereUuid('pluginId');
     });
 
     Route::middleware('throttle:api')->group(function () {

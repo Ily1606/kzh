@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\Contracts\StarRepositoryInterface;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginViewed;
 use App\Http\Resources\PluginResource;
@@ -20,6 +21,7 @@ final class PluginService
 {
     public function __construct(
         private readonly PluginRepositoryInterface $pluginRepository,
+        private readonly StarRepositoryInterface $starRepository,
     ) {}
 
     /**
@@ -54,9 +56,37 @@ final class PluginService
         return $plugin;
     }
 
-    public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
+    /**
+     * @param  User  $user  Signed-in viewer, or null for a guest. Drives whether
+     *                      each plugin carries the viewer-specific `is_star` flag.
+     */
+    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
     {
-        return $this->pluginRepository->getPaginatedApprovedPlugins($perPage);
+        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage);
+
+        // A guest has no stars, so there is nothing to resolve and no flag to
+        // set. Skipping here is also what keeps the public list query count at
+        // its old level for anonymous callers.
+        if ($user === null) {
+            return $paginator;
+        }
+
+        $plugins = $paginator->items();
+
+        // One query for the whole page instead of one per plugin. Only the ids
+        // on this page are sent, so the result set stays the size of the page.
+        $starredIds = $this->starRepository->starredPluginIds(
+            array_map(static fn (Plugin $plugin): string => $plugin->id, $plugins),
+            (string) $user->getAuthIdentifier(),
+        );
+
+        // `is_star` is a transient attribute, not a column: PluginResource reads
+        // it when present and omits the field otherwise (see PluginResource).
+        foreach ($plugins as $plugin) {
+            $plugin->is_star = in_array($plugin->id, $starredIds, true);
+        }
+
+        return $paginator;
     }
 
     /**

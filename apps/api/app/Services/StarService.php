@@ -6,7 +6,6 @@ use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
 use App\Events\Star\PluginStarred;
 use App\Events\Star\PluginUnstarred;
-use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Support\Facades\DB;
@@ -98,18 +97,5 @@ final class StarService
             userId: (string) $user->getAuthIdentifier(),
             requestContext: $requestContext,
         );
-    }
-
-    /**
-     * Whether this user stars this plugin.
-     *
-     * 404s for a missing, soft-deleted or unapproved plugin, matching the write
-     * path: reading about a plugin that cannot be starred would be a leak.
-     */
-    public function getStarredState(User $user, string $pluginId): bool
-    {
-        $plugin = $this->pluginRepository->findApprovedById($pluginId);
-
-        return $this->starRepository->isStarred($plugin->id, $user->getAuthIdentifier());
     }
 }

@@ -166,47 +166,4 @@ class StarServiceTest extends TestCase
 
         app(StarService::class)->setStarred($user, $plugin->id, true, new RequestContext(null, null));
     }
-
-    // -----------------------------------------------------------------------
-    // getStarredState
-    // -----------------------------------------------------------------------
-
-    public function test_get_starred_state_reflects_the_stored_row(): void
-    {
-        $user = User::factory()->create();
-        $plugin = $this->approvedPlugin();
-        $service = app(StarService::class);
-        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
-
-        $this->assertTrue($service->getStarredState($user, $plugin->id));
-    }
-
-    public function test_get_starred_state_is_false_without_a_row(): void
-    {
-        $user = User::factory()->create();
-        $plugin = $this->approvedPlugin();
-
-        $this->assertFalse(app(StarService::class)->getStarredState($user, $plugin->id));
-    }
-
-    public function test_get_starred_state_is_scoped_to_the_calling_user(): void
-    {
-        $owner = User::factory()->create();
-        $other = User::factory()->create();
-        $plugin = $this->approvedPlugin();
-        $service = app(StarService::class);
-        $service->setStarred($owner, $plugin->id, true, new RequestContext(null, null));
-
-        $this->assertFalse($service->getStarredState($other, $plugin->id));
-    }
-
-    public function test_get_starred_state_throws_not_found_for_a_pending_plugin(): void
-    {
-        $user = User::factory()->create();
-        $plugin = Plugin::factory()->create(['status' => PluginStatus::Pending]);
-
-        $this->expectException(ModelNotFoundException::class);
-
-        app(StarService::class)->getStarredState($user, $plugin->id);
-    }
 }

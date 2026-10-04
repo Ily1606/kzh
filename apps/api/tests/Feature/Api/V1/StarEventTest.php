@@ -136,23 +136,6 @@ class StarEventTest extends TestCase
         Event::assertNotDispatched(PluginUnstarred::class);
     }
 
-    public function test_reading_the_star_state_dispatches_no_event(): void
-    {
-        Event::fake([PluginStarred::class, PluginUnstarred::class]);
-
-        $user = User::factory()->create();
-        $plugin = $this->approvedPlugin();
-        Sanctum::actingAs($user);
-        $this->star($plugin, true)->assertOk();
-
-        Event::fake([PluginStarred::class, PluginUnstarred::class]);
-
-        $this->getJson("/api/v1/plugins/{$plugin->id}/star")->assertOk();
-
-        Event::assertNotDispatched(PluginStarred::class);
-        Event::assertNotDispatched(PluginUnstarred::class);
-    }
-
     public function test_the_star_listener_is_queued_once_per_change(): void
     {
         Bus::fake();
