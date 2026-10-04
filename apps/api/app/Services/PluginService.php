@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
 use App\Events\Plugin\PluginSubmitted;
+use App\Events\Plugin\PluginUpdated;
 use App\Events\Plugin\PluginViewed;
 use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
@@ -61,17 +62,25 @@ final class PluginService
      * Apply a partial edit to a plugin the caller owns.
      *
      * @param  array<string, mixed>  $attributes  Validated patch payload.
+     * @param  RequestContext  $requestContext  Metadata of the originating request.
      *
      * @throws AuthorizationException the plugin belongs to another user.
      * @throws ValidationException the new name is already taken by this user.
      */
-    public function update(User $user, string $pluginId, array $attributes): Plugin
+    public function update(User $user, string $pluginId, array $attributes, RequestContext $requestContext): Plugin
     {
         $plugin = $this->pluginRepository->findById($pluginId);
 
         if ($plugin->user_id !== $user->getAuthIdentifier()) {
             throw new AuthorizationException;
         }
+
+        // Read before the write, because update() ends in refresh() and the
+        // pre-edit values are gone by the time it returns. The audit entry is
+        // about the transition, and "from" has to be captured while it is still
+        // true — diffing against the row after the write would report every
+        // field as unchanged.
+        $before = $this->editableValuesOf($plugin);
 
         try {
             $updated = $this->pluginRepository->update($plugin, $attributes);
@@ -85,7 +94,57 @@ final class PluginService
             ]);
         }
 
+        PluginUpdated::dispatch(
+            plugin: $updated,
+            user: $user,
+            requestContext: $requestContext,
+            changes: $this->resolveChanges($before, $this->editableValuesOf($updated)),
+        );
+
         return $updated;
+    }
+
+    /**
+     * The editable fields of a plugin, as plain scalars.
+     *
+     * @return array<string, mixed>
+     */
+    private function editableValuesOf(Plugin $plugin): array
+    {
+        return [
+            'name' => $plugin->name,
+            'title' => $plugin->title,
+            'license' => $plugin->license,
+            'source_link' => $plugin->source_link,
+        ];
+    }
+
+    /**
+     * Which fields actually changed value, and from what to what.
+     *
+     * Only fields whose value really moved. Re-sending a field with the value
+     * it already holds is not an edit worth an audit line, and logging one would
+     * claim the plugin changed when it did not.
+     *
+     * @param  array<string, mixed>  $before  Editable values before the write.
+     * @param  array<string, mixed>  $after  Editable values after the write.
+     * @return array<string, array{from: mixed, to: mixed}>
+     */
+    private function resolveChanges(array $before, array $after): array
+    {
+        $changes = [];
+
+        foreach ($after as $field => $to) {
+            $from = $before[$field] ?? null;
+
+            if ($from === $to) {
+                continue;
+            }
+
+            $changes[$field] = ['from' => $from, 'to' => $to];
+        }
+
+        return $changes;
     }
 
     /**

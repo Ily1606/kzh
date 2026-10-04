@@ -3,12 +3,14 @@
 namespace Tests\Unit\Services;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\Events\Plugin\PluginUpdated;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Services\PluginService;
 use App\Support\RequestContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 use Mockery;
 use PDOException;
@@ -76,7 +78,7 @@ class PluginServiceTest extends TestCase
 
         try {
             app(PluginService::class, ['pluginRepository' => $repository])
-                ->update($user, $pluginId, ['name' => 'Laravel Debugbar']);
+                ->update($user, $pluginId, ['name' => 'Laravel Debugbar'], new RequestContext(null, null));
         } catch (ValidationException $exception) {
             $this->assertSame(
                 ['You already submitted a plugin with this name.'],
@@ -106,11 +108,17 @@ class PluginServiceTest extends TestCase
         $this->expectException(AuthorizationException::class);
 
         app(PluginService::class, ['pluginRepository' => $repository])
-            ->update($intruder, (string) $plugin->getKey(), ['title' => 'Đã bị chiếm']);
+            ->update($intruder, (string) $plugin->getKey(), ['title' => 'Đã bị chiếm'], new RequestContext(null, null));
     }
 
     public function test_update_passes_the_validated_payload_through_untouched(): void
     {
+        // The event carries models, so dispatching it would try to resolve the
+        // row in a test that never created one. Faked to keep this a unit test
+        // about the hand-off to the repository; the event itself is covered by
+        // PluginUpdateEventTest.
+        Event::fake([PluginUpdated::class]);
+
         $user = User::factory()->make();
         $plugin = Plugin::factory()->make(['user_id' => $user->id]);
         $pluginId = (string) $plugin->getKey();
@@ -130,7 +138,7 @@ class PluginServiceTest extends TestCase
         $this->assertSame(
             $plugin,
             app(PluginService::class, ['pluginRepository' => $repository])
-                ->update($user, $pluginId, $attributes),
+                ->update($user, $pluginId, $attributes, new RequestContext(null, null)),
         );
     }
 }

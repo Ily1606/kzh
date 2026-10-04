@@ -71,9 +71,13 @@ class PluginController extends Controller
 
     /**
      * Update a plugin you own.
-     * 
+     *
      * Editing does not affect review state: an approved plugin stays approved
      * with its original `approved_at`.
+     *
+     * A successful edit announces itself with `PluginUpdated`, which the audit
+     * listener writes to the plugin channel. The entry records which fields
+     * moved and from what to what, not just that a write happened.
      *
      * Responses:
      * - 200: the updated plugin in `data.plugin`.
@@ -94,6 +98,7 @@ class PluginController extends Controller
             $request->user(),
             $pluginId,
             $request->validated(),
+            RequestContext::fromRequest($request),
         );
 
         return ApiResponse::successResponse(
