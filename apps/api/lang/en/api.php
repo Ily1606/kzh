@@ -26,4 +26,5 @@ return [
     'plugin_view_counted' => 'View counted successfully.',
     'plugin_view_already_counted' => 'You have already viewed this plugin in the last 24 hours.',
     'comment_created_successfully' => 'Comment created successfully.',
+    'comment_max_depth_reached' => 'You cannot reply to this comment because the thread has reached its maximum depth.',
 ];
