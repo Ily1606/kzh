@@ -64,4 +64,9 @@ class Comment extends Model
     {
         return $query->whereNull('hidden_at');
     }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(CommentReport::class);
+    }
 }
