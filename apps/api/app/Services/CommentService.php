@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class CommentService
 {
@@ -58,6 +59,9 @@ final class CommentService
     /**
      * @param  array{content: string, parent_comment_id?: string|null}  $data
      * @param  RequestContext  $requestContext  Metadata of the originating request.
+     *
+     * @throws ValidationException When the parent sits at `comments.max_depth`,
+     *                             so the reply would be one level too deep.
      */
     public function create(User $user, string $pluginId, array $data, RequestContext $requestContext): Comment
     {
@@ -65,8 +69,9 @@ final class CommentService
         $plugin = $this->pluginRepository->findApprovedById($pluginId);
 
         $parentId = $data['parent_comment_id'] ?? null;
+        $maxDepth = max(1, (int) config('comments.max_depth'));
 
-        $comment = DB::transaction(function () use ($user, $plugin, $parentId, $data): Comment {
+        $comment = DB::transaction(function () use ($user, $plugin, $parentId, $maxDepth, $data): Comment {
             // If replying to a parent, verify it belongs to the same plugin.
             //
             // The check and the insert share one transaction, and the parent row is
@@ -80,7 +85,9 @@ final class CommentService
             // ancestor-aware — it proves the parent is visible right now, but not
             // that nothing above it is hidden. Same gap as in getReplies().
             if ($parentId !== null) {
-                $this->commentRepository->findVisibleByIdAndPlugin($parentId, $plugin->id, true);
+                $parent = $this->commentRepository->findVisibleByIdAndPlugin($parentId, $plugin->id, true);
+
+                $this->assertWithinDepthLimit($parent, $maxDepth);
             }
 
             $comment = $this->commentRepository->create([
@@ -106,5 +113,32 @@ final class CommentService
         );
 
         return $comment;
+    }
+
+    /**
+     * Reject a reply that would push the thread past `comments.max_depth`.
+     *
+     * The new comment's depth is its parent's depth plus one, so the check is a
+     * single comparison on the parent — no walking the tree from the new
+     * comment's side and no counter to keep in sync with the limit. The walk is
+     * capped at `$maxDepth` because a parent already at the limit is rejected
+     * whatever its real depth is, and stopping there bounds the queries.
+     *
+     * Raised as a validation error rather than a bare exception so the client
+     * gets a 422 with the message attached to `parent_comment_id` — the field it
+     * actually sent — instead of an opaque 500 from `throw new Error()`.
+     *
+     * @throws ValidationException
+     */
+    private function assertWithinDepthLimit(Comment $parent, int $maxDepth): void
+    {
+        // depthOf(parent_comment_id, maxDepth)
+        if ($this->commentRepository->depthOf($parent->getKey(), $maxDepth) + 1 <= $maxDepth) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'parent_comment_id' => [__('api.comment_max_depth_reached')],
+        ]);
     }
 }

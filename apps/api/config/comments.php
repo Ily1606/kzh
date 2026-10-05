@@ -20,6 +20,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Comment Threading Depth
+    |--------------------------------------------------------------------------
+    |
+    | Maximum number of levels a comment thread may have, the way Facebook
+    | does it: a top-level comment, a reply and a sub-reply. A comment created
+    | under a parent that already sits at this level is rejected with a 422,
+    | so the tree can never grow a fourth level.
+    |
+    | The read endpoints are unaffected: `replies()` still walks whatever tree
+    | exists, so threads that predate this limit stay fully expandable.
+    |
+    */
+    'max_depth' => (int) env('COMMENT_MAX_DEPTH', 3),
+
+    /*
+    |--------------------------------------------------------------------------
     | Comment Content
     |--------------------------------------------------------------------------
     |

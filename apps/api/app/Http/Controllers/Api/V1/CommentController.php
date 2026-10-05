@@ -83,7 +83,8 @@ class CommentController extends Controller
      * - 201: comment created successfully.
      * - 401: unauthenticated.
      * - 404: plugin not found, not approved, or parent comment not found / belongs to another plugin.
-     * - 422: validation failed.
+     * - 422: validation failed, or the parent already sits at `comments.max_depth`
+     *   (default 3: top-level, reply, sub-reply) so this reply would be a fourth level.
      *
      * The 201 and 422 responses are inferred by Scramble from the return value and
      * the validation rules on CreateCommentRequest, so they are not declared

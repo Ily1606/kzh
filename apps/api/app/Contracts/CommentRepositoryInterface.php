@@ -34,4 +34,18 @@ interface CommentRepositoryInterface
      * released immediately, so only the create path should set it.
      */
     public function findVisibleByIdAndPlugin(string $id, string $pluginId, bool $lock = false): Comment;
+
+    /**
+     * How deep a comment sits in its thread: 1 for a top-level comment, 2 for a
+     * reply, 3 for a sub-reply.
+     *
+     * Walks `parent_comment_id` upward, so the caller can enforce
+     * `config('comments.max_depth')` without loading the whole tree. The walk
+     * stops at `$stopAt`, which keeps the query count bounded on a tree deeper
+     * than the limit — a value already past the limit cannot be brought back
+     * under it by walking further.
+     *
+     * @param  int  $stopAt  Depth at which to stop early and return.
+     */
+    public function depthOf(string $id, int $stopAt): int;
 }
