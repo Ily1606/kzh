@@ -33,11 +33,13 @@ const isLoadingReplies = ref(false)
 const replies = ref<CommentResource[]>([])
 
 function toggleReplyBox() {
+  if (props.depth >= 3) return
   showReplyForm.value = !showReplyForm.value
   replyContent.value = ''
 }
 
 async function toggleReplies() {
+  if (props.depth >= 3) return
   if (showReplies.value) {
     showReplies.value = false
     return
@@ -59,7 +61,7 @@ async function toggleReplies() {
 }
 
 async function submitReply() {
-  if (!replyContent.value.trim()) return
+  if (props.depth >= 3 || !replyContent.value.trim()) return
 
   isSubmittingReply.value = true
   try {
@@ -128,9 +130,10 @@ async function submitReply() {
 
         <p class="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{{ comment.content }}</p>
 
-        <!-- Actions: Reply button & View replies toggle -->
+        <!-- Actions: Reply button (chỉ hiển thị khi cấp độ < 3) & View replies toggle -->
         <div class="flex items-center gap-3 pt-2 text-xs">
           <button
+            v-if="depth < 3"
             @click="toggleReplyBox"
             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium text-foreground/80 hover:text-primary hover:bg-muted transition-colors border border-border/60 bg-background/50 cursor-pointer"
           >
@@ -139,7 +142,7 @@ async function submitReply() {
           </button>
 
           <button
-            v-if="comment.replies_count && Number(comment.replies_count) > 0"
+            v-if="depth < 3 && comment.replies_count && Number(comment.replies_count) > 0"
             @click="toggleReplies"
             class="font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
           >
@@ -150,8 +153,8 @@ async function submitReply() {
       </div>
     </div>
 
-    <!-- Inline Form viết Reply -->
-    <div v-if="showReplyForm" class="mt-2 pl-3 border-l-2 border-primary/40 space-y-2">
+    <!-- Inline Form viết Reply (chỉ cho phép ở cấp 1 và cấp 2) -->
+    <div v-if="showReplyForm && depth < 3" class="mt-2 pl-3 border-l-2 border-primary/40 space-y-2">
       <div v-if="auth.isAuthenticated" class="space-y-2">
         <div class="flex items-center gap-1.5 text-xs text-muted-foreground font-medium pb-0.5">
           <CornerDownRight class="size-3.5 text-primary" />
@@ -179,11 +182,10 @@ async function submitReply() {
       </div>
     </div>
 
-    <!-- Recursive Children (Hỗ trợ vô hạn cấp độ) -->
+    <!-- Recursive Children (chỉ hiển thị ở cấp 1 và cấp 2) -->
     <div
-      v-if="showReplies"
-      class="space-y-3 pt-2 pl-4 border-l-2 border-primary/20"
-      :class="depth >= 6 ? 'ml-2' : 'ml-4 sm:ml-6'"
+      v-if="showReplies && depth < 3"
+      class="space-y-3 pt-2 pl-3 sm:pl-4 border-l-2 border-primary/20 ml-2.5 sm:ml-5"
     >
       <div v-if="isLoadingReplies" class="text-sm text-muted-foreground py-2 italic">
         Loading replies...
@@ -198,7 +200,7 @@ async function submitReply() {
           :comment="childReply"
           :plugin-id="pluginId"
           :parent-author-name="comment.author?.name || 'user'"
-          :depth="depth + 1"
+          :depth="Math.min(depth + 1, 3)"
         />
       </template>
     </div>

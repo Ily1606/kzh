@@ -118,7 +118,7 @@ onMounted(() => {
       No comments yet. Be the first to share your thoughts!
     </div>
     <div v-else class="space-y-6">
-      <!-- Mỗi bình luận gốc được quản lý đệ quy qua CommentItem (Hỗ trợ vô hạn cấp độ) -->
+      <!-- Mỗi bình luận gốc được quản lý đệ quy qua CommentItem (Giới hạn tối đa 3 cấp) -->
       <CommentItem
         v-for="comment in comments"
         :key="comment.id"

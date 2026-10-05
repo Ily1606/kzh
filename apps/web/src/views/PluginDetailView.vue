@@ -26,19 +26,16 @@ function toRawGithubUrls(url: string): string[] {
   if (!url) return []
   const cleanUrl = url.trim()
 
-  // Nếu đã là link raw hoặc file .md trực tiếp
   if (cleanUrl.includes('raw.githubusercontent.com') || cleanUrl.endsWith('.md')) {
     return [cleanUrl]
   }
 
-  // Link blob cụ thể: https://github.com/:owner/:repo/blob/:branch/:filepath
   const blobMatch = cleanUrl.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/)
   if (blobMatch) {
     const [, owner, repo, branch, path] = blobMatch
     return [`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`]
   }
 
-  // Link repository: https://github.com/:owner/:repo
   const repoMatch = cleanUrl.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git|\/)?$/)
   if (repoMatch) {
     const [, owner, repo] = repoMatch
@@ -118,8 +115,6 @@ function toggleStar() {
   } else {
     plugin.value.star_count = Math.max(0, (plugin.value.star_count || 1) - 1)
   }
-  // TODO: Tích hợp API star/unstar plugin khi backend sẵn sàng:
-  // await starPlugin(plugin.value.id)
 }
 
 function onCommentAdded() {
