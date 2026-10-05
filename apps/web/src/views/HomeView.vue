@@ -18,12 +18,6 @@ const { pluginTrending } = getPlugin();
 // Trending plugins state
 const trendingPlugins = ref<PluginResource[]>([]);
 
-const mockPlugins = [
-  { id: '1', name: '@dsh/starter-kit', title: 'A reference plugin for bootstrapping common harness workflows.', icon: 'boxes', version: 'v0.1.0', author: 'DSH team', tag: 'soon' },
-  { id: '2', name: '@dsh/guardrails', title: 'Opinionated safety checks and policy hooks for your harness.', icon: 'shield', version: 'v0.1.0', author: 'community preview', tag: 'soon' },
-  { id: '3', name: '@dsh/context-search', title: 'Search, retrieve and organize relevant context for an agent run.', icon: 'search', version: 'v0.1.0', author: 'community preview', tag: 'soon' },
-];
-
 onMounted(async () => {
   try {
     const [healthRes, pluginsRes] = await Promise.all([
@@ -83,25 +77,17 @@ async function copyInstallCommand() {
       </div>
 
       <!-- Trending Plugins Container: 3-column grid on desktop so all 3 cards (Top 1, 2, 3) are completely visible side-by-side without horizontal scroll; scrollable on smaller mobile screens -->
-      <div class="mt-8 -mx-4 px-4 sm:mx-0 sm:px-0 flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible gap-4 sm:gap-5 pb-4 md:pb-0 pt-2.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-primary/5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/25 hover:[&::-webkit-scrollbar-thumb]:bg-primary/40 transition-colors">
-        <template v-if="trendingPlugins.length > 0">
-          <PluginCard
-            v-for="(plugin, index) in trendingPlugins.slice(0, 3)"
-            :key="plugin.id"
-            :plugin="plugin"
-            :rank="index + 1"
-            class="min-w-65 sm:min-w-70 md:min-w-0 md:max-w-none md:w-full shrink-0 md:shrink!"
-          />
-        </template>
-        <template v-else>
-          <PluginCard
-            v-for="(mock, index) in mockPlugins"
-            :key="mock.id"
-            :fallback="mock"
-            :rank="index + 1"
-            class="min-w-65 sm:min-w-70 md:min-w-0 md:max-w-none md:w-full shrink-0! md:shrink!"
-          />
-        </template>
+      <div v-if="trendingPlugins.length > 0" class="mt-8 -mx-4 px-4 sm:mx-0 sm:px-0 flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-visible gap-4 sm:gap-5 pb-4 md:pb-0 pt-2.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-primary/5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-primary/25 hover:[&::-webkit-scrollbar-thumb]:bg-primary/40 transition-colors">
+        <PluginCard
+          v-for="(plugin, index) in trendingPlugins.slice(0, 3)"
+          :key="plugin.id"
+          :plugin="plugin"
+          :rank="index + 1"
+          class="min-w-65 sm:min-w-70 md:min-w-0 md:max-w-none md:w-full shrink-0 md:shrink!"
+        />
+      </div>
+      <div v-else class="mt-8 rounded-2xl border border-dashed border-border/80 p-8 text-center text-sm text-muted-foreground">
+        No trending plugins available at the moment.
       </div>
     </section>
 
