@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CommentController;
+use App\Http\Controllers\Api\V1\CommentReportController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PluginController;
@@ -52,7 +53,7 @@ Route::prefix('v1')->group(function () {
             ->whereUuid('pluginId')
             ->middleware('throttle:star-plugin');
 
-        Route::post('/plugins/{pluginId}/comments/{commentId}/reports', [\App\Http\Controllers\Api\V1\CommentReportController::class, 'store'])
+        Route::post('/plugins/{pluginId}/comments/{commentId}/reports', [CommentReportController::class, 'store'])
             ->whereUuid('pluginId')
             ->whereUuid('commentId');
     });
