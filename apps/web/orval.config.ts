@@ -20,4 +20,12 @@ export default defineConfig({
       },
     },
   },
+  zod: {
+    input: `${apiUrl}/docs/api.json`,
+    output: {
+      mode: 'tags-split',
+      client: 'zod',
+      target: 'src/api/generated/zod',
+    },
+  },
 });

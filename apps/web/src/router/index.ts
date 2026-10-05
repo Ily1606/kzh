@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "@/views/HomeView.vue";
 import LoginView from "@/views/LoginView.vue";
 import RegisterView from "@/views/RegisterView.vue";
+import ProfileView from "@/views/ProfileView.vue";
 import { useAuth } from "@/composables/useAuth";
 
 import PublishPluginView from "@/views/PublishPluginView.vue";
@@ -67,6 +68,12 @@ export const router = createRouter({
       meta: { layout: 'default' }
     },
     {
+      path: "/profile",
+      name: "profile",
+      component: ProfileView,
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),
@@ -77,6 +84,10 @@ export const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuth();
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { name: 'login' };
+  }
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
     return { name: 'home' };
