@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
+import { useForm } from 'vee-validate'
+import { toTypedSchema } from '@vee-validate/zod'
+import * as z from 'zod'
 import { getPlugin } from '@/api/generated/endpoints'
 import { SubmitPluginRequestLicense } from '@/api/generated/model'
 import type { SubmitPluginRequest } from '@/api/generated/model'
@@ -21,18 +24,53 @@ import {
 const router = useRouter()
 const { pluginStore } = getPlugin()
 
-// Form state
-const form = ref<SubmitPluginRequest>({
-  name: '',
-  title: '',
-  license: SubmitPluginRequestLicense.MIT,
-  source_link: ''
+const error = ref('')
+const isSuccess = ref(false)
+
+// Zod validation schema matching backend rules
+const licenseValues = Object.values(SubmitPluginRequestLicense) as [string, ...string[]]
+
+const submitPluginSchema = toTypedSchema(
+  z.object({
+    name: z
+      .string({ required_error: 'Plugin name is required' })
+      .trim()
+      .min(1, 'Plugin name is required')
+      .max(255, 'Plugin name must not exceed 255 characters'),
+    title: z
+      .string({ required_error: 'Display title is required' })
+      .trim()
+      .min(1, 'Display title is required')
+      .max(255, 'Display title must not exceed 255 characters'),
+    license: z.enum(licenseValues, {
+      errorMap: () => ({ message: 'Please select a valid license' }),
+    }),
+    source_link: z
+      .string({ required_error: 'Source link is required' })
+      .trim()
+      .min(1, 'Source link is required')
+      .max(2048, 'Source link must not exceed 2048 characters')
+      .url('Source link must be a valid URL')
+      .refine((url) => url.startsWith('https://'), {
+        message: 'Source link must start with https://',
+      }),
+  })
+)
+
+const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
+  validationSchema: submitPluginSchema,
+  initialValues: {
+    name: '',
+    title: '',
+    license: SubmitPluginRequestLicense.MIT,
+    source_link: '',
+  },
 })
 
-const error = ref('')
-const fieldErrors = ref<Record<string, string[]>>({})
-const isSubmitting = ref(false)
-const isSuccess = ref(false)
+const [name, nameAttrs] = defineField('name')
+const [title, titleAttrs] = defineField('title')
+const [license, licenseAttrs] = defineField('license')
+const [source_link, sourceLinkAttrs] = defineField('source_link')
 
 // Carousel slides for the right-hand showcase card
 const activeSlide = ref(0)
@@ -65,27 +103,29 @@ function prevSlide() {
   activeSlide.value = (activeSlide.value - 1 + slides.length) % slides.length
 }
 
-async function onSubmit() {
+const onSubmit = handleSubmit(async (values) => {
   error.value = ''
-  fieldErrors.value = {}
-  isSubmitting.value = true
   isSuccess.value = false
 
   try {
-    await pluginStore(form.value)
+    await pluginStore(values as SubmitPluginRequest)
     isSuccess.value = true
     setTimeout(() => {
       router.push('/plugins')
     }, 2400)
   } catch (err: any) {
     if (err?.response?.status === 422 && err?.response?.data?.errors) {
-      fieldErrors.value = err.response.data.errors
+      const serverErrors: Record<string, string> = {}
+      for (const [key, msgs] of Object.entries(err.response.data.errors as Record<string, string[]>)) {
+        if (msgs && msgs[0]) {
+          serverErrors[key] = msgs[0]
+        }
+      }
+      setErrors(serverErrors)
     }
-    error.value = err?.response?.data?.message || 'Có lỗi xảy ra khi submit plugin.'
-  } finally {
-    isSubmitting.value = false
+    error.value = err?.response?.data?.message || 'An error occurred while submitting the plugin.'
   }
-}
+})
 </script>
 
 <template>
@@ -124,8 +164,8 @@ async function onSubmit() {
             </div>
           </div>
 
-          <!-- Form Fields -->
-          <form v-else @submit.prevent="onSubmit" class="space-y-6">
+          <!-- Form Fields with VeeValidate & Zod Schema Validation -->
+          <form v-else @submit="onSubmit" novalidate class="space-y-6">
             <!-- Plugin Name -->
             <div class="space-y-2">
               <Label for="name" class="text-sm font-medium">
@@ -133,13 +173,13 @@ async function onSubmit() {
               </Label>
               <Input
                 id="name"
-                v-model="form.name"
+                v-model="name"
+                v-bind="nameAttrs"
                 placeholder="e.g. @dsh/guardrails"
-                required
                 class="h-11 rounded-xl bg-muted/40 border-border/60 focus-visible:bg-background transition-colors"
-                :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.name }"
+                :class="{ 'border-destructive focus-visible:ring-destructive': errors.name }"
               />
-              <p v-if="fieldErrors.name" class="text-xs text-destructive">{{ fieldErrors.name[0] }}</p>
+              <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
               <p v-else class="text-xs text-muted-foreground">The unique npm or scoped package identifier.</p>
             </div>
 
@@ -150,13 +190,13 @@ async function onSubmit() {
               </Label>
               <Input
                 id="title"
-                v-model="form.title"
+                v-model="title"
+                v-bind="titleAttrs"
                 placeholder="e.g. Opinionated safety checks and policy hooks"
-                required
                 class="h-11 rounded-xl bg-muted/40 border-border/60 focus-visible:bg-background transition-colors"
-                :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.title }"
+                :class="{ 'border-destructive focus-visible:ring-destructive': errors.title }"
               />
-              <p v-if="fieldErrors.title" class="text-xs text-destructive">{{ fieldErrors.title[0] }}</p>
+              <p v-if="errors.title" class="text-xs text-destructive">{{ errors.title }}</p>
             </div>
 
             <!-- License & Source Link Grid -->
@@ -168,9 +208,10 @@ async function onSubmit() {
                 </Label>
                 <select
                   id="license"
-                  v-model="form.license"
+                  v-model="license"
+                  v-bind="licenseAttrs"
                   class="flex h-11 w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground outline-none transition-colors focus-visible:bg-background focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
-                  :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.license }"
+                  :class="{ 'border-destructive focus-visible:ring-destructive': errors.license }"
                 >
                   <option
                     v-for="lic in Object.values(SubmitPluginRequestLicense)"
@@ -180,7 +221,7 @@ async function onSubmit() {
                     {{ lic }}
                   </option>
                 </select>
-                <p v-if="fieldErrors.license" class="text-xs text-destructive">{{ fieldErrors.license[0] }}</p>
+                <p v-if="errors.license" class="text-xs text-destructive">{{ errors.license }}</p>
               </div>
 
               <!-- Source Link -->
@@ -191,13 +232,13 @@ async function onSubmit() {
                 <Input
                   id="source"
                   type="url"
-                  v-model="form.source_link"
+                  v-model="source_link"
+                  v-bind="sourceLinkAttrs"
                   placeholder="https://github.com/org/repo"
-                  required
                   class="h-11 rounded-xl bg-muted/40 border-border/60 focus-visible:bg-background transition-colors"
-                  :class="{ 'border-destructive focus-visible:ring-destructive': fieldErrors.source_link }"
+                  :class="{ 'border-destructive focus-visible:ring-destructive': errors.source_link }"
                 />
-                <p v-if="fieldErrors.source_link" class="text-xs text-destructive">{{ fieldErrors.source_link[0] }}</p>
+                <p v-if="errors.source_link" class="text-xs text-destructive">{{ errors.source_link }}</p>
               </div>
             </div>
 
