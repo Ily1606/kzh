@@ -51,6 +51,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/plugins/{pluginId}/star', [StarController::class, 'store'])
             ->whereUuid('pluginId')
             ->middleware('throttle:star-plugin');
+
+        Route::post('/plugins/{pluginId}/comments/{commentId}/reports', [\App\Http\Controllers\Api\V1\CommentReportController::class, 'store'])
+            ->whereUuid('pluginId')
+            ->whereUuid('commentId');
     });
 
     Route::middleware(['set.api.guard', 'throttle:api'])->group(function () {
