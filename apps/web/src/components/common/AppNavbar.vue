@@ -22,7 +22,10 @@ async function handleLogout() {
           <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm shadow-primary/30">D</span>
           <span>DSH</span>
         </RouterLink>
-        <RouterLink to="/" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex">Registry</RouterLink>
+        <div class="hidden items-center gap-6 md:flex">
+          <RouterLink to="/plugins" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Plugins</RouterLink>
+          <RouterLink to="/publish" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Publish</RouterLink>
+        </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
         <template v-if="auth.isAuthenticated">

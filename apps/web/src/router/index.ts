@@ -16,6 +16,12 @@ export const router = createRouter({
       meta: { layout: 'default' }
     },
     {
+      path: "/plugins",
+      name: "plugins",
+      component: () => import("@/views/PluginsView.vue"),
+      meta: { layout: 'default' }
+    },
+    {
       path: "/publish",
       name: "publish",
       component: PublishPluginView,

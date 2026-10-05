@@ -28,59 +28,112 @@ async function copyPluginCommand(pluginName: string) {
 </script>
 
 <template>
-  <Card v-if="plugin" class="relative gap-0 py-5 group px-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-lg hover:shadow-primary/5 flex flex-col h-full min-w-[320px] max-w-[350px] w-full shrink-0 snap-start">
-    <div v-if="rank === 1" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-yellow-500 text-sm font-bold text-white shadow-sm ring-4 ring-background">1</div>
-    <div v-else-if="rank === 2" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-slate-300 text-sm font-bold text-slate-800 shadow-sm ring-4 ring-background">2</div>
-    <div v-else-if="rank === 3" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-amber-700 text-sm font-bold text-white shadow-sm ring-4 ring-background">3</div>
-    
-    <div class="flex flex-wrap items-center gap-2 mb-2">
-      <span class="rounded-full bg-emerald-100/80 text-emerald-700 px-2.5 py-0.5 text-[11px] font-medium border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900">Manifest checked</span>
-      <span class="rounded-full bg-blue-50 text-blue-700 px-2.5 py-0.5 text-[11px] font-medium border border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900">UI & workspace</span>
+  <Card
+    v-if="plugin"
+    class="relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start"
+    :class="{
+      'border-amber-400/50 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10': rank === 1,
+      'border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:shadow-xl hover:shadow-slate-400/10': rank === 2,
+      'border-amber-600/40 hover:border-amber-600 hover:shadow-xl hover:shadow-orange-500/10': rank === 3,
+      'hover:border-primary/35 hover:shadow-lg hover:shadow-primary/5': !rank,
+    }"
+  >
+    <!-- Rank 1: Minimalist Metallic Gold #1 -->
+    <div
+      v-if="rank === 1"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 font-mono text-xs font-black tracking-wider shadow-sm shadow-amber-500/30 ring-2 ring-background border border-amber-300 select-none"
+    >
+      #1
     </div>
 
-    <h3 class="text-lg font-semibold text-foreground truncate" :title="plugin.name">{{ plugin.name }}</h3>
-    <p class="text-[13px] text-muted-foreground mt-0.5 truncate">DSH plugin · Publisher: {{ plugin.user_id?.substring(0, 8) || 'community' }}</p>
+    <!-- Rank 2: Minimalist Metallic Silver #2 -->
+    <div
+      v-else-if="rank === 2"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-slate-100 via-slate-200 to-slate-400 text-slate-800 font-mono text-xs font-black tracking-wider shadow-sm shadow-slate-400/20 ring-2 ring-background border border-slate-300/80 select-none"
+    >
+      #2
+    </div>
 
-    <p class="mt-2.5 text-[14px] leading-relaxed text-foreground min-h-[46px] line-clamp-2">
+    <!-- Rank 3: Minimalist Metallic Bronze #3 -->
+    <div
+      v-else-if="rank === 3"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-500 via-orange-600 to-amber-700 text-white font-mono text-xs font-black tracking-wider shadow-sm shadow-orange-600/25 ring-2 ring-background border border-amber-400/50 select-none"
+    >
+      #3
+    </div>
+
+    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+      <span class="rounded-full bg-emerald-100/80 text-emerald-700 px-2 py-0.5 text-xs font-medium border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900">Manifest checked</span>
+      <span class="rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-xs font-medium border border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900">UI & workspace</span>
+    </div>
+
+    <h3 class="text-base sm:text-lg font-semibold text-foreground truncate" :title="plugin.name">{{ plugin.name }}</h3>
+    <p class="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">DSH plugin · Publisher: {{ plugin.user_id?.substring(0, 8) || 'community' }}</p>
+
+    <p class="mt-2 text-xs sm:text-sm leading-relaxed text-foreground min-h-11 line-clamp-2">
       {{ plugin.title }}
     </p>
 
-    <div class="mt-3 flex flex-wrap gap-1.5">
-      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">May read files</span>
-      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">May write files</span>
-      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">May run commands</span>
+    <div class="mt-2.5 flex flex-wrap gap-1">
+      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">May read files</span>
+      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">May write files</span>
+      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">May run commands</span>
     </div>
 
-    <div class="mt-3 text-[13px] text-muted-foreground">
+    <div class="mt-2.5 text-xs text-muted-foreground">
       License: {{ plugin.license }} · Checked: {{ plugin.updated_at ? plugin.updated_at.split('T')[0] : '2026-08-14' }}
     </div>
 
-    <div class="mt-auto flex items-center justify-between border-t pt-3">
-      <a :href="plugin.source_link" target="_blank" rel="noopener noreferrer" class="text-[13px] font-semibold text-primary hover:underline inline-flex items-center gap-1">
-        View publisher source <ArrowUpRight class="size-3" />
+    <div class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+      <a :href="plugin.source_link" target="_blank" rel="noopener noreferrer" class="text-xs sm:text-sm font-semibold text-primary hover:underline inline-flex items-center gap-1">
+        View source <ArrowUpRight class="size-3" />
       </a>
-      <Button size="sm" class="rounded-full font-semibold px-4 shadow-sm" @click="copyPluginCommand(plugin.name)">Copy install</Button>
+      <Button size="sm" class="rounded-full text-xs font-semibold px-3 h-8 shadow-sm" @click="copyPluginCommand(plugin.name)">Copy install</Button>
     </div>
   </Card>
 
   <!-- Fallback/Mock Card when API is not available -->
-  <Card v-else-if="fallback" class="relative gap-0 py-5 group px-5 transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-lg hover:shadow-primary/5 flex flex-col h-full min-w-[320px] max-w-[350px] w-full shrink-0 snap-start">
-    <div v-if="rank === 1" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-yellow-500 text-sm font-bold text-white shadow-sm ring-4 ring-background">1</div>
-    <div v-else-if="rank === 2" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-slate-300 text-sm font-bold text-slate-800 shadow-sm ring-4 ring-background">2</div>
-    <div v-else-if="rank === 3" class="absolute -top-3 -right-3 flex size-8 items-center justify-center rounded-full bg-amber-700 text-sm font-bold text-white shadow-sm ring-4 ring-background">3</div>
+  <Card
+    v-else-if="fallback"
+    class="relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start"
+    :class="{
+      'border-amber-400/50 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10': rank === 1,
+      'border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:shadow-xl hover:shadow-slate-400/10': rank === 2,
+      'border-amber-600/40 hover:border-amber-600 hover:shadow-xl hover:shadow-orange-500/10': rank === 3,
+      'hover:border-primary/35 hover:shadow-lg hover:shadow-primary/5': !rank,
+    }"
+  >
+    <div
+      v-if="rank === 1"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-300 via-yellow-400 to-amber-500 text-amber-950 font-mono text-xs font-black tracking-wider shadow-sm shadow-amber-500/30 ring-2 ring-background border border-amber-300 select-none"
+    >
+      #1
+    </div>
+    <div
+      v-else-if="rank === 2"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-slate-100 via-slate-200 to-slate-400 text-slate-800 font-mono text-xs font-black tracking-wider shadow-sm shadow-slate-400/20 ring-2 ring-background border border-slate-300/80 select-none"
+    >
+      #2
+    </div>
+    <div
+      v-else-if="rank === 3"
+      class="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-linear-to-r from-amber-500 via-orange-600 to-amber-700 text-white font-mono text-xs font-black tracking-wider shadow-sm shadow-orange-600/25 ring-2 ring-background border border-amber-400/50 select-none"
+    >
+      #3
+    </div>
 
     <div class="flex items-start justify-between">
-      <span class="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
-        <Boxes v-if="fallback.icon === 'boxes'" class="size-5" />
-        <ShieldCheck v-else-if="fallback.icon === 'shield'" class="size-5" />
-        <Search v-else-if="fallback.icon === 'search'" class="size-5" />
-        <Boxes v-else class="size-5" />
+      <span class="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+        <Boxes v-if="fallback.icon === 'boxes'" class="size-4.5" />
+        <ShieldCheck v-else-if="fallback.icon === 'shield'" class="size-4.5" />
+        <Search v-else-if="fallback.icon === 'search'" class="size-4.5" />
+        <Boxes v-else class="size-4.5" />
       </span>
-      <span class="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{{ fallback.version }}</span>
+      <span class="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{{ fallback.version }}</span>
     </div>
-    <div class="mt-3">
-      <h3 class="font-semibold">{{ fallback.name }}</h3>
-      <p class="mt-1.5 text-sm leading-6 text-muted-foreground min-h-[48px] line-clamp-2">{{ fallback.title }}</p>
+    <div class="mt-2.5">
+      <h3 class="font-semibold text-base sm:text-lg">{{ fallback.name }}</h3>
+      <p class="mt-1.5 text-xs sm:text-sm leading-6 text-muted-foreground min-h-11 line-clamp-2">{{ fallback.title }}</p>
     </div>
     <div class="mt-auto flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
       <span>by {{ fallback.author }}</span>
