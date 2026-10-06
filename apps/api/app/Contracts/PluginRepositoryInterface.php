@@ -30,12 +30,6 @@ interface PluginRepositoryInterface
 
     public function incrementCommentCount(string $pluginId): void;
 
-    /**
-     * Move the plugin's star counter by a signed amount: positive adds, negative
-     * subtracts, zero is a no-op.
-     */
-    public function changeStarCount(string $pluginId, int $amount): void;
-
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator;
 
     /**

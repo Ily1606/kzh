@@ -3,10 +3,18 @@
 namespace App\Repositories;
 
 use App\Contracts\StarRepositoryInterface;
-use Illuminate\Support\Facades\DB;
+use App\Models\Star;
 
-final class StarRepository implements StarRepositoryInterface
+/**
+ * @extends BaseRepository<Star>
+ */
+final class StarRepository extends BaseRepository implements StarRepositoryInterface
 {
+    public function getModel(): string
+    {
+        return Star::class;
+    }
+
     public function starredPluginIds(array $pluginIds, string $userId): array
     {
         // No ids means nothing can be starred: return before touching the
@@ -15,7 +23,7 @@ final class StarRepository implements StarRepositoryInterface
             return [];
         }
 
-        return DB::table('stars')
+        return $this->newQuery()
             ->where('user_id', $userId)
             ->whereIn('plugin_id', $pluginIds)
             ->pluck('plugin_id')
@@ -24,7 +32,8 @@ final class StarRepository implements StarRepositoryInterface
 
     public function insertIgnore(string $pluginId, string $userId): bool
     {
-        return DB::table('stars')
+
+        return $this->newQuery()
             ->insertOrIgnore([
                 'plugin_id' => $pluginId,
                 'user_id' => $userId,
@@ -33,7 +42,7 @@ final class StarRepository implements StarRepositoryInterface
 
     public function deleteBy(string $pluginId, string $userId): bool
     {
-        return DB::table('stars')
+        return $this->newQuery()
             ->where('plugin_id', $pluginId)
             ->where('user_id', $userId)
             ->delete() === 1;

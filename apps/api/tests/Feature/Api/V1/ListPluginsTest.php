@@ -190,7 +190,7 @@ class ListPluginsTest extends TestCase
 
         $this->givenStarred($starred, $user);
 
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, [], 'api');
 
         $this->getJson('/api/v1/plugins')
             ->assertOk()
@@ -224,7 +224,7 @@ class ListPluginsTest extends TestCase
 
         $this->givenStarred($plugin, $owner);
 
-        Sanctum::actingAs($other);
+        Sanctum::actingAs($other, [], 'api');
 
         $this->getJson('/api/v1/plugins')
             ->assertOk()

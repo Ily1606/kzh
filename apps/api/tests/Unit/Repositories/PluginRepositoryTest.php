@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Repositories\PluginRepository;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PluginRepositoryTest extends TestCase
@@ -37,7 +38,6 @@ class PluginRepositoryTest extends TestCase
             'license' => 'MIT',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar',
             'status' => PluginStatus::Pending,
-            'star_count' => 0,
             'comment_count' => 0,
             'view_count' => 0,
         ]);
@@ -56,7 +56,7 @@ class PluginRepositoryTest extends TestCase
         $plugin = Plugin::factory()->create(['user_id' => $user->id]);
 
         $this->assertSame(PluginStatus::Pending, $plugin->status);
-        $this->assertIsInt($plugin->star_count);
+        $this->assertSame(0, $plugin->stars()->count());
         $this->assertIsInt($plugin->comment_count);
         $this->assertIsInt($plugin->view_count);
         $this->assertTrue($plugin->user->is($user));
@@ -113,8 +113,16 @@ class PluginRepositoryTest extends TestCase
             'license' => 'MIT',
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subDay(),
-            'star_count' => 7,
         ]);
+
+        // Stars live in their own table; an update to the plugin must leave
+        // the rows — and therefore the count — alone.
+        User::factory()->count(7)->create()->each(function (User $stargazer) use ($plugin): void {
+            DB::table('stars')->insert([
+                'plugin_id' => $plugin->id,
+                'user_id' => $stargazer->id,
+            ]);
+        });
 
         $updated = app(PluginRepositoryInterface::class)->update($plugin, [
             'title' => 'Debugbar mới',
@@ -125,7 +133,7 @@ class PluginRepositoryTest extends TestCase
         // Everything not passed in survives, system-managed columns included.
         $this->assertSame('Laravel Debugbar', $updated->name);
         $this->assertSame('MIT', $updated->license);
-        $this->assertSame(7, $updated->star_count);
+        $this->assertSame(7, $updated->stars()->count());
         $this->assertSame(PluginStatus::Approved, $updated->status);
         $this->assertNotNull($updated->approved_at);
 
@@ -133,8 +141,8 @@ class PluginRepositoryTest extends TestCase
             'id' => $plugin->id,
             'title' => 'Debugbar mới',
             'name' => 'Laravel Debugbar',
-            'star_count' => 7,
         ]);
+        $this->assertDatabaseCount('stars', 7);
     }
 
     public function test_update_moves_updated_at(): void
@@ -151,9 +159,9 @@ class PluginRepositoryTest extends TestCase
             'title' => 'Edit mới',
         ]);
 
-        // Unlike incrementCommentCount() / changeStarCount(), which go through
-        // DB::table() precisely to keep updated_at still: an edit of the
-        // content is a real edit, so the timestamp has to follow it.
+        // Unlike incrementCommentCount(), which goes through DB::table()
+        // precisely to keep updated_at still: an edit of the content is a real
+        // edit, so the timestamp has to follow it.
         $this->assertTrue($updated->updated_at->greaterThan($before));
     }
 }

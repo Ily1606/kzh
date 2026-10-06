@@ -61,12 +61,12 @@ class SubmitPluginTest extends TestCase
             'user_id' => $user->id,
             'name' => 'Laravel Debugbar',
             'status' => PluginStatus::Pending->value,
-            'star_count' => 0,
             'comment_count' => 0,
             'view_count' => 0,
             'approved_at' => null,
             'deleted_at' => null,
         ]);
+        $this->assertDatabaseCount('stars', 0);
     }
 
     public function test_response_uses_the_plugin_resource_contract(): void
@@ -134,11 +134,11 @@ class SubmitPluginTest extends TestCase
         $this->assertDatabaseHas('plugins', [
             'user_id' => $user->id,
             'status' => PluginStatus::Pending->value,
-            'star_count' => 0,
             'comment_count' => 0,
             'view_count' => 0,
             'approved_at' => null,
         ]);
+        $this->assertDatabaseCount('stars', 0);
     }
 
     public function test_submission_requires_all_business_fields(): void

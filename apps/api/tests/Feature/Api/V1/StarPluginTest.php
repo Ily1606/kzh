@@ -2,20 +2,12 @@
 
 namespace Tests\Feature\Api\V1;
 
-use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
-use App\Repositories\PluginRepository;
-use App\Services\StarService;
-use App\Support\RequestContext;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
-use RuntimeException;
 use Tests\TestCase;
 
 class StarPluginTest extends TestCase
@@ -31,7 +23,6 @@ class StarPluginTest extends TestCase
         return Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
-            'star_count' => 0,
         ]);
     }
 
@@ -167,94 +158,6 @@ class StarPluginTest extends TestCase
         $this->star($plugin)->assertOk();
 
         $this->assertTrue($before->equalTo($plugin->fresh()->updated_at));
-    }
-
-    /**
-     * `stars` and `plugins.star_count` are one fact stored twice. If the counter
-     * write fails after the row landed, the user would be starred with a count no
-     * later request could repair — so the transaction has to take both back.
-     */
-    public function test_a_failing_counter_update_rolls_back_the_star(): void
-    {
-        $user = User::factory()->create();
-        $plugin = $this->approvedPlugin();
-
-        // Let every real call through, then fail the counter bump.
-        $real = new PluginRepository($this->app);
-
-        $failing = new class($real) implements PluginRepositoryInterface
-        {
-            public function __construct(private readonly PluginRepository $real) {}
-
-            public function getModel(): string
-            {
-                return $this->real->getModel();
-            }
-
-            public function findApprovedById(string $id): Plugin
-            {
-                return $this->real->findApprovedById($id);
-            }
-
-            public function findById(string $id): Plugin
-            {
-                return $this->real->findById($id);
-            }
-
-            /**
-             * @param  array<string, mixed>  $attributes
-             */
-            public function update(Model $model, array $attributes): Plugin
-            {
-                return $this->real->update($model, $attributes);
-            }
-
-            public function incrementCommentCount(string $pluginId): void
-            {
-                $this->real->incrementCommentCount($pluginId);
-            }
-
-            public function changeStarCount(string $pluginId, int $amount): void
-            {
-                throw new RuntimeException('star counter exploded');
-            }
-
-            /**
-             * @param  array<string, mixed>  $attributes
-             */
-            public function create(array $attributes): Plugin
-            {
-                return $this->real->create($attributes);
-            }
-
-            public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
-            {
-                return $this->real->getPaginatedApprovedPlugins($perPage);
-            }
-
-            public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
-            {
-                return $this->real->getTrendingPlugins($daysLimit, $weights, $gravity, $ageOffset, $limit);
-            }
-
-            public function getTopAllTimePlugins(int $limit): Collection
-            {
-                return $this->real->getTopAllTimePlugins($limit);
-            }
-        };
-
-        $this->app->instance(PluginRepositoryInterface::class, $failing);
-
-        try {
-            $this->app->make(StarService::class)->setStarred($user, $plugin->id, true, new RequestContext(null, null));
-
-            $this->fail('Expected the service to propagate the failure.');
-        } catch (RuntimeException) {
-            // Expected — the counter update blew up inside the transaction.
-        }
-
-        $this->assertDatabaseCount('stars', 0);
-        $this->assertSame(0, $plugin->fresh()->star_count);
     }
 
     // -----------------------------------------------------------------------

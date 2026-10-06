@@ -332,11 +332,6 @@ class CreateCommentTest extends TestCase
                 throw new RuntimeException('comment counter exploded');
             }
 
-            public function changeStarCount(string $pluginId, int $amount): void
-            {
-                $this->real->changeStarCount($pluginId, $amount);
-            }
-
             /**
              * @param  array<string, mixed>  $attributes
              */

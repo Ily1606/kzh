@@ -2,11 +2,20 @@
 
 namespace Tests\Unit\Repositories;
 
+use App\Contracts\PluginRepositoryInterface;
+use App\Enums\PluginStatus;
 use App\Models\Plugin;
-use App\Repositories\PluginRepository;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+/**
+ * `star_count` is no longer a column — it is COUNT over `stars`. These tests
+ * pin the property the reviewer asked for: rows removed outside the star
+ * endpoint (a banned user, a cascade delete, a manual DB fix) are reflected
+ * immediately, with no counter to drift.
+ */
 class PluginStarCountTest extends TestCase
 {
     use RefreshDatabase;
@@ -17,99 +26,66 @@ class PluginStarCountTest extends TestCase
     {
         parent::setUp();
 
-        $this->plugin = Plugin::factory()->create(['star_count' => 0]);
-    }
-
-    private function starCount(): int
-    {
-        return (int) $this->plugin->fresh()->star_count;
-    }
-
-    /**
-     * `star_count` is not in the Plugin fillable list, so mass assignment is
-     * silently dropped. Seed it through the factory instead — the same way the
-     * comment tests seed `comment_count`.
-     */
-    private function pluginWithStars(int $starCount): Plugin
-    {
-        $this->plugin = Plugin::factory()->create(['star_count' => $starCount]);
-
-        return $this->plugin;
+        $this->plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
     }
 
     /**
-     * Uses an amount above 1 on purpose: the method has to apply whatever value
-     * it is given rather than hard-coding a step of one.
+     * Star rows for distinct users — the composite primary key forbids the
+     * same user starring twice.
      */
-    public function test_a_positive_amount_increases_the_counter(): void
+    private function giveStars(Plugin $plugin, int $count): void
     {
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, 3);
-
-        $this->assertSame(3, $this->starCount());
+        User::factory()->count($count)->create()->each(function (User $stargazer) use ($plugin): void {
+            DB::table('stars')->insert([
+                'plugin_id' => $plugin->id,
+                'user_id' => $stargazer->id,
+            ]);
+        });
     }
 
-    public function test_a_negative_amount_decreases_the_counter(): void
+    public function test_the_count_is_the_number_of_rows_in_the_stars_table(): void
     {
-        $this->pluginWithStars(3);
+        $this->giveStars($this->plugin, 3);
 
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, -1);
-
-        $this->assertSame(2, $this->starCount());
+        $this->assertSame(3, $this->plugin->stars()->count());
+        $this->assertSame(3, $this->listCount());
     }
 
-    public function test_a_zero_amount_changes_nothing(): void
+    public function test_rows_removed_outside_the_star_endpoint_shrink_the_count(): void
     {
-        $this->pluginWithStars(4);
+        $this->giveStars($this->plugin, 3);
 
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, 0);
+        // Simulate a moderation/cascade write that never goes through
+        // StarService: the count must follow the rows, not a counter.
+        DB::table('stars')->where('plugin_id', $this->plugin->id)->limit(2)->delete();
 
-        $this->assertSame(4, $this->starCount());
+        $this->assertSame(1, $this->plugin->stars()->count());
+        $this->assertSame(1, $this->listCount());
+    }
+
+    public function test_the_count_never_goes_negative_because_it_is_a_count(): void
+    {
+        $this->giveStars($this->plugin, 1);
+
+        DB::table('stars')->where('plugin_id', $this->plugin->id)->delete();
+        DB::table('stars')->where('plugin_id', $this->plugin->id)->delete();
+
+        $this->assertSame(0, $this->plugin->stars()->count());
+        $this->assertSame(0, $this->listCount());
     }
 
     /**
-     * `star_count` is `unsignedInteger`, but only MySQL enforces that. PostgreSQL
-     * stores a plain integer and happily stores -1, so the `where star_count >=`
-     * guard in the method — not the column — is what keeps this at zero.
+     * The list endpoint is where a stale counter would surface to users:
+     * it must report the same number as a direct COUNT.
      */
-    public function test_a_negative_amount_never_goes_below_zero(): void
+    private function listCount(): int
     {
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, -1);
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, -1);
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, -1);
-
-        $this->assertSame(0, $this->starCount());
-    }
-
-    /**
-     * The decrement is all-or-nothing: it applies only when the counter can
-     * absorb the whole amount. Asking for -5 against a counter of 2 leaves it at
-     * 2 — never -3.
-     *
-     * A clamp-to-zero would need `GREATEST()` in the statement, and that is not
-     * worth it here: StarService only ever passes ±1, so the case cannot arise in
-     * practice. What matters, and what the `where` clause buys, is that the
-     * counter is never driven negative on PostgreSQL.
-     */
-    public function test_a_negative_amount_larger_than_the_counter_is_not_applied(): void
-    {
-        $this->pluginWithStars(2);
-
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, -5);
-
-        $this->assertSame(2, $this->starCount());
-    }
-
-    /**
-     * Starring a plugin is not an edit of that plugin. The counter is bumped with
-     * the query builder precisely so `updated_at` is left alone — Eloquent's
-     * `increment()` would call `addUpdatedAtColumn()` and rewrite it.
-     */
-    public function test_changing_the_count_does_not_touch_the_plugin_updated_at(): void
-    {
-        $before = $this->plugin->updated_at;
-
-        app(PluginRepository::class)->changeStarCount($this->plugin->id, 1);
-
-        $this->assertTrue($before->equalTo($this->plugin->fresh()->updated_at));
+        return (int) app(PluginRepositoryInterface::class)
+            ->getPaginatedApprovedPlugins(15)
+            ->first()
+            ->star_count;
     }
 }

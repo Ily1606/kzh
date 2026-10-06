@@ -6,6 +6,7 @@ use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -25,6 +26,20 @@ class UpdatePluginTest extends TestCase
             'license' => 'MIT',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar',
         ], $overrides));
+    }
+
+    /**
+     * Star count is COUNT over `stars`, so tests seed rows — one distinct
+     * user per star, the composite primary key forbids duplicates.
+     */
+    private function starTimes(Plugin $plugin, int $count): void
+    {
+        User::factory()->count($count)->create()->each(function (User $stargazer) use ($plugin): void {
+            DB::table('stars')->insert([
+                'plugin_id' => $plugin->id,
+                'user_id' => $stargazer->id,
+            ]);
+        });
     }
 
     public function test_owner_can_update_the_four_editable_fields(): void
@@ -90,10 +105,10 @@ class UpdatePluginTest extends TestCase
         $plugin = $this->pluginFor($user, [
             'status' => PluginStatus::Approved,
             'approved_at' => $approvedAt,
-            'star_count' => 5,
             'comment_count' => 3,
             'view_count' => 100,
         ]);
+        $this->starTimes($plugin, 5);
         Sanctum::actingAs($user);
 
         $response = $this->patchJson("/api/v1/plugins/{$plugin->id}", [
@@ -107,7 +122,7 @@ class UpdatePluginTest extends TestCase
 
         $plugin->refresh();
 
-        $this->assertSame(5, $plugin->star_count);
+        $this->assertSame(5, $plugin->stars()->count());
         $this->assertSame(3, $plugin->comment_count);
         $this->assertSame(100, $plugin->view_count);
         $this->assertSame(PluginStatus::Approved, $plugin->status);
@@ -291,7 +306,7 @@ class UpdatePluginTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('errors.plugin.0', __('api.plugin_update_requires_field'));
 
-        $this->assertDatabaseHas('plugins', ['id' => $plugin->id, 'star_count' => 0]);
+        $this->assertDatabaseCount('stars', 0);
     }
 
     public function test_invalid_license_is_rejected(): void

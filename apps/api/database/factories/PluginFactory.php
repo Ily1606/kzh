@@ -26,7 +26,6 @@ class PluginFactory extends Factory
             'approved_at' => null,
             'status' => PluginStatus::Pending,
             'source_link' => 'https://example.com/'.fake()->slug(2),
-            'star_count' => 0,
             'comment_count' => 0,
             'view_count' => 0,
         ];

@@ -46,9 +46,9 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     /**
      * Write the given attributes onto the plugin and return it re-read.
      *
-     * `updated_at` moving is correct here, unlike in incrementCommentCount() or
-     * changeStarCount(): those are bookkeeping writes, while this is a real
-     * edit of the plugin's content.
+     * `updated_at` moving is correct here, unlike in incrementCommentCount():
+     * that is a bookkeeping write, while this is a real edit of the plugin's
+     * content.
      *
      * @param  array<string, mixed>  $attributes
      */
@@ -75,48 +75,12 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         DB::table('plugins')->where('id', $pluginId)->increment('comment_count');
     }
 
-    /**
-     * Move `star_count` by a signed amount: positive adds, negative subtracts,
-     * zero returns without touching the database.
-     *
-     * Three branches because the floor-at-zero rule only makes sense in one of
-     * them. Decrementing adds `where star_count >= abs($amount)` so the statement
-     * matches nothing once the counter would go negative — `unsignedInteger` is
-     * enforced by MySQL alone, and on PostgreSQL an unguarded decrement would
-     * happily store -1. That guard is what makes two concurrent unstars safe:
-     * the loser of the race matches zero rows and its decrement does nothing.
-     *
-     * Incrementing needs no such guard, since it cannot exceed a ceiling.
-     *
-     * `DB::table()` throughout, for the same reason as incrementCommentCount():
-     * Eloquent's `increment()` adds `updated_at` to the statement, and starring
-     * is not an edit of the plugin.
-     */
-    public function changeStarCount(string $pluginId, int $amount): void
-    {
-        if ($amount === 0) {
-            return;
-        }
-
-        if ($amount > 0) {
-            DB::table('plugins')->where('id', $pluginId)->increment('star_count', $amount);
-
-            return;
-        }
-
-        $decrement = abs($amount);
-
-        DB::table('plugins')
-            ->where('id', $pluginId)
-            ->where('star_count', '>=', $decrement)
-            ->decrement('star_count', $decrement);
-    }
-
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
     {
         return $this->model->newQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            ->withCount(['stars as star_count'])
             ->orderByDesc('approved_at')
             ->paginate($perPage);
     }
@@ -127,8 +91,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             ->where('approved_at', '>=', now()->subDays($daysLimit))
-            ->selectRaw("*, (
-                (view_count * ? + comment_count * ? + star_count * ?)
+            ->selectRaw("*, {$this->starCountSql()} as star_count, (
+                (view_count * ? + comment_count * ? + {$this->starCountSql()} * ?)
                 / POWER({$this->getAgeInSecondsSql()}/3600.0 + ?, ?)
             ) as trending_score", [
                 $weights['view'],
@@ -151,13 +115,21 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         };
     }
 
+    private function starCountSql(): string
+    {
+        $prefix = $this->model->getConnection()->getTablePrefix();
+
+        return "(select count(*) from {$prefix}stars where {$prefix}stars.plugin_id = {$prefix}plugins.id)";
+    }
+
     public function getTopAllTimePlugins(int $limit): Collection
     {
         return $this->model->newQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            ->selectRaw("*, {$this->starCountSql()} as star_count")
             ->orderByDesc('view_count')
-            ->orderByDesc('star_count')
+            ->orderByRaw($this->starCountSql().' desc')
             ->limit($limit)
             ->get();
     }

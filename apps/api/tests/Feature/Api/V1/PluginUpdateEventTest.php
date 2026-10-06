@@ -125,7 +125,6 @@ class PluginUpdateEventTest extends TestCase
         $user = User::factory()->create();
         $plugin = $this->pluginFor($user, [
             'status' => PluginStatus::Approved,
-            'star_count' => 5,
         ]);
         Sanctum::actingAs($user);
 

@@ -33,7 +33,6 @@ class StarEventTest extends TestCase
         return Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
-            'star_count' => 0,
         ]);
     }
 

@@ -48,7 +48,7 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:star-plugin');
     });
 
-    Route::middleware('throttle:api')->group(function () {
+    Route::middleware(['set.api.guard', 'throttle:api'])->group(function () {
         Route::get('/plugins', [PluginController::class, 'index']);
         Route::get('/plugins/trending', [PluginController::class, 'trending']);
         Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
