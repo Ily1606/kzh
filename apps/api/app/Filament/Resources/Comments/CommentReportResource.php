@@ -26,11 +26,11 @@ class CommentReportResource extends Resource
 {
     protected static ?string $model = CommentReport::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedFlag;
+    protected static string|\BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldExclamation;
 
-    protected static ?string $navigationLabel = 'Reports';
+    protected static ?string $navigationLabel = 'Comment Reports';
 
-    protected static \UnitEnum|string|null $navigationGroup = 'Comments';
+    protected static ?string $navigationParentItem = 'Comments';
 
     public static function infolist(Schema $schema): Schema
     {

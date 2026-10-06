@@ -18,6 +18,10 @@ return [
         'filters' => [
             'plugin' => 'Filter by plugin',
             'status' => 'Filter by plugin status',
+            'trashed' => 'Deleted records',
+            'trashed_without' => 'Without deleted',
+            'trashed_with' => 'With deleted',
+            'trashed_only' => 'Only deleted',
         ],
         'actions' => [
             'view' => 'View comment',
