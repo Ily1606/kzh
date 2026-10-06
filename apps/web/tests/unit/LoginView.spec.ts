@@ -1,11 +1,12 @@
-import { mount, flushPromises } from '@vue/test-utils';
+import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import LoginView from '@/views/LoginView.vue';
 
 // Mock router
 const mockPush = vi.fn();
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mockPush })
+  useRouter: () => ({ push: mockPush }),
+  useRoute: () => ({ query: {} })
 }));
 
 // Mock composable useAuth
@@ -49,7 +50,7 @@ describe('LoginView.vue', () => {
     // Submit invalid email and short password
     await wrapper.find('input[type="email"]').setValue('invalid-email');
     await wrapper.find('input[type="password"]').setValue('short');
-    
+
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
 

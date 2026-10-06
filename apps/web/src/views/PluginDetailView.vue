@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPlugin } from '@/api/generated/endpoints'
 import type { PluginResource } from '@/api/generated/model'
@@ -80,6 +80,18 @@ async function fetchReadme(sourceUrl: string) {
     readmeError.value = 'No README available for this plugin.'
   }
   isReadmeLoading.value = false
+  scrollToHash()
+}
+
+async function scrollToHash() {
+  await nextTick()
+  if (route.hash) {
+    // We add a tiny timeout because Markdown might contain images that cause reflows right after render
+    setTimeout(() => {
+      const el = document.querySelector(route.hash)
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+    }, 100)
+  }
 }
 
 async function fetchPlugin() {
@@ -94,6 +106,9 @@ async function fetchPlugin() {
     error.value = 'Failed to load plugin details.'
   } finally {
     isLoading.value = false
+    if (!isReadmeLoading.value) {
+      scrollToHash()
+    }
   }
 }
 
@@ -176,7 +191,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="flex flex-col gap-3 min-w-[260px]">
+        <div class="flex flex-col gap-3 min-w-65">
           <!-- Install Command -->
           <div class="bg-muted/50 rounded-lg p-3 border border-border/50 font-mono text-sm flex items-center justify-between">
             <span class="flex items-center gap-2 truncate">
@@ -248,7 +263,7 @@ onMounted(() => {
         ></div>
 
         <!-- Trạng thái không có README hoặc không tải được -->
-        <div v-else class="p-8 bg-muted/30 rounded-xl border border-border/50 min-h-[160px] flex flex-col items-center justify-center text-muted-foreground space-y-2">
+        <div v-else class="p-8 bg-muted/30 rounded-xl border border-border/50 min-h-40 flex flex-col items-center justify-center text-muted-foreground space-y-2">
           <FileText class="size-8 stroke-[1.5] text-muted-foreground/60" />
           <p class="text-sm">{{ readmeError || 'No README available for this plugin.' }}</p>
         </div>

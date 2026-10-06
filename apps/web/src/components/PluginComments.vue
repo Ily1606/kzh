@@ -72,7 +72,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="mt-12 pt-8 border-t">
+  <div id="comments" class="mt-12 pt-8 border-t">
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
         <h3 class="text-2xl font-bold flex items-center gap-2">
@@ -104,7 +104,7 @@ onMounted(() => {
       </form>
     </div>
     <div v-else class="mb-8 p-4 bg-muted/30 rounded-md border text-center text-sm text-muted-foreground">
-      Please <router-link :to="{ name: 'login' }" class="text-primary hover:underline font-medium">sign in</router-link> to leave a comment.
+      Please <router-link :to="{ name: 'login', query: { redirect: $route.path + '#comments' } }" class="text-primary hover:underline font-medium">sign in</router-link> to leave a comment.
     </div>
 
     <!-- Danh sách bình luận -->

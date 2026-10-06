@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
@@ -34,6 +34,7 @@ const errorMsg = ref("");
 const loading = ref(false);
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuth();
 
 const onSubmit = handleSubmit(async (values) => {
@@ -45,7 +46,8 @@ const onSubmit = handleSubmit(async (values) => {
       email: values.email,
       password: values.password,
     });
-    router.push("/");
+    const redirectPath = route.query.redirect as string;
+    router.push(redirectPath || "/");
   } catch (e: any) {
     errorMsg.value = "Incorrect email or password.";
   } finally {
