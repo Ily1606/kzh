@@ -13,6 +13,7 @@ use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Auth;
 
 class PluginController extends Controller
 {
@@ -30,7 +31,7 @@ class PluginController extends Controller
 
         $paginator = $this->pluginService->getPaginatedApprovedPlugins(
             $perPage,
-            $request->user('sanctum'),
+            Auth::user()
         );
 
         return PluginResource::collection($paginator);

@@ -15,6 +15,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
@@ -191,7 +192,7 @@ final class PluginService
     {
         $plugin = $this->pluginRepository->findApprovedById($id);
 
-        $viewerId = $request->user('sanctum')?->id ?? $request->fingerprint();
+        $viewerId = Auth::user()?->id ?? $request->fingerprint();
 
         $cacheKey = "plugin_view:{$plugin->id}:{$viewerId}";
 
