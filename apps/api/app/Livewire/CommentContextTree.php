@@ -5,9 +5,17 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\CommentReport;
 use App\Models\Comment;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Actions\Action;
 
-class CommentContextTree extends Component
+class CommentContextTree extends Component implements HasForms, HasActions
 {
+    use InteractsWithActions;
+    use InteractsWithForms;
+
     public string $reportId;
     public ?string $targetCommentId = null;
     public ?string $pluginId = null;
@@ -47,36 +55,76 @@ class CommentContextTree extends Component
             ->get();
     }
     
-    protected function getDescendantIds($parentId)
+    public function deleteCommentAction(): Action
     {
-        $ids = [];
-        $children = Comment::withTrashed()->where('parent_comment_id', $parentId)->pluck('id')->toArray();
-        foreach ($children as $childId) {
-            $ids[] = $childId;
-            $ids = array_merge($ids, $this->getDescendantIds($childId));
-        }
-        return $ids;
+        return Action::make('deleteComment')
+            ->requiresConfirmation()
+            ->color('danger')
+            ->icon('heroicon-o-trash')
+            ->modalHeading('Delete Comment')
+            ->modalDescription('Are you sure you want to delete this comment? All child comments will also be deleted.')
+            ->modalSubmitActionLabel('Yes, delete it')
+            ->action(function (array $arguments) {
+                $comment = Comment::withTrashed()->find($arguments['comment_id']);
+                if ($comment) $comment->cascadeDelete();
+            });
     }
-    
-    public function deleteComment($id)
+
+    public function hideCommentAction(): Action
     {
-        $ids = array_merge([$id], $this->getDescendantIds($id));
-        
-        Comment::whereIn('id', $ids)->delete();
-        CommentReport::whereIn('comment_id', $ids)->update(['status' => \App\Enums\CommentReportStatus::Resolved]);
+        return Action::make('hideComment')
+            ->requiresConfirmation()
+            ->color('warning')
+            ->icon('heroicon-o-eye-slash')
+            ->modalHeading('Hide Comment')
+            ->modalDescription('Are you sure you want to hide this comment? All child comments will also be hidden.')
+            ->modalSubmitActionLabel('Yes, hide it')
+            ->action(function (array $arguments) {
+                $comment = Comment::withTrashed()->find($arguments['comment_id']);
+                if ($comment) $comment->cascadeHide();
+            });
     }
-    
-    public function hideComment($id)
+
+    public function dismissReportAction(): Action
     {
-        $ids = array_merge([$id], $this->getDescendantIds($id));
-        
-        Comment::whereIn('id', $ids)->update(['hidden_at' => now()]);
-        CommentReport::whereIn('comment_id', $ids)->update(['status' => \App\Enums\CommentReportStatus::Resolved]);
+        return Action::make('dismissReport')
+            ->requiresConfirmation()
+            ->color('success')
+            ->icon('heroicon-o-check-circle')
+            ->modalHeading('Dismiss Reports')
+            ->modalDescription('Are you sure you want to dismiss the reports for this comment?')
+            ->modalSubmitActionLabel('Yes, dismiss')
+            ->action(function (array $arguments) {
+                CommentReport::where('comment_id', $arguments['comment_id'])->delete();
+            });
     }
-    
-    public function dismissReport($id)
+
+    public function restoreCommentAction(): Action
     {
-        CommentReport::where('comment_id', $id)->update(['status' => \App\Enums\CommentReportStatus::Rejected]);
+        return Action::make('restoreComment')
+            ->requiresConfirmation()
+            ->color('gray')
+            ->modalHeading('Restore Comment')
+            ->modalDescription('Are you sure you want to restore this comment and its reports?')
+            ->modalSubmitActionLabel('Yes, restore')
+            ->action(function (array $arguments) {
+                $comment = Comment::withTrashed()->find($arguments['comment_id']);
+                if ($comment) $comment->cascadeRestore();
+            });
+    }
+
+    public function unhideCommentAction(): Action
+    {
+        return Action::make('unhideComment')
+            ->requiresConfirmation()
+            ->color('gray')
+            ->modalHeading('Unhide Comment')
+            ->modalDescription('Are you sure you want to unhide this comment and restore its reports?')
+            ->modalSubmitActionLabel('Yes, unhide')
+            ->action(function (array $arguments) {
+                $comment = Comment::withTrashed()->find($arguments['comment_id']);
+                if ($comment) $comment->cascadeUnhide();
+            });
     }
     
     public function getRepliesFor($parentId = null)

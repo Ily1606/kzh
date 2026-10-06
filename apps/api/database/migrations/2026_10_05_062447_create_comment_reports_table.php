@@ -23,9 +23,9 @@ return new class extends Migration
             $table->foreignUuid('plugin_id')->constrained()->cascadeOnDelete();
             
             $table->text('reason');
-            $table->enum('status', ['pending', 'resolved', 'rejected'])->default('pending');
             
             $table->timestamps();
+            $table->softDeletes();
             
             // A user can only report a specific comment once
             $table->unique(['user_id', 'comment_id']);

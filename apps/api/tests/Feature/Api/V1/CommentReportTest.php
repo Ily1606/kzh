@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api\V1;
 
-use App\Enums\CommentReportStatus;
 use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
@@ -39,15 +38,13 @@ class CommentReportTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJsonPath('message', 'Comment reported successfully. Our moderators will review it shortly.')
-            ->assertJsonPath('data.report.reason', 'This comment is very inappropriate.')
-            ->assertJsonPath('data.report.status', CommentReportStatus::Pending->value);
+            ->assertJsonPath('data.report.reason', 'This comment is very inappropriate.');
 
         $this->assertDatabaseHas('comment_reports', [
             'user_id' => $user->id,
             'comment_id' => $comment->id,
             'plugin_id' => $plugin->id,
             'reason' => 'This comment is very inappropriate.',
-            'status' => CommentReportStatus::Pending->value,
         ]);
     }
 
