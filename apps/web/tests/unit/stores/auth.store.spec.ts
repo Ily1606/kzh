@@ -3,7 +3,7 @@ import { createApp, nextTick } from 'vue';
 import { setActivePinia, createPinia } from 'pinia';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
 import { useAuthStore } from '@/stores/auth.store';
-import type { User } from '@/types';
+import type { UserResource } from '@/api/generated/model';
 
 describe('Auth Store', () => {
   beforeEach(() => {
@@ -24,15 +24,19 @@ describe('Auth Store', () => {
 
   it('updates state correctly when setUser is called', () => {
     const store = useAuthStore();
-    const mockUser: User = {
-      id: 'uuid',
+    const mockUser = {
+      id: '1',
       name: 'John Doe',
       email: 'john@example.com',
-      isActive: true,
-      is_admin: false
-    };
+      avatarLink: '',
+      githubName: null,
+      githubLink: null,
+      is_admin: false,
+      created_at: null,
+    } as UserResource;
 
     store.setUser(mockUser);
+    store.setToken('mock-token');
 
     expect(store.user).toEqual(mockUser);
     expect(store.isAuthenticated).toBe(true);
@@ -40,17 +44,21 @@ describe('Auth Store', () => {
 
   it('restores the user from localStorage', async () => {
     const firstStore = useAuthStore();
-    const mockUser: User = {
-      id: 'uuid',
+    const mockUser = {
+      id: '1',
       name: 'John Doe',
       email: 'john@example.com',
-      isActive: true,
-      is_admin: false
-    };
+      avatarLink: '',
+      githubName: null,
+      githubLink: null,
+      is_admin: false,
+      created_at: null,
+    } as UserResource;
 
     firstStore.setUser(mockUser);
+    firstStore.setToken('mock-token');
     await nextTick();
-    expect(localStorage.getItem('auth')).toBe(JSON.stringify({ user: mockUser }));
+    expect(localStorage.getItem('auth')).toContain('"token":"mock-token"');
 
     const reloadedPinia = createPinia();
     reloadedPinia.use(piniaPluginPersistedstate);
@@ -62,16 +70,20 @@ describe('Auth Store', () => {
 
   it('clears state correctly when clearAuth is called', () => {
     const store = useAuthStore();
-    const mockUser: User = {
-      id: 'uuid',
+    const mockUser = {
+      id: '1',
       name: 'John Doe',
       email: 'john@example.com',
-      isActive: true,
-      is_admin: false
-    };
+      avatarLink: '',
+      githubName: null,
+      githubLink: null,
+      is_admin: false,
+      created_at: null,
+    } as UserResource;
 
     // Setup initial state
     store.setUser(mockUser);
+    store.setToken('mock-token');
     expect(store.isAuthenticated).toBe(true);
 
     store.clearAuth();
@@ -89,6 +101,46 @@ describe('Auth Store', () => {
 
     store.setLoading(true);
     expect(store.isLoading).toBe(true);
+  });
+
+  it('setToken correctly manages auth_token in localStorage', () => {
+    const store = useAuthStore();
+
+    // Set a token
+    store.setToken('new-fake-token');
+    expect(store.token).toBe('new-fake-token');
+    expect(localStorage.getItem('auth_token')).toBe('new-fake-token');
+
+    // Remove the token
+    store.setToken(null);
+    expect(store.token).toBeNull();
+    expect(localStorage.getItem('auth_token')).toBeNull();
+  });
+
+  it('removes auth data from localStorage when user is set to null (custom storage logic)', async () => {
+    const store = useAuthStore();
+    const mockUser = {
+      id: '1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      avatarLink: '',
+      githubName: null,
+      githubLink: null,
+      is_admin: false,
+      created_at: null,
+    } as UserResource;
+
+    // Set user and wait for pinia persistedstate to write to localStorage
+    store.setUser(mockUser);
+    await nextTick();
+    expect(localStorage.getItem('auth')).not.toBeNull();
+
+    // Now set user to null
+    store.setUser(null);
+    await nextTick();
+
+    // The custom authStorage.setItem should have called localStorage.removeItem
+    expect(localStorage.getItem('auth')).toBeNull();
   });
 });
 
