@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import { getPasswordReset } from "@/api/generated/endpoints";
-import { validateEmail } from "@/utils/validation";
+import { useForm } from "vee-validate";
+import { toTypedSchema } from "@vee-validate/zod";
+import * as z from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,34 +11,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
-const email = ref("");
-const emailError = ref("");
+const forgotPasswordSchema = toTypedSchema(
+  z.object({
+    email: z.string().min(1, "Email is required").email("Invalid email address"),
+  })
+);
+
+const { handleSubmit, defineField, errors } = useForm({
+  validationSchema: forgotPasswordSchema,
+  initialValues: {
+    email: "",
+  },
+});
+
+const [email, emailProps] = defineField("email");
+
 const errorMsg = ref("");
 const successMsg = ref("");
 const loading = ref(false);
 
 const { passwordResetSendResetLinkEmail } = getPasswordReset();
 
-watch(email, (newVal) => {
-  emailError.value = validateEmail(newVal);
-});
-
-async function onSubmit() {
-  emailError.value = validateEmail(email.value);
-
-  if (emailError.value) return;
-
+const onSubmit = handleSubmit(async (values) => {
   loading.value = true;
   errorMsg.value = "";
   successMsg.value = "";
 
   try {
     await passwordResetSendResetLinkEmail({
-      email: email.value,
+      email: values.email,
     });
     successMsg.value = "We have emailed your password reset link.";
   } catch (e: any) {
-    // If it's a 422 error, display it, else generic error
     if (e.response?.status === 422) {
       errorMsg.value = e.response.data?.message || "Validation failed.";
     } else {
@@ -45,7 +51,7 @@ async function onSubmit() {
   } finally {
     loading.value = false;
   }
-}
+});
 </script>
 
 <template>
@@ -59,8 +65,8 @@ async function onSubmit() {
       <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">{{ successMsg }}</Alert>
       <div class="space-y-1.5">
         <Label for="email">Email</Label>
-        <Input id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(emailError)" />
-        <p v-if="emailError" class="text-xs text-destructive">{{ emailError }}</p>
+        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(errors.email)" />
+        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
       </div>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Sending link" : "Email Password Reset Link" }}</Button>
     </form>

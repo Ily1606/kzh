@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
-import { validateEmail, validatePassword } from "@/utils/validation";
+import { useForm } from "vee-validate";
+import { toTypedSchema } from "@vee-validate/zod";
+import * as z from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,37 +12,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
-const email = ref("");
-const password = ref("");
-const emailError = ref("");
-const passwordError = ref("");
+const loginSchema = toTypedSchema(
+  z.object({
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+  })
+);
+
+const { handleSubmit, defineField, errors } = useForm({
+  validationSchema: loginSchema,
+  initialValues: {
+    email: "",
+    password: "",
+  },
+});
+
+const [email, emailProps] = defineField("email");
+const [password, passwordProps] = defineField("password");
+
 const errorMsg = ref("");
 const loading = ref(false);
 
 const router = useRouter();
 const auth = useAuth();
 
-watch(email, (newVal) => {
-  emailError.value = validateEmail(newVal);
-});
-
-watch(password, (newVal) => {
-  passwordError.value = validatePassword(newVal);
-});
-
-async function onSubmit() {
-  emailError.value = validateEmail(email.value);
-  passwordError.value = validatePassword(password.value);
-
-  if (emailError.value || passwordError.value) return;
-
+const onSubmit = handleSubmit(async (values) => {
   loading.value = true;
   errorMsg.value = "";
 
   try {
     await auth.login({
-      email: email.value,
-      password: password.value,
+      email: values.email,
+      password: values.password,
     });
     router.push("/");
   } catch (e: any) {
@@ -48,7 +51,7 @@ async function onSubmit() {
   } finally {
     loading.value = false;
   }
-}
+});
 </script>
 
 <template>
@@ -57,16 +60,16 @@ async function onSubmit() {
       <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
       <div class="space-y-1.5">
         <Label for="email">Email</Label>
-        <Input id="email" v-model="email" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(emailError)" />
-        <p v-if="emailError" class="text-xs text-destructive">{{ emailError }}</p>
+        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(errors.email)" />
+        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
       </div>
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
           <Label for="password">Password</Label>
           <RouterLink to="/forgot-password" class="text-sm font-medium text-primary hover:underline">Forgot password?</RouterLink>
         </div>
-        <Input id="password" v-model="password" type="password" autocomplete="current-password" :aria-invalid="Boolean(passwordError)" />
-        <p v-if="passwordError" class="text-xs text-destructive">{{ passwordError }}</p>
+        <Input id="password" v-model="password" v-bind="passwordProps" type="password" autocomplete="current-password" :aria-invalid="Boolean(errors.password)" />
+        <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
       </div>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Signing in" : "Sign in" }}</Button>
     </form>

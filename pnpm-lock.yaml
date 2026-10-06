@@ -41,6 +41,9 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@vee-validate/zod':
+        specifier: ^4.15.1
+        version: 4.15.1(vue@3.5.43(typescript@5.7.3))(zod@3.25.76)
       axios:
         specifier: ^1.20.0
         version: 1.20.0
@@ -68,12 +71,18 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
+      vee-validate:
+        specifier: ^4.15.1
+        version: 4.15.1(vue@3.5.43(typescript@5.7.3))
       vue:
         specifier: ^3.5.13
         version: 3.5.43(typescript@5.7.3)
       vue-router:
         specifier: ^4.5.0
         version: 4.6.4(vue@3.5.43(typescript@5.7.3))
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@tailwindcss/vite':
         specifier: ^4.0.0
@@ -89,7 +98,7 @@ importers:
         version: 0.7.0(typescript@5.7.3)(vue@3.5.43(typescript@5.7.3))
       orval:
         specifier: ^8.39.0
-        version: 8.39.0(typescript@5.7.3)(zod@4.6.5)
+        version: 8.39.0(typescript@5.7.3)(zod@3.25.76)
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.3
@@ -965,6 +974,11 @@ packages:
 
   '@types/web-bluetooth@0.0.21':
     resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
+
+  '@vee-validate/zod@4.15.1':
+    resolution: {integrity: sha512-329Z4TDBE5Vx0FdbA8S4eR9iGCFFUNGbxjpQ20ff5b5wGueScjocUIx9JHPa79LTG06RnlUR4XogQsjN4tecKA==}
+    peerDependencies:
+      zod: ^3.24.0
 
   '@vitejs/plugin-vue@5.2.4':
     resolution: {integrity: sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA==}
@@ -1885,6 +1899,10 @@ packages:
   tw-animate-css@1.4.0:
     resolution: {integrity: sha512-7bziOlRqH0hJx80h/3mbicLW7o8qLsH5+RaLR2t+OHM3D0JlWGODQKQ4cxbK7WlvmUxpcj6Kgu6EKqjrGFe3QQ==}
 
+  type-fest@4.41.0:
+    resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
+    engines: {node: '>=16'}
+
   type-fest@5.10.0:
     resolution: {integrity: sha512-NoSdpq/WEiAg5sjmBkmV/hfxv6HJH4NqPNrqjtSO5CwRmpsDfaf4begxW34KdJykH/l1yHtwBWQkCRdoXO8mPA==}
     engines: {node: '>=20'}
@@ -1904,6 +1922,11 @@ packages:
   unicorn-magic@0.3.0:
     resolution: {integrity: sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==}
     engines: {node: '>=18'}
+
+  vee-validate@4.15.1:
+    resolution: {integrity: sha512-DkFsiTwEKau8VIxyZBGdO6tOudD+QoUBPuHj3e6QFqmbfCRj1ArmYWue9lEp6jLSWBIw4XPlDLjFIZNLdRAMSg==}
+    peerDependencies:
+      vue: ^3.4.26
 
   vite-plugin-full-reload@1.2.0:
     resolution: {integrity: sha512-kz18NW79x0IHbxRSHm0jttP4zoO9P9gXh+n6UTwlNKnviTTEpOlum6oS9SmecrTtSr+muHEn5TUuC75UovQzcA==}
@@ -2076,6 +2099,9 @@ packages:
 
   yoga-layout@3.2.1:
     resolution: {integrity: sha512-0LPOt3AxKqMdFBZA3HBAt/t/8vIKq7VaQYbuA8WxCgung+p9TVyKRYdpvCb80HcdTN2NkbIKbhNwKUfm3tQywQ==}
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
@@ -2365,21 +2391,21 @@ snapshots:
     transitivePeerDependencies:
       - '@faker-js/faker'
 
-  '@orval/hono@8.39.0(typescript@5.7.3)(zod@4.6.5)':
+  '@orval/hono@8.39.0(typescript@5.7.3)(zod@3.25.76)':
     dependencies:
       '@orval/core': 8.39.0
-      '@orval/zod': 8.39.0(zod@4.6.5)
+      '@orval/zod': 8.39.0(zod@3.25.76)
     optionalDependencies:
       typescript: 5.7.3
     transitivePeerDependencies:
       - '@faker-js/faker'
       - zod
 
-  '@orval/mcp@8.39.0(zod@4.6.5)':
+  '@orval/mcp@8.39.0(zod@3.25.76)':
     dependencies:
       '@orval/core': 8.39.0
       '@orval/fetch': 8.39.0
-      '@orval/zod': 8.39.0(zod@4.6.5)
+      '@orval/zod': 8.39.0(zod@3.25.76)
     transitivePeerDependencies:
       - '@faker-js/faker'
       - zod
@@ -2416,12 +2442,12 @@ snapshots:
     transitivePeerDependencies:
       - '@faker-js/faker'
 
-  '@orval/zod@8.39.0(zod@4.6.5)':
+  '@orval/zod@8.39.0(zod@3.25.76)':
     dependencies:
       '@orval/core': 8.39.0
       jsesc: 3.1.0
     optionalDependencies:
-      zod: 4.6.5
+      zod: 3.25.76
     transitivePeerDependencies:
       - '@faker-js/faker'
 
@@ -2695,6 +2721,14 @@ snapshots:
       undici-types: 6.21.0
 
   '@types/web-bluetooth@0.0.21': {}
+
+  '@vee-validate/zod@4.15.1(vue@3.5.43(typescript@5.7.3))(zod@3.25.76)':
+    dependencies:
+      type-fest: 4.41.0
+      vee-validate: 4.15.1(vue@3.5.43(typescript@5.7.3))
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - vue
 
   '@vitejs/plugin-vue@5.2.4(vite@6.4.3(@types/node@22.20.4)(jiti@2.7.0)(lightningcss@1.33.0)(yaml@2.9.1))(vue@3.5.43(typescript@5.7.3))':
     dependencies:
@@ -3387,7 +3421,7 @@ snapshots:
       mimic-fn: 2.1.0
     optional: true
 
-  orval@8.39.0(typescript@5.7.3)(zod@4.6.5):
+  orval@8.39.0(typescript@5.7.3)(zod@3.25.76):
     dependencies:
       '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
       '@orval/angular': 8.39.0
@@ -3395,14 +3429,14 @@ snapshots:
       '@orval/core': 8.39.0
       '@orval/effect': 8.39.0
       '@orval/fetch': 8.39.0
-      '@orval/hono': 8.39.0(typescript@5.7.3)(zod@4.6.5)
-      '@orval/mcp': 8.39.0(zod@4.6.5)
+      '@orval/hono': 8.39.0(typescript@5.7.3)(zod@3.25.76)
+      '@orval/mcp': 8.39.0(zod@3.25.76)
       '@orval/mock': 8.39.0
       '@orval/pinia-colada': 8.39.0
       '@orval/query': 8.39.0
       '@orval/solid-start': 8.39.0
       '@orval/swr': 8.39.0
-      '@orval/zod': 8.39.0(zod@4.6.5)
+      '@orval/zod': 8.39.0(zod@3.25.76)
       '@scalar/json-magic': 0.15.3
       '@scalar/openapi-parser': 0.29.9
       '@scalar/openapi-types': 0.9.7
@@ -3650,6 +3684,8 @@ snapshots:
 
   tw-animate-css@1.4.0: {}
 
+  type-fest@4.41.0: {}
+
   type-fest@5.10.0:
     dependencies:
       tagged-tag: 1.0.0
@@ -3661,6 +3697,12 @@ snapshots:
   undici@7.29.0: {}
 
   unicorn-magic@0.3.0: {}
+
+  vee-validate@4.15.1(vue@3.5.43(typescript@5.7.3)):
+    dependencies:
+      '@vue/devtools-api': 7.7.10
+      type-fest: 4.41.0
+      vue: 3.5.43(typescript@5.7.3)
 
   vite-plugin-full-reload@1.2.0:
     dependencies:
@@ -3766,5 +3808,7 @@ snapshots:
 
   yoga-layout@3.2.1:
     optional: true
+
+  zod@3.25.76: {}
 
   zod@4.6.5: {}

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getPasswordReset } from "@/api/generated/endpoints";
-import { validateEmail, validatePassword } from "@/utils/validation";
+import { useForm } from "vee-validate";
+import { toTypedSchema } from "@vee-validate/zod";
+import * as z from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,15 +15,31 @@ import { Spinner } from "@/components/ui/spinner";
 const route = useRoute();
 const router = useRouter();
 
-const email = ref("");
+const resetPasswordSchema = toTypedSchema(
+  z.object({
+    email: z.string().min(1, "Email is required").email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    password_confirmation: z.string().min(1, "Please confirm your password"),
+  }).refine((data) => data.password === data.password_confirmation, {
+    message: "Passwords do not match",
+    path: ["password_confirmation"],
+  })
+);
+
+const { handleSubmit, defineField, errors, setValues } = useForm({
+  validationSchema: resetPasswordSchema,
+  initialValues: {
+    email: "",
+    password: "",
+    password_confirmation: "",
+  },
+});
+
+const [email, emailProps] = defineField("email");
+const [password, passwordProps] = defineField("password");
+const [password_confirmation, passwordConfirmationProps] = defineField("password_confirmation");
+
 const token = ref("");
-const password = ref("");
-const password_confirmation = ref("");
-
-const emailError = ref("");
-const passwordError = ref("");
-const confirmPasswordError = ref("");
-
 const errorMsg = ref("");
 const successMsg = ref("");
 const loading = ref(false);
@@ -29,39 +47,13 @@ const loading = ref(false);
 const { passwordResetResetPassword } = getPasswordReset();
 
 onMounted(() => {
-  email.value = route.query.email as string || "";
+  setValues({
+    email: route.query.email as string || "",
+  });
   token.value = route.query.token as string || "";
 });
 
-watch(email, (newVal) => {
-  emailError.value = validateEmail(newVal);
-});
-
-watch(password, (newVal) => {
-  passwordError.value = validatePassword(newVal);
-  if (password_confirmation.value && newVal !== password_confirmation.value) {
-    confirmPasswordError.value = "Passwords do not match.";
-  } else {
-    confirmPasswordError.value = "";
-  }
-});
-
-watch(password_confirmation, (newVal) => {
-  if (newVal !== password.value) {
-    confirmPasswordError.value = "Passwords do not match.";
-  } else {
-    confirmPasswordError.value = "";
-  }
-});
-
-async function onSubmit() {
-  emailError.value = validateEmail(email.value);
-  passwordError.value = validatePassword(password.value);
-  if (password.value !== password_confirmation.value) {
-    confirmPasswordError.value = "Passwords do not match.";
-  }
-
-  if (emailError.value || passwordError.value || confirmPasswordError.value) return;
+const onSubmit = handleSubmit(async (values) => {
   if (!token.value) {
     errorMsg.value = "Invalid or missing password reset token.";
     return;
@@ -73,10 +65,10 @@ async function onSubmit() {
 
   try {
     await passwordResetResetPassword({
-      email: email.value,
+      email: values.email,
       token: token.value,
-      password: password.value,
-      password_confirmation: password_confirmation.value,
+      password: values.password,
+      password_confirmation: values.password_confirmation,
     });
     
     successMsg.value = "Your password has been reset. You will be redirected to login.";
@@ -93,7 +85,7 @@ async function onSubmit() {
   } finally {
     loading.value = false;
   }
-}
+});
 </script>
 
 <template>
@@ -108,20 +100,20 @@ async function onSubmit() {
       
       <div class="space-y-1.5">
         <Label for="email">Email</Label>
-        <Input id="email" v-model="email" type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" />
-        <p v-if="emailError" class="text-xs text-destructive">{{ emailError }}</p>
+        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" />
+        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
       </div>
 
       <div class="space-y-1.5">
         <Label for="password">New Password</Label>
-        <Input id="password" v-model="password" type="password" autocomplete="new-password" :aria-invalid="Boolean(passwordError)" />
-        <p v-if="passwordError" class="text-xs text-destructive">{{ passwordError }}</p>
+        <Input id="password" v-model="password" v-bind="passwordProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.password)" />
+        <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
       </div>
 
       <div class="space-y-1.5">
         <Label for="password_confirmation">Confirm New Password</Label>
-        <Input id="password_confirmation" v-model="password_confirmation" type="password" autocomplete="new-password" :aria-invalid="Boolean(confirmPasswordError)" />
-        <p v-if="confirmPasswordError" class="text-xs text-destructive">{{ confirmPasswordError }}</p>
+        <Input id="password_confirmation" v-model="password_confirmation" v-bind="passwordConfirmationProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.password_confirmation)" />
+        <p v-if="errors.password_confirmation" class="text-xs text-destructive">{{ errors.password_confirmation }}</p>
       </div>
 
       <Button class="w-full" type="submit" :disabled="loading || Boolean(successMsg)"><Spinner v-if="loading" />{{ loading ? "Resetting" : "Reset Password" }}</Button>
