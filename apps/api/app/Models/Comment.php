@@ -82,7 +82,7 @@ class Comment extends Model
             static::whereIn('id', $ids)->delete();
             CommentReport::whereIn('comment_id', $ids)->delete();
         }
-        
+
         $this->delete();
         CommentReport::where('comment_id', $this->id)->delete();
     }
@@ -100,7 +100,7 @@ class Comment extends Model
             static::withTrashed()->whereIn('id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
             CommentReport::withTrashed()->whereIn('comment_id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
         }
-        
+
         $this->restore();
         CommentReport::withTrashed()->where('comment_id', $this->id)->where('deleted_at', '>=', $deletedAt)->restore();
     }
@@ -110,10 +110,10 @@ class Comment extends Model
         $ids = $this->getDescendantIds();
         if (!empty($ids)) {
             static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => now()]);
-            // hidden_at doesn't need to delete reports? 
+            // hidden_at doesn't need to delete reports?
             // Wait, previous code had `CommentReport::whereIn('comment_id', $ids)->delete();`
         }
-        
+
         $this->update(['hidden_at' => now()]);
     }
 
@@ -129,7 +129,7 @@ class Comment extends Model
         if (!empty($ids)) {
             static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $hiddenAt)->update(['hidden_at' => null]);
         }
-        
+
         $this->update(['hidden_at' => null]);
     }
 }

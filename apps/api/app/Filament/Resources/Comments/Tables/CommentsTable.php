@@ -4,12 +4,15 @@ namespace App\Filament\Resources\Comments\Tables;
 
 use App\Enums\PluginStatus;
 use App\Models\Comment;
-use Filament\Actions\Action;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\DeleteAction;
+use Filament\Tables\Actions\RestoreAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CommentsTable
 {
@@ -29,20 +32,10 @@ class CommentsTable
                     ->searchable()
                     ->sortable(),
 
-                // The cell itself is the trigger: Filament renders it as a button
-                // that mounts the `view` action, so no bespoke JS is needed.
                 TextColumn::make('content')
                     ->label(__('comment.table.columns.content'))
                     ->lineClamp(2)
                     ->wrap()
-                    // Filament's `lineClamp()` only emits `--line-clamp`, and `.fi-wrapped`
-                    // only sets `white-space: normal`, so neither constrains the
-                    // column width — `max-width` does. `overflow-wrap: break-word`
-                    // covers the occasional long unbroken token (a URL, a hashtag)
-                    // without shrinking min-content width for ordinary prose,
-                    // which already wraps on spaces. Bodies with no spaces at all
-                    // would need `overflow-wrap: anywhere` instead, as that is the
-                    // only value which also relaxes intrinsic sizing.
                     ->extraCellAttributes([
                         'style' => 'max-width: 25rem; overflow-wrap: break-word;',
                     ])
@@ -62,10 +55,6 @@ class CommentsTable
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
 
-                // Optional columns. `toggleable(isToggledHiddenByDefault: true)`
-                // keeps them out of the way until an admin switches them on from
-                // the table's column manager, mirroring how PluginsTable exposes
-                // its secondary fields.
                 TextColumn::make('plugin.status')
                     ->label(__('comment.table.columns.plugin_status'))
                     ->badge()
@@ -108,8 +97,6 @@ class CommentsTable
                     ->preload()
                     ->native(false),
 
-                // `status` lives on the plugins table, not the comments table, so
-                // this filter has to walk the relation instead of filtering a column.
                 SelectFilter::make('status')
                     ->label(__('comment.table.filters.status'))
                     ->options(PluginStatus::class)
@@ -126,9 +113,47 @@ class CommentsTable
                             fn (Builder $pluginQuery): Builder => $pluginQuery->where('status', $status),
                         );
                     }),
+                    
+                SelectFilter::make('trashed')
+                    ->label(__('comment.table.filters.trashed'))
+                    ->options([
+                        'with'  => __('comment.table.filters.trashed_with'),
+                        'only'  => __('comment.table.filters.trashed_only'),
+                    ])
+                    ->placeholder(__('comment.table.filters.trashed_without'))
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'with' => $query->withTrashed(),
+                            'only' => $query->onlyTrashed(),
+                            default => $query->withoutTrashed(),
+                        };
+                    })
             ])
             ->filtersLayout(FiltersLayout::Dropdown)
             ->deferFilters()
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->actions([
+                Action::make('hide')
+                    ->label(__('Hide'))
+                    ->icon('heroicon-o-eye-slash')
+                    ->color('warning')
+                    ->visible(fn (Comment $record) => $record->hidden_at === null && !$record->trashed())
+                    ->action(fn (Comment $record) => $record->cascadeHide())
+                    ->requiresConfirmation(),
+
+                Action::make('unhide')
+                    ->label(__('Unhide'))
+                    ->icon('heroicon-o-eye')
+                    ->color('success')
+                    ->visible(fn (Comment $record) => $record->hidden_at !== null && !$record->trashed())
+                    ->action(fn (Comment $record) => $record->cascadeUnhide())
+                    ->requiresConfirmation(),
+
+                DeleteAction::make()
+                    ->using(fn (Comment $record) => $record->cascadeDelete()),
+
+                RestoreAction::make()
+                    ->using(fn (Comment $record) => $record->cascadeRestore()),
+            ]);
     }
 }
