@@ -36,15 +36,47 @@ class CommentContextTree extends Component
     protected function fetchAllReplies($parentId)
     {
         if ($parentId === null) {
-            return Comment::where('plugin_id', $this->pluginId)
+            return Comment::withTrashed()->where('plugin_id', $this->pluginId)
                 ->whereNull('parent_comment_id')
                 ->orderBy('created_at', 'asc')
                 ->get();
         }
         
-        return Comment::where('parent_comment_id', $parentId)
+        return Comment::withTrashed()->where('parent_comment_id', $parentId)
             ->orderBy('created_at', 'asc')
             ->get();
+    }
+    
+    protected function getDescendantIds($parentId)
+    {
+        $ids = [];
+        $children = Comment::withTrashed()->where('parent_comment_id', $parentId)->pluck('id')->toArray();
+        foreach ($children as $childId) {
+            $ids[] = $childId;
+            $ids = array_merge($ids, $this->getDescendantIds($childId));
+        }
+        return $ids;
+    }
+    
+    public function deleteComment($id)
+    {
+        $ids = array_merge([$id], $this->getDescendantIds($id));
+        
+        Comment::whereIn('id', $ids)->delete();
+        CommentReport::whereIn('comment_id', $ids)->update(['status' => \App\Enums\CommentReportStatus::Resolved]);
+    }
+    
+    public function hideComment($id)
+    {
+        $ids = array_merge([$id], $this->getDescendantIds($id));
+        
+        Comment::whereIn('id', $ids)->update(['hidden_at' => now()]);
+        CommentReport::whereIn('comment_id', $ids)->update(['status' => \App\Enums\CommentReportStatus::Resolved]);
+    }
+    
+    public function dismissReport($id)
+    {
+        CommentReport::where('comment_id', $id)->update(['status' => \App\Enums\CommentReportStatus::Rejected]);
     }
     
     public function getRepliesFor($parentId = null)
