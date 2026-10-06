@@ -370,6 +370,152 @@ class CreateCommentTest extends TestCase
     }
 
     // -----------------------------------------------------------------------
+    // Thread depth limit
+    // -----------------------------------------------------------------------
+
+    /**
+     * The three levels that must keep working: top-level, reply, sub-reply.
+     * Each one goes through the HTTP API so the guard itself is exercised, not
+     * just the factory.
+     */
+    public function test_allows_comments_at_each_level_up_to_the_limit(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $plugin = $this->approvedPlugin();
+
+        $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload())
+            ->assertCreated();
+
+        $reply = $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload([
+            'parent_comment_id' => Comment::whereNull('parent_comment_id')->firstOrFail()->id,
+        ]))->assertCreated();
+
+        $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload([
+            'parent_comment_id' => $reply->json('data.comment.id'),
+        ]))->assertCreated();
+
+        $this->assertDatabaseCount('comments', 3);
+    }
+
+    /**
+     * A sub-reply is the deepest level allowed (max_depth 3), so replying *to*
+     * one would create a fourth level and must be refused.
+     */
+    public function test_rejects_reply_to_a_comment_at_the_maximum_depth(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $plugin = $this->approvedPlugin();
+
+        $root = Comment::factory()->create(['plugin_id' => $plugin->id]);
+        $reply = Comment::factory()->replyTo($root)->create();
+        $subReply = Comment::factory()->replyTo($reply)->create();
+
+        $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload([
+            'parent_comment_id' => $subReply->id,
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['parent_comment_id'])
+            ->assertJsonPath('errors.parent_comment_id.0', __('api.comment_max_depth_reached'));
+
+        $this->assertDatabaseCount('comments', 3); // nothing new persisted
+        $this->assertSame(0, $plugin->fresh()->comment_count);
+    }
+
+    /**
+     * The limit is enforced on the *create* path only. A thread that was
+     * already deeper than the limit (built here through the factory, as
+     * pre-existing data would be) stays fully readable — the read endpoints
+     * walk whatever tree exists and must not start 404ing on it.
+     */
+    public function test_reads_still_work_on_a_thread_deeper_than_the_limit(): void
+    {
+        $plugin = $this->approvedPlugin();
+        $root = Comment::factory()->create(['plugin_id' => $plugin->id]);
+        $child = Comment::factory()->replyTo($root)->create();
+        $grandchild = Comment::factory()->replyTo($child)->create();
+        $tooDeep = Comment::factory()->replyTo($grandchild)->create();
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}/comments")
+            ->assertOk()
+            ->assertJsonPath('data.comments.0.id', $root->id);
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}/comments/{$root->id}/replies")
+            ->assertOk()
+            ->assertJsonPath('data.comments.0.id', $child->id);
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}/comments/{$grandchild->id}/replies")
+            ->assertOk()
+            ->assertJsonPath('data.comments.0.id', $tooDeep->id);
+    }
+
+    /**
+     * The depth guard reads the configured limit, so lowering it tightens the
+     * rule without a code change.
+     */
+    public function test_max_depth_is_configurable(): void
+    {
+        config()->set('comments.max_depth', 1);
+
+        Sanctum::actingAs(User::factory()->create());
+        $plugin = $this->approvedPlugin();
+        $root = Comment::factory()->create(['plugin_id' => $plugin->id]);
+
+        $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload([
+            'parent_comment_id' => $root->id,
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['parent_comment_id']);
+
+        $this->assertDatabaseCount('comments', 1);
+    }
+
+    /**
+     * A reply must not be rejected for depth when the limit is generous, even
+     * on a thread that is already at the default limit — this pins that the
+     * guard compares against the config value rather than a hardcoded 3.
+     */
+    public function test_accepts_a_deep_reply_when_the_limit_is_raised(): void
+    {
+        config()->set('comments.max_depth', 10);
+
+        Sanctum::actingAs(User::factory()->create());
+        $plugin = $this->approvedPlugin();
+        $root = Comment::factory()->create(['plugin_id' => $plugin->id]);
+        $reply = Comment::factory()->replyTo($root)->create();
+        $subReply = Comment::factory()->replyTo($reply)->create();
+
+        $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload([
+            'parent_comment_id' => $subReply->id,
+        ]))->assertCreated();
+
+        $this->assertDatabaseCount('comments', 4);
+    }
+
+    /**
+     * A malformed tree where a comment points back at its own ancestor must not
+     * hang the request: the depth walk is bounded by the limit, so it gives up
+     * and reports the thread as too deep.
+     */
+    public function test_a_cyclic_thread_is_rejected_instead_of_looping_forever(): void
+    {
+        config()->set('comments.max_depth', 50);
+
+        Sanctum::actingAs(User::factory()->create());
+        $plugin = $this->approvedPlugin();
+
+        $a = Comment::factory()->create(['plugin_id' => $plugin->id]);
+        $b = Comment::factory()->replyTo($a)->create();
+
+        // Close the loop: the root now claims the reply as its parent.
+        Comment::withoutGlobalScopes()->whereKey($a->id)->update(['parent_comment_id' => $b->id]);
+
+        $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload([
+            'parent_comment_id' => $b->id,
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['parent_comment_id']);
+
+        $this->assertDatabaseCount('comments', 2);
+    }
+
+    // -----------------------------------------------------------------------
     // Input validation
     // -----------------------------------------------------------------------
 

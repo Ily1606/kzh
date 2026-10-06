@@ -92,6 +92,44 @@ class CommentRepository extends BaseRepository implements CommentRepositoryInter
     }
 
     /**
+     * Walk `parent_comment_id` upward, counting levels until the root is
+     * reached or `$stopAt` is hit.
+     *
+     * Each step is one indexed lookup on `parent_comment_id`, and the loop is
+     * bounded by `$stopAt` rather than by "until no parent is found" — that
+     * bound is what makes it safe against a cycle in the data (a comment
+     * eventually pointing back at one of its own ancestors), which the
+     * unbounded form would spin on forever.
+     */
+    public function depthOf(string $id, int $stopAt): int
+    {
+        $depth = 1;
+        $currentId = $id;
+
+        while ($depth < $stopAt) {
+            // find the comment has ID = $currentId and return its parent_comment_id
+            /*
+                SELECT parent_comment_id
+                FROM comments
+                WHERE id = $currentId
+                LIMIT 1;
+            */
+            $parentId = $this->model->newQuery()
+                ->whereKey($currentId)
+                ->value('parent_comment_id');
+
+            if ($parentId === null) {
+                break;
+            }
+
+            $depth++;
+            $currentId = $parentId;
+        }
+
+        return $depth;
+    }
+
+    /**
      * @return Builder<Comment>
      */
     private function baseQuery(): Builder
