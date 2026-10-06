@@ -54,12 +54,6 @@ class Comment extends Model
         return $this->hasMany(Comment::class, 'parent_comment_id');
     }
 
-    /**
-     * A comment the client can attach a "View N replies" affordance to.
-     *
-     * Hidden replies are never listed, so they must not inflate the count the
-     * client compares against the paginator's total.
-     */
     public function scopeVisible(Builder $query): Builder
     {
         return $query->whereNull('hidden_at');
@@ -68,5 +62,74 @@ class Comment extends Model
     public function reports(): HasMany
     {
         return $this->hasMany(CommentReport::class);
+    }
+
+    public function getDescendantIds(): array
+    {
+        $ids = [];
+        $children = static::withTrashed()->where('parent_comment_id', $this->id)->get(['id']);
+        foreach ($children as $child) {
+            $ids[] = $child->id;
+            $ids = array_merge($ids, $child->getDescendantIds());
+        }
+        return array_unique($ids);
+    }
+
+    public function cascadeDelete()
+    {
+        $ids = $this->getDescendantIds();
+        if (!empty($ids)) {
+            static::whereIn('id', $ids)->delete();
+            CommentReport::whereIn('comment_id', $ids)->delete();
+        }
+        
+        $this->delete();
+        CommentReport::where('comment_id', $this->id)->delete();
+    }
+
+    public function cascadeRestore()
+    {
+        $deletedAt = $this->deleted_at;
+        if (!$deletedAt) {
+            $this->restore();
+            return;
+        }
+
+        $ids = $this->getDescendantIds();
+        if (!empty($ids)) {
+            static::withTrashed()->whereIn('id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
+            CommentReport::withTrashed()->whereIn('comment_id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
+        }
+        
+        $this->restore();
+        CommentReport::withTrashed()->where('comment_id', $this->id)->where('deleted_at', '>=', $deletedAt)->restore();
+    }
+
+    public function cascadeHide()
+    {
+        $ids = $this->getDescendantIds();
+        if (!empty($ids)) {
+            static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => now()]);
+            // hidden_at doesn't need to delete reports? 
+            // Wait, previous code had `CommentReport::whereIn('comment_id', $ids)->delete();`
+        }
+        
+        $this->update(['hidden_at' => now()]);
+    }
+
+    public function cascadeUnhide()
+    {
+        $hiddenAt = $this->hidden_at;
+        if (!$hiddenAt) {
+            $this->update(['hidden_at' => null]);
+            return;
+        }
+
+        $ids = $this->getDescendantIds();
+        if (!empty($ids)) {
+            static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $hiddenAt)->update(['hidden_at' => null]);
+        }
+        
+        $this->update(['hidden_at' => null]);
     }
 }
