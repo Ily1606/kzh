@@ -61,7 +61,10 @@ async function onSubmit() {
         <p v-if="emailError" class="text-xs text-destructive">{{ emailError }}</p>
       </div>
       <div class="space-y-1.5">
-        <Label for="password">Password</Label>
+        <div class="flex items-center justify-between">
+          <Label for="password">Password</Label>
+          <RouterLink to="/forgot-password" class="text-sm font-medium text-primary hover:underline">Forgot password?</RouterLink>
+        </div>
         <Input id="password" v-model="password" type="password" autocomplete="current-password" :aria-invalid="Boolean(passwordError)" />
         <p v-if="passwordError" class="text-xs text-destructive">{{ passwordError }}</p>
       </div>
