@@ -19,9 +19,8 @@ class PasswordResetController extends Controller
      * Send a password reset link.
      *
      * The request is rate limited per IP, together with the rest of the auth
-     * endpoint group, because this is an unauthenticated endpoint that triggers
-     * an outbound email. Declared for the same reason as in AuthController: the
-     * `throttle:auth` middleware is invisible to Scramble.
+     *
+     * @unauthenticated
      */
     #[Response(status: 429, description: 'Too many attempts. Retry after the rate limit window resets.')]
     public function sendResetLinkEmail(SendResetLinkRequest $request): JsonResponse
@@ -35,6 +34,8 @@ class PasswordResetController extends Controller
      * Complete a password reset.
      *
      * Rate limited per IP together with the rest of the auth endpoint group.
+     *
+     * @unauthenticate
      */
     #[Response(status: 429, description: 'Too many attempts. Retry after the rate limit window resets.')]
     public function resetPassword(ResetPasswordRequest $request): JsonResponse

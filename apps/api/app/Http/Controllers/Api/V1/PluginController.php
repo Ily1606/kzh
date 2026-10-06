@@ -21,6 +21,11 @@ class PluginController extends Controller
         private readonly PluginService $pluginService,
     ) {}
 
+    /**
+     * Get plugin list.
+     *
+     * @unauthenticated
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
         $defaultPerPage = config('plugins.pagination.default_per_page');
@@ -39,20 +44,6 @@ class PluginController extends Controller
 
     /**
      * Submit a new plugin for review.
-     *
-     * The plugin is created in the `pending` status and is only visible to other
-     * users once an administrator approves it. The request is rate limited per
-     * authenticated user.
-     *
-     * Responses:
-     * - 201: the plugin was created and is pending review.
-     * - 401: the request is not authenticated.
-     * - 422: validation failed, or the plugin name is already taken.
-     *
-     * The 201 and 422 responses are inferred by Scramble from the return value and
-     * the validation rules on SubmitPluginRequest, so they are not declared
-     * explicitly. The 429 response has to be declared because it comes from the
-     * `throttle:submit-plugin` middleware, which Scramble does not track.
      */
     #[Response(status: 429, description: 'Too many submissions. Retry after the rate limit window resets.')]
     public function store(SubmitPluginRequest $request): JsonResponse
@@ -72,27 +63,9 @@ class PluginController extends Controller
 
     /**
      * Update a plugin you own.
-     *
-     * Editing does not affect review state: an approved plugin stays approved
-     * with its original `approved_at`.
-     *
-     * A successful edit announces itself with `PluginUpdated`, which the audit
-     * listener writes to the plugin channel. The entry records which fields
-     * moved and from what to what, not just that a write happened.
-     *
-     * Responses:
-     * - 200: the updated plugin in `data.plugin`.
-     * - 401: the request is not authenticated.
-     * - 403: the plugin belongs to another user.
-     * - 404: the plugin does not exist or is soft-deleted.
-     * - 422: validation failed, no editable field was sent, or the name is taken.
-     *
-     * The 200 and 422 responses are inferred by Scramble from the return value
-     * and the validation rules on UpdatePluginRequest, so they are not declared
-     * explicitly. No 429 is declared because this route rides the shared
-     * `throttle:api` limiter rather than one of its own, exactly like
-     * `PATCH /user`.
      */
+    #[Response(status: 404, description: 'The plugin does not exist or is soft-deleted.')]
+    #[Response(status: 429, description: 'Too many submissions. Retry after the rate limit window resets.')]
     public function update(UpdatePluginRequest $request, string $pluginId): JsonResponse
     {
         $plugin = $this->pluginService->update(
@@ -108,6 +81,13 @@ class PluginController extends Controller
         );
     }
 
+    /**
+     * Track view
+     *
+     * Include request header `Authorization: Bearer <token>` if user logged in (optional).
+     *
+     * @unauthenticated
+     */
     public function trackView(Request $request, string $id): JsonResponse
     {
         $result = $this->pluginService->incrementViewIfNotViewed($id, $request);
@@ -115,6 +95,11 @@ class PluginController extends Controller
         return ApiResponse::successResponse($result, $result['message']);
     }
 
+    /**
+     * Trending
+     *
+     * @unauthenticated
+     */
     public function trending(Request $request): JsonResponse
     {
         $defaultLimit = config('plugins.trending_api.default_limit');
