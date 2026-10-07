@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import PluginComments from '@/components/PluginComments.vue'
+import { formatDate } from '@/utils/date'
 
 const route = useRoute()
 const pluginId = route.params.id as string
@@ -21,6 +22,9 @@ const isStarred = ref(false)
 const readmeHtml = ref('')
 const isReadmeLoading = ref(false)
 const readmeError = ref('')
+const isReadmeExpanded = ref(false)
+const isReadmeLong = ref(false)
+const readmeContainer = ref<HTMLElement | null>(null)
 
 function toRawGithubUrls(url: string): string[] {
   if (!url) return []
@@ -80,6 +84,12 @@ async function fetchReadme(sourceUrl: string) {
     readmeError.value = 'No README available for this plugin.'
   }
   isReadmeLoading.value = false
+
+  await nextTick()
+  if (readmeContainer.value && readmeContainer.value.scrollHeight > 1200) {
+    isReadmeLong.value = true
+  }
+
   scrollToHash()
 }
 
@@ -171,13 +181,12 @@ onMounted(() => {
 
           <p class="text-lg text-muted-foreground">{{ plugin.title }}</p>
 
-          <!-- Thông tin chung: Tác giả, License, Ngày cập nhật, Views và Stars -->
           <div class="flex flex-wrap items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">
             <span>By <span class="font-medium text-foreground">{{ plugin.user_id?.substring(0, 8) || 'community' }}</span></span>
             <span>&bull;</span>
             <span>License: <span class="font-medium text-foreground">{{ plugin.license }}</span></span>
             <span>&bull;</span>
-            <span>Updated: <span class="font-medium text-foreground">{{ plugin.updated_at ? plugin.updated_at.split('T')[0] : 'Unknown' }}</span></span>
+            <span>Updated: <span class="font-medium text-foreground">{{ formatDate(plugin.approved_at) }}</span></span>
             <span>&bull;</span>
             <span class="inline-flex items-center gap-1.5 text-foreground/80">
               <Eye class="size-4 text-muted-foreground" />
@@ -192,7 +201,6 @@ onMounted(() => {
         </div>
 
         <div class="flex flex-col gap-3 min-w-65">
-          <!-- Install Command -->
           <div class="bg-muted/50 rounded-lg p-3 border border-border/50 font-mono text-sm flex items-center justify-between">
             <span class="flex items-center gap-2 truncate">
               <Terminal class="size-4 shrink-0 text-muted-foreground" />
@@ -203,9 +211,7 @@ onMounted(() => {
             </button>
           </div>
 
-          <!-- Nút Star & View Source -->
           <div class="flex items-center gap-2">
-            <!-- Nút Star để sau này gắn API -->
             <Button
               variant="outline"
               class="flex-1 gap-2 transition-all cursor-pointer font-medium"
@@ -240,7 +246,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Content: About this plugin / README -->
       <section class="space-y-4">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-semibold">About this plugin</h2>
@@ -249,20 +254,46 @@ onMounted(() => {
           </span>
         </div>
 
-        <!-- Trạng thái đang tải README -->
         <div v-if="isReadmeLoading" class="p-12 rounded-xl border border-border/50 bg-muted/20 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
           <div class="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
           <span class="text-sm">Loading README from repository...</span>
         </div>
 
-        <!-- Hiển thị nội dung README Markdown đã parse an toàn -->
-        <div
-          v-else-if="readmeHtml"
-          class="p-6 md:p-8 rounded-xl border border-border/60 bg-card shadow-sm prose dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-pre:bg-muted prose-pre:border prose-pre:text-foreground prose-img:rounded-lg overflow-x-auto"
-          v-html="readmeHtml"
-        ></div>
+        <div v-else-if="readmeHtml" class="relative group">
+          <div
+            ref="readmeContainer"
+            class="p-6 md:p-8 rounded-xl border border-border/60 bg-card shadow-sm prose dark:prose-invert max-w-none prose-headings:font-semibold prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80 prose-pre:bg-muted prose-pre:border prose-pre:text-foreground prose-img:rounded-lg transition-all duration-300 relative"
+            :style="isReadmeLong && !isReadmeExpanded ? { maxHeight: '1200px', overflow: 'hidden' } : { overflowX: 'auto' }"
+            v-html="readmeHtml"
+          ></div>
 
-        <!-- Trạng thái không có README hoặc không tải được -->
+          <div
+            v-if="isReadmeLong && !isReadmeExpanded"
+            class="absolute bottom-0 inset-x-0 h-40 bg-linear-to-t from-background via-background/80 to-transparent flex items-end justify-center pb-6 rounded-b-xl"
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              @click="isReadmeExpanded = true"
+              class="rounded-full bg-background/95 backdrop-blur-sm shadow-md border-border/80 hover:bg-muted font-medium px-6"
+            >
+              Read full documentation
+            </Button>
+          </div>
+
+          <!-- Collapse button -->
+          <div v-else-if="isReadmeLong && isReadmeExpanded" class="flex justify-center mt-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              @click="() => { isReadmeExpanded = false; scrollToHash() }"
+              class="text-muted-foreground hover:text-foreground"
+            >
+              Show less
+            </Button>
+          </div>
+        </div>
+
         <div v-else class="p-8 bg-muted/30 rounded-xl border border-border/50 min-h-40 flex flex-col items-center justify-center text-muted-foreground space-y-2">
           <FileText class="size-8 stroke-[1.5] text-muted-foreground/60" />
           <p class="text-sm">{{ readmeError || 'No README available for this plugin.' }}</p>

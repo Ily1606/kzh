@@ -5,6 +5,7 @@ import { ArrowUpRight, Boxes, Check, Download, Search, ShieldCheck } from "lucid
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { PluginResource } from "@/api/generated/model";
+import { formatDate } from '@/utils/date'
 
 defineProps<{
   plugin?: PluginResource;
@@ -98,7 +99,7 @@ function goToDetail(id: string | undefined) {
     </div>
 
     <div class="mt-2.5 text-xs text-muted-foreground">
-      License: {{ plugin.license }} · Checked: {{ plugin.updated_at ? plugin.updated_at.split('T')[0] : '2026-08-14' }}
+      License: {{ plugin.license }} · Checked: {{ formatDate(plugin.approved_at) }}
     </div>
 
     <div class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3 z-10">
