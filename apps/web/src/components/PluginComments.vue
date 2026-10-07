@@ -4,8 +4,9 @@ import { getComment } from '@/api/generated/endpoints'
 import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/composables/useAuth'
-import { MessageSquare } from 'lucide-vue-next'
+import { MessageSquare, Loader2, ChevronDown } from 'lucide-vue-next'
 import CommentItem from '@/components/CommentItem.vue'
+import { commentConfig } from '@/config/comments'
 
 const props = defineProps<{
   pluginId: string
@@ -28,6 +29,13 @@ const isLoading = ref(true)
 const isSubmitting = ref(false)
 const newComment = ref('')
 const error = ref('')
+const commentTextarea = ref<HTMLTextAreaElement | null>(null)
+
+function autoResize(e: Event) {
+  const el = e.target as HTMLTextAreaElement
+  el.style.height = 'auto'
+  el.style.height = el.scrollHeight + 'px'
+}
 
 const displayCommentCount = computed(() => {
   if (typeof props.totalCommentCount === 'number') {
@@ -36,17 +44,45 @@ const displayCommentCount = computed(() => {
   return comments.value.length
 })
 
-async function fetchComments() {
-  isLoading.value = true
+const currentPage = ref(1)
+const lastPage = ref(1)
+const isFetchingMore = ref(false)
+
+async function fetchComments(page = 1, append = false) {
+  if (!append) {
+    isLoading.value = true
+  } else {
+    isFetchingMore.value = true
+  }
   error.value = ''
+  
   try {
-    const res = await commentIndex(props.pluginId)
-    const body = res.data as any
-    comments.value = body?.data?.comments || body?.comments || (Array.isArray(body?.data) ? body.data : [])
+    const res = await commentIndex(props.pluginId, { 
+      page,
+      per_page: commentConfig.perPage 
+    } as any)
+    const body = res as any
+    const newComments = body?.data?.comments || body?.comments || (Array.isArray(body?.data) ? body.data : [])
+    
+    if (append) {
+      comments.value = [...comments.value, ...newComments]
+    } else {
+      comments.value = newComments
+    }
+    
+    currentPage.value = body?.meta?.current_page || page
+    lastPage.value = body?.meta?.last_page || 1
   } catch (err) {
     error.value = 'Failed to load comments.'
   } finally {
     isLoading.value = false
+    isFetchingMore.value = false
+  }
+}
+
+function loadMore() {
+  if (currentPage.value < lastPage.value) {
+    fetchComments(currentPage.value + 1, true)
   }
 }
 
@@ -56,16 +92,19 @@ async function submitComment() {
   isSubmitting.value = true
   try {
     const res = await commentStore(props.pluginId, { content: newComment.value })
-    const body = res.data as any
+    const body = res as any
     const createdComment = body?.data?.comment || body?.comment
     
     newComment.value = ''
+    if (commentTextarea.value) {
+      commentTextarea.value.style.height = 'auto'
+    }
     emit('commentAdded')
     
     if (createdComment) {
       comments.value.unshift(createdComment)
     } else {
-      await fetchComments()
+      await fetchComments(1, false)
     }
   } catch (err: any) {
     alert(err?.response?.data?.message || 'Error posting comment')
@@ -75,7 +114,7 @@ async function submitComment() {
 }
 
 onMounted(() => {
-  fetchComments()
+  fetchComments(1, false)
 })
 </script>
 
@@ -98,13 +137,19 @@ onMounted(() => {
     <div v-if="auth.isAuthenticated" class="mb-8">
       <form @submit.prevent="submitComment" class="space-y-3">
         <textarea
+          ref="commentTextarea"
           v-model="newComment"
           rows="3"
+          :maxlength="commentConfig.maxLength"
           placeholder="Leave a comment..."
-          class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-hidden"
+          @input="autoResize"
           required
         ></textarea>
-        <div class="flex justify-end">
+        <div class="flex items-center justify-between mt-2">
+          <span class="text-xs text-muted-foreground">
+            {{ newComment.length }} / {{ commentConfig.maxLength }}
+          </span>
           <Button type="submit" :disabled="isSubmitting || !newComment.trim()">
             {{ isSubmitting ? 'Posting...' : 'Post Comment' }}
           </Button>
@@ -134,6 +179,25 @@ onMounted(() => {
         :plugin-id="pluginId"
         :depth="1"
       />
+      
+      <!-- Nút tải thêm bình luận gốc -->
+      <!-- Nút tải thêm bình luận gốc -->
+      <div v-if="currentPage < lastPage" class="relative flex items-center justify-center pt-8 pb-4">
+        <div class="absolute inset-x-0 top-1/2 flex items-center pt-4" aria-hidden="true">
+          <div class="w-full border-t border-border/50"></div>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          @click="loadMore" 
+          :disabled="isFetchingMore"
+          class="relative bg-background rounded-full px-6 shadow-sm border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-200"
+        >
+          <Loader2 v-if="isFetchingMore" class="mr-2 size-4 animate-spin" />
+          <ChevronDown v-else class="mr-2 size-4" />
+          {{ isFetchingMore ? 'Loading older comments...' : 'Show more comments' }}
+        </Button>
+      </div>
     </div>
   </div>
 </template>
