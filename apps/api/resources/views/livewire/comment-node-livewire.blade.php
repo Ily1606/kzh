@@ -51,7 +51,15 @@
                     @endif
                     
                     @if($isTarget)
-                        <button wire:click="mountAction('dismissReport', { comment_id: '{{ $comment->id }}' })" style="font-size: 11px; font-weight: 500; color: #16a34a; background: transparent; border: 1px solid #86efac; border-radius: 4px; padding: 2px 8px; cursor: pointer; transition: all 0.2s;">Dismiss Reports</button>
+                        @php
+                            $targetReport = \App\Models\CommentReport::withTrashed()->find($this->reportId);
+                            $isDismissed = $targetReport ? $targetReport->trashed() : false;
+                        @endphp
+                        @if($isDismissed)
+                            <button wire:click="mountAction('restoreReport', { comment_id: '{{ $comment->id }}' })" style="font-size: 11px; font-weight: 500; color: #4b5563; background: transparent; border: 1px solid #9ca3af; border-radius: 4px; padding: 2px 8px; cursor: pointer; transition: all 0.2s;">Restore Report</button>
+                        @else
+                            <button wire:click="mountAction('dismissReport', { comment_id: '{{ $comment->id }}' })" style="font-size: 11px; font-weight: 500; color: #16a34a; background: transparent; border: 1px solid #86efac; border-radius: 4px; padding: 2px 8px; cursor: pointer; transition: all 0.2s;">Dismiss Reports</button>
+                        @endif
                     @endif
                 </div>
             </div>

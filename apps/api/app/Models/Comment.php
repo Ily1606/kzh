@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable([
     'plugin_id',
@@ -78,31 +79,54 @@ class Comment extends Model
     public function cascadeDelete()
     {
         $ids = $this->getDescendantIds();
+        $deletedCount = 0;
+
         if (!empty($ids)) {
-            static::whereIn('id', $ids)->delete();
+            $deletedCount += static::whereIn('id', $ids)->delete();
             CommentReport::whereIn('comment_id', $ids)->delete();
         }
 
+        $wasDeleted = $this->trashed();
         $this->delete();
+
+        if (!$wasDeleted) {
+            $deletedCount++;
+        }
+
         CommentReport::where('comment_id', $this->id)->delete();
+
+        if ($deletedCount > 0) {
+            DB::table('plugins')
+                ->where('id', $this->plugin_id)
+                ->decrement('comment_count', $deletedCount);
+        }
     }
 
     public function cascadeRestore()
     {
         $deletedAt = $this->deleted_at;
         if (!$deletedAt) {
-            $this->restore();
             return;
         }
 
         $ids = $this->getDescendantIds();
+        $restoredCount = 0;
+
         if (!empty($ids)) {
-            static::withTrashed()->whereIn('id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
+            $restoredCount += static::withTrashed()->whereIn('id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
             CommentReport::withTrashed()->whereIn('comment_id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
         }
 
         $this->restore();
+        $restoredCount++;
+
         CommentReport::withTrashed()->where('comment_id', $this->id)->where('deleted_at', '>=', $deletedAt)->restore();
+
+        if ($restoredCount > 0) {
+            DB::table('plugins')
+                ->where('id', $this->plugin_id)
+                ->increment('comment_count', $restoredCount);
+        }
     }
 
     public function cascadeHide()
