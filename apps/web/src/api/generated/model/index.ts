@@ -34,6 +34,7 @@ export * from './pluginIndex200Links';
 export * from './pluginIndex200Meta';
 export * from './pluginIndex200MetaLinksItem';
 export * from './pluginResource';
+export * from './pluginResourceAuthor';
 export * from './pluginShow200';
 export * from './pluginShow200Data';
 export * from './pluginStore201';

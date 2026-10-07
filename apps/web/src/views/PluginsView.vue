@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
 import { getPlugin } from '@/api/generated/endpoints'
 import type { PluginResource } from '@/api/generated/model'
 import PluginCard from '@/components/PluginCard.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, LoaderCircle, PackageOpen, ArrowLeft } from 'lucide-vue-next'
+import { Search, LoaderCircle, PackageOpen } from 'lucide-vue-next'
 
 const { pluginIndex } = getPlugin()
 
@@ -49,21 +48,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="py-10 space-y-8">
-    <!-- Breadcrumb / Back button -->
-    <div class="flex items-center gap-2 text-sm text-muted-foreground">
-      <RouterLink to="/" class="inline-flex items-center gap-1 hover:text-foreground transition-colors">
-        <ArrowLeft class="size-4" /> Back to Home
-      </RouterLink>
-    </div>
+  <div class="py-8 space-y-8">
 
     <!-- Header & Search -->
     <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b">
       <div>
-        <div class="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs mb-3">
-          <PackageOpen class="size-3.5 text-primary" /> Plugin Registry Catalogue
+        <div class="inline-flex items-center gap-2 py-1 text-xs font-medium mb-3">
+          <PackageOpen class="size-7 text-primary " />
+          <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Plugins</h1>
         </div>
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">All Plugins</h1>
         <p class="mt-2 text-muted-foreground max-w-xl">
           Browse and discover all packages published by the community for DeepSeek Harness.
         </p>

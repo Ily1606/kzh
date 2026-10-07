@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ArrowUpRight, Boxes, Check, Download, Search, ShieldCheck } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import Author from "@/components/Author.vue";
 import type { PluginResource } from "@/api/generated/model";
-import { formatDate } from '@/utils/date'
+import { formatRelativeDate } from '@/utils/date';
 
-defineProps<{
+const props = defineProps<{
   plugin?: PluginResource;
   fallback?: {
     id: string;
@@ -20,6 +21,9 @@ defineProps<{
   };
   rank?: number;
 }>();
+
+const authorName = computed(() => props.plugin?.author?.name ?? "community");
+const authorAvatar = computed(() => props.plugin?.author?.avatar_url ?? null);
 
 const router = useRouter();
 const copied = ref(false);
@@ -48,7 +52,7 @@ function goToDetail(id: string | undefined) {
   <Card
     v-if="plugin"
     @click="goToDetail(plugin.id)"
-    class="relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start cursor-pointer"
+    class="@container relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start cursor-pointer"
     :class="{
       'border-amber-400/50 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10': rank === 1,
       'border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:shadow-xl hover:shadow-slate-400/10': rank === 2,
@@ -81,12 +85,18 @@ function goToDetail(id: string | undefined) {
     </div>
 
     <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-      <span class="rounded-full bg-emerald-100/80 text-emerald-700 px-2 py-0.5 text-xs font-medium border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900">Manifest checked</span>
-      <span class="rounded-full bg-blue-50 text-blue-700 px-2 py-0.5 text-xs font-medium border border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-900">UI & workspace</span>
+      <span class="flex items-center gap-x-1 rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs font-medium border border-primary/20">
+        <ShieldCheck class="size-3" />
+        Manifest checked
+      </span>
+      <span class="rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium border border-border">UI & workspace</span>
     </div>
 
     <h3 class="text-base sm:text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors" :title="plugin.name">{{ plugin.name }}</h3>
-    <p class="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">DSH plugin · Publisher: {{ plugin.user_id?.substring(0, 8) || 'community' }}</p>
+    <p class="flex items-center gap-1 min-w-0 mt-1 text-xs sm:text-sm text-muted-foreground">
+      <span class="shrink-0">Publisher:</span>
+      <Author :name="authorName" :src="authorAvatar" />
+    </p>
 
     <p class="mt-2 text-xs sm:text-sm leading-relaxed text-foreground min-h-11 line-clamp-2">
       {{ plugin.title }}
@@ -99,10 +109,10 @@ function goToDetail(id: string | undefined) {
     </div>
 
     <div class="mt-2.5 text-xs text-muted-foreground">
-      License: {{ plugin.license }} · Checked: {{ formatDate(plugin.approved_at) }}
+      License: {{ plugin.license }} · Checked: {{ formatRelativeDate(plugin.approved_at) }}
     </div>
 
-    <div class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3 z-10">
+    <div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3 z-10">
       <a
         :href="plugin.source_link"
         target="_blank"
@@ -114,10 +124,10 @@ function goToDetail(id: string | undefined) {
       </a>
       <Button
         size="sm"
-        class="rounded-full text-xs font-semibold px-3 h-8 shadow-sm cursor-pointer inline-flex items-center gap-1"
+        class="rounded-lg text-xs font-semibold px-3 h-8 shadow-sm cursor-pointer inline-flex items-center gap-1"
         @click.stop="copyPluginCommand(plugin.name, $event)"
       >
-        <Check v-if="copied" class="size-3.5 text-emerald-400" />
+        <Check v-if="copied" class="size-3.5" />
         <span>{{ copied ? 'Copied' : 'Copy install' }}</span>
       </Button>
     </div>

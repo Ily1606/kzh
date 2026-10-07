@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +33,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
 
     public function findApprovedById(string $id): Plugin
     {
-        return $this->model->newQuery()
+        return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->findOrFail($id);
     }
@@ -54,7 +55,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
 
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
     {
-        return $this->model->newQuery()
+        return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             ->orderByDesc('approved_at')
@@ -63,7 +64,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
 
     public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
     {
-        return $this->model->newQuery()
+        return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             ->where('approved_at', '>=', now()->subDays($daysLimit))
@@ -82,6 +83,16 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->get();
     }
 
+    /**
+     * Shared skeleton for every query that feeds `PluginResource`.
+     *
+     * @return Builder<Plugin>
+     */
+    private function baseQuery(): Builder
+    {
+        return $this->newQuery()->with('user.profile');
+    }
+
     private function getAgeInSecondsSql(): string
     {
         return match ($this->model->getConnection()->getDriverName()) {
@@ -93,7 +104,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
 
     public function getTopAllTimePlugins(int $limit): Collection
     {
-        return $this->model->newQuery()
+        return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             ->orderByDesc('view_count')

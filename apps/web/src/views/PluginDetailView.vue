@@ -3,12 +3,12 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPlugin } from '@/api/generated/endpoints'
 import type { PluginResource } from '@/api/generated/model'
-import { ArrowUpRight, Copy, Terminal, ShieldCheck, Eye, Star, FileText } from 'lucide-vue-next'
+import { ArrowUpRight, Check, Copy, Terminal, ShieldCheck, Eye, Star, FileText, BookOpen, Scale, Calendar } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import PluginComments from '@/components/PluginComments.vue'
-import { formatDate } from '@/utils/date'
+import { formatRelativeDate } from '@/utils/date'
 
 const route = useRoute()
 const pluginId = route.params.id as string
@@ -18,6 +18,7 @@ const plugin = ref<PluginResource | null>(null)
 const isLoading = ref(true)
 const error = ref('')
 const isStarred = ref(false)
+const copied = ref(false)
 
 const readmeHtml = ref('')
 const isReadmeLoading = ref(false)
@@ -126,6 +127,10 @@ async function copyInstallCommand() {
   if (plugin.value) {
     try {
       await navigator.clipboard.writeText(`npx dsh add ${plugin.value.name}`)
+      copied.value = true
+      setTimeout(() => {
+        copied.value = false
+      }, 2000)
     } catch {
       // ignore
     }
@@ -181,21 +186,27 @@ onMounted(() => {
 
           <p class="text-lg text-muted-foreground">{{ plugin.title }}</p>
 
-          <div class="flex flex-wrap items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">
-            <span>By <span class="font-medium text-foreground">{{ plugin.user_id?.substring(0, 8) || 'community' }}</span></span>
-            <span>&bull;</span>
-            <span>License: <span class="font-medium text-foreground">{{ plugin.license }}</span></span>
-            <span>&bull;</span>
-            <span>Updated: <span class="font-medium text-foreground">{{ formatDate(plugin.approved_at) }}</span></span>
-            <span>&bull;</span>
-            <span class="inline-flex items-center gap-1.5 text-foreground/80">
-              <Eye class="size-4 text-muted-foreground" />
-              <span class="font-medium text-foreground">{{ plugin.view_count || 0 }}</span> views
+          <!-- Thông tin chung: Tác giả, License, Ngày cập nhật, Views và Stars -->
+          <div class="@container grid grid-col-1 items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">
+            <span class="flex items-center gap-x-2">
+              <BookOpen class="size-5 text-muted-foreground" />
+              <span>By: <span class="font-medium text-foreground">{{ plugin.author?.name }}</span></span>
             </span>
-            <span>&bull;</span>
-            <span class="inline-flex items-center gap-1.5 text-foreground/80">
-              <Star class="size-4 text-amber-500 fill-amber-500" />
-              <span class="font-medium text-foreground">{{ plugin.star_count || 0 }}</span> stars
+            <span class="flex items-center gap-x-2">
+              <Scale class="size-5" />
+              <span>{{ plugin.license }} license</span>
+            </span>
+            <span class="flex items-center gap-x-2">
+              <Calendar class="size-5 text-muted-foreground" />
+              <span>{{ formatRelativeDate(plugin.updated_at) }}</span>
+          </span>
+            <span class="flex items-center gap-x-2">
+              <Eye class="size-4 text-muted-foreground" />
+              <span>{{ plugin.view_count || 0 }}</span> views
+            </span>
+            <span class="flex items-center gap-x-2">
+              <Star class="size-4 text-muted-ground" />
+              <span>{{ plugin.star_count || 0 }}</span> stars
             </span>
           </div>
         </div>
@@ -206,8 +217,14 @@ onMounted(() => {
               <Terminal class="size-4 shrink-0 text-muted-foreground" />
               npx dsh add {{ plugin.name.split('/').pop() }}
             </span>
-            <button @click="copyInstallCommand" class="text-muted-foreground hover:text-foreground transition-colors p-1" title="Copy command">
-              <Copy class="size-4" />
+            <button
+              @click="copyInstallCommand"
+              class="inline-flex items-center gap-1.5 rounded-md p-1 transition-colors"
+              :class="copied ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
+              :title="copied ? 'Copied' : 'Copy command'"
+            >
+              <Check v-if="copied" class="size-4" />
+              <Copy v-else class="size-4" />
             </button>
           </div>
 
