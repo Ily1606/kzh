@@ -93,7 +93,7 @@ async function submitReply() {
     const createdComment = body?.data?.comment || body?.comment
 
     if (createdComment) {
-      replies.value.push(createdComment)
+      replies.value.unshift(createdComment)
     } else {
       const repliesRes = await commentReplies(props.pluginId, props.comment.id)
       const rBody = repliesRes.data as any

@@ -55,10 +55,18 @@ async function submitComment() {
 
   isSubmitting.value = true
   try {
-    await commentStore(props.pluginId, { content: newComment.value })
+    const res = await commentStore(props.pluginId, { content: newComment.value })
+    const body = res.data as any
+    const createdComment = body?.data?.comment || body?.comment
+    
     newComment.value = ''
     emit('commentAdded')
-    await fetchComments()
+    
+    if (createdComment) {
+      comments.value.unshift(createdComment)
+    } else {
+      await fetchComments()
+    }
   } catch (err: any) {
     alert(err?.response?.data?.message || 'Error posting comment')
   } finally {
