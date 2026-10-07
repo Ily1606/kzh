@@ -169,7 +169,7 @@ const CONNECTOR_WIDTH = '30px'
            Width = gap(12px) + half-avatar(18px) = 30px so the line meets the parent vertical line. -->
       <div
         v-if="depth > 1"
-        class="absolute top-[17px] h-px bg-border"
+        class="absolute top-4.25 h-px bg-border"
         :style="{ right: '100%', width: CONNECTOR_WIDTH }"
       ></div>
 

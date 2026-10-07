@@ -3,12 +3,12 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPlugin } from '@/api/generated/endpoints'
 import type { PluginResource } from '@/api/generated/model'
-import { ArrowUpRight, Check, Copy, Terminal, ShieldCheck, Eye, Star, FileText, BookOpen, Scale, Calendar } from 'lucide-vue-next'
+import { ArrowUpRight, Check, Copy, Terminal, Eye, Star, FileText, BookOpen, Scale, Calendar } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import PluginComments from '@/components/PluginComments.vue'
 import { formatRelativeDate } from '@/utils/date'
+import PluginComments from '@/components/pages/comment/PluginComments.vue'
 
 const route = useRoute()
 const pluginId = route.params.id as string
@@ -178,10 +178,6 @@ onMounted(() => {
         <div class="space-y-3">
           <div class="flex items-center gap-3">
             <h1 class="text-3xl font-bold tracking-tight">{{ plugin.name }}</h1>
-            <span class="rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-2.5 py-1 text-xs font-semibold inline-flex items-center gap-1 border border-emerald-200 dark:border-emerald-800">
-              <ShieldCheck class="size-3" />
-              Verified
-            </span>
           </div>
 
           <p class="text-lg text-muted-foreground">{{ plugin.title }}</p>

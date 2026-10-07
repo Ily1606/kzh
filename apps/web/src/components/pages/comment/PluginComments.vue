@@ -5,7 +5,7 @@ import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/composables/useAuth'
 import { MessageSquare, Loader2, ChevronDown } from 'lucide-vue-next'
-import CommentItem from '@/components/CommentItem.vue'
+import CommentItem from '@/components/pages/comment/CommentItem.vue'
 import { commentConfig } from '@/config/comments'
 
 const props = defineProps<{
@@ -55,21 +55,21 @@ async function fetchComments(page = 1, append = false) {
     isFetchingMore.value = true
   }
   error.value = ''
-  
+
   try {
-    const res = await commentIndex(props.pluginId, { 
+    const res = await commentIndex(props.pluginId, {
       page,
-      per_page: commentConfig.perPage 
+      per_page: commentConfig.perPage
     } as any)
     const body = res as any
     const newComments = body?.data?.comments || body?.comments || (Array.isArray(body?.data) ? body.data : [])
-    
+
     if (append) {
       comments.value = [...comments.value, ...newComments]
     } else {
       comments.value = newComments
     }
-    
+
     currentPage.value = body?.meta?.current_page || page
     lastPage.value = body?.meta?.last_page || 1
   } catch (err) {
@@ -94,13 +94,13 @@ async function submitComment() {
     const res = await commentStore(props.pluginId, { content: newComment.value })
     const body = res as any
     const createdComment = body?.data?.comment || body?.comment
-    
+
     newComment.value = ''
     if (commentTextarea.value) {
       commentTextarea.value.style.height = 'auto'
     }
     emit('commentAdded')
-    
+
     if (createdComment) {
       comments.value.unshift(createdComment)
     } else {
@@ -179,17 +179,17 @@ onMounted(() => {
         :plugin-id="pluginId"
         :depth="1"
       />
-      
+
       <!-- Nút tải thêm bình luận gốc -->
       <!-- Nút tải thêm bình luận gốc -->
       <div v-if="currentPage < lastPage" class="relative flex items-center justify-center pt-8 pb-4">
         <div class="absolute inset-x-0 top-1/2 flex items-center pt-4" aria-hidden="true">
           <div class="w-full border-t border-border/50"></div>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          @click="loadMore" 
+        <Button
+          variant="outline"
+          size="sm"
+          @click="loadMore"
           :disabled="isFetchingMore"
           class="relative bg-background rounded-full px-6 shadow-sm border-border/60 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-all duration-200"
         >

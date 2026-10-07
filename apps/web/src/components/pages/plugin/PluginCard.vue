@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { ArrowUpRight, Boxes, Check, Download, Search, ShieldCheck } from "lucide-vue-next";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import Author from "@/components/Author.vue";
+import Author from "@/components/common/Author.vue";
 import type { PluginResource } from "@/api/generated/model";
 import { formatRelativeDate } from '@/utils/date';
 

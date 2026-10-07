@@ -2,11 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { getPlugin } from '@/api/generated/endpoints'
 import type { PluginResource } from '@/api/generated/model'
-import PluginCard from '@/components/PluginCard.vue'
+import PluginCard from '@/components/pages/plugin/PluginCard.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, LoaderCircle, PackageOpen } from 'lucide-vue-next'
+import { pluginConfig } from '@/config/plugins'
 
+const NUMBER_PLUGIN_PER_PAGE = pluginConfig.numberPluginPerPage
 const { pluginIndex } = getPlugin()
 
 const allPlugins = ref<PluginResource[]>([])
@@ -14,7 +16,7 @@ const allPluginsMeta = ref<any>(null)
 const currentPage = ref(1)
 const isFetchingPlugins = ref(true)
 const searchQuery = ref('')
-const perPage = ref(9)
+const perPage = ref(NUMBER_PLUGIN_PER_PAGE)
 
 async function fetchAllPlugins(page = 1) {
   isFetchingPlugins.value = true

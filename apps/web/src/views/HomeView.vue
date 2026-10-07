@@ -6,7 +6,7 @@ import { getHealth, getPlugin } from "@/api/generated/endpoints";
 import type { PluginResource } from "@/api/generated/model";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import PluginCard from "@/components/PluginCard.vue";
+import PluginCard from "@/components/pages/plugin/PluginCard.vue";
 
 const health = ref<HealthResponse | null>(null);
 const error = ref<string | null>(null);
