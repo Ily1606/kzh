@@ -99,6 +99,20 @@ class CommentContextTree extends Component implements HasForms, HasActions
             });
     }
 
+    public function restoreReportAction(): Action
+    {
+        return Action::make('restoreReport')
+            ->requiresConfirmation()
+            ->color('gray')
+            ->icon('heroicon-o-arrow-path')
+            ->modalHeading('Restore Reports')
+            ->modalDescription('Are you sure you want to restore the reports for this comment?')
+            ->modalSubmitActionLabel('Yes, restore')
+            ->action(function (array $arguments) {
+                CommentReport::withTrashed()->where('comment_id', $arguments['comment_id'])->restore();
+            });
+    }
+
     public function restoreCommentAction(): Action
     {
         return Action::make('restoreComment')

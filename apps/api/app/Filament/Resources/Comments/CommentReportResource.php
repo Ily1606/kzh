@@ -6,16 +6,15 @@ use App\Filament\Resources\Comments\CommentReportResource\Pages\ListCommentRepor
 use App\Filament\Resources\Comments\CommentReportResource\Pages\ViewCommentReport;
 use App\Models\CommentReport;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\RestoreAction as ActionsRestoreAction;
-use Filament\Actions\ViewAction as ActionsViewAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\ViewEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Actions\RestoreAction;
-use Filament\Tables\Actions\ViewAction;
+
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -81,9 +80,11 @@ class CommentReportResource extends Resource
                 TrashedFilter::make(),
             ])
             ->actions([
-                ActionsViewAction::make(),
-                DeleteAction::make(),
-                ActionsRestoreAction::make(),
+                ViewAction::make(),
+                DeleteAction::make()
+                    ->label('Dismiss')
+                    ->successNotificationTitle('Report dismissed successfully'),
+                RestoreAction::make(),
             ]);
     }
 

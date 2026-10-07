@@ -4,9 +4,9 @@ namespace App\Filament\Resources\Comments\Tables;
 
 use App\Enums\PluginStatus;
 use App\Models\Comment;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\RestoreAction;
+use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
@@ -113,7 +113,7 @@ class CommentsTable
                             fn (Builder $pluginQuery): Builder => $pluginQuery->where('status', $status),
                         );
                     }),
-                    
+
                 SelectFilter::make('trashed')
                     ->label(__('comment.table.filters.trashed'))
                     ->options([
