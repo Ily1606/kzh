@@ -126,6 +126,81 @@ class ListPluginsTest extends TestCase
             ->assertJsonPath('meta.last_page', 3);
     }
 
+    public function test_returns_author_username(): void
+    {
+        $author = User::factory()->create(['name' => 'Ada Lovelace']);
+        $author->profile()->create(['avatar_link' => 'https://example.com/avatar.png']);
+
+        $plugin = Plugin::factory()->create([
+            'user_id' => $author->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/v1/plugins');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.author.id', $author->id)
+            ->assertJsonPath('data.0.author.name', 'Ada Lovelace')
+            ->assertJsonPath('data.0.author.avatar_url', 'https://example.com/avatar.png')
+            ->assertJsonPath('data.0.user_id', $plugin->user_id);
+    }
+
+    public function test_author_avatar_url_is_null_when_profile_missing(): void
+    {
+        $author = User::factory()->create(['name' => 'Grace Hopper']);
+
+        Plugin::factory()->create([
+            'user_id' => $author->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/v1/plugins');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.author.name', 'Grace Hopper')
+            ->assertJsonPath('data.0.author.avatar_url', null);
+    }
+
+    public function test_does_not_expose_author_email(): void
+    {
+        $author = User::factory()->create();
+
+        Plugin::factory()->create([
+            'user_id' => $author->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/v1/plugins');
+
+        $response->assertOk()
+            ->assertJsonMissingPath('data.0.author.email')
+            ->assertJsonMissingPath('data.0.author.password')
+            ->assertJsonMissingPath('data.0.author.is_admin');
+    }
+
+    public function test_does_not_n_plus_one_on_the_user_relation(): void
+    {
+        Plugin::factory()->count(5)->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $queries = 0;
+        DB::listen(function () use (&$queries): void {
+            $queries++;
+        });
+
+        $this->getJson('/api/v1/plugins')->assertOk();
+
+        // The plugins page plus its count query, plus exactly one query per
+        // eager loaded relation (users, user_profiles) — all batched. Without
+        // the eager loads this grows with the page size.
+        $this->assertLessThanOrEqual(4, $queries);
+    }
+
     public function test_response_uses_plugin_resource_format(): void
     {
         Plugin::factory()->create([
@@ -141,6 +216,7 @@ class ListPluginsTest extends TestCase
                         'id',
                         'name',
                         'user_id',
+                        'author' => ['id', 'name', 'avatar_url'],
                         'title',
                         'license',
                         'approved_at',

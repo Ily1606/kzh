@@ -4,10 +4,10 @@ import { useRoute } from 'vue-router'
 import { getComment } from '@/api/generated/endpoints'
 import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
+import { formatRelativeDate } from '@/utils/date'
 import { useAuth } from '@/composables/useAuth'
 import { CornerDownRight, ChevronDown, ChevronUp, Flag, Loader2 } from 'lucide-vue-next'
 import { commentConfig } from '@/config/comments'
-import { formatDateTime } from '@/utils/date'
 
 const props = withDefaults(
   defineProps<{
@@ -211,7 +211,7 @@ const CONNECTOR_WIDTH = '30px'
             <span>replying to <strong class="text-foreground font-semibold">@{{ parentAuthorName }}</strong></span>
           </span>
 
-          <span class="text-xs text-muted-foreground">&bull; {{ formatDateTime(comment.created_at) }}</span>
+          <span class="text-xs text-muted-foreground">&bull; {{ formatRelativeDate(comment.created_at) }}</span>
         </div>
 
         <button

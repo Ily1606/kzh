@@ -129,7 +129,8 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <div class="relative isolate overflow-hidden min-h-[calc(100vh-4rem)] py-12 sm:py-20">
+  <div class="relative isolate overflow-hidden min-h-[calc(100vh-4rem)] py-10">
+
     <!-- Atmospheric Ambient Glows (Inspired by Arctiq dark aesthetic) -->
     <div class="pointer-events-none absolute right-0 bottom-0 -z-10 h-130 w-130 rounded-full bg-emerald-500/15 blur-[120px] dark:bg-emerald-500/20" />
     <div class="pointer-events-none absolute left-0 top-1/4 -z-10 h-95 w-95 rounded-full bg-primary/10 blur-[100px] dark:bg-primary/15" />
@@ -140,7 +141,7 @@ const onSubmit = handleSubmit(async (values) => {
         <!-- Left Column: Heading & Submit Form (7 cols) -->
         <div class="lg:col-span-7 space-y-8">
           <div>
-            <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">
               Publish your plugin
             </h1>
             <p class="mt-3 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
