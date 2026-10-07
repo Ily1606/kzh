@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { getComment } from '@/api/generated/endpoints'
 import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
+import { formatRelativeDate } from '@/utils/date'
 import { useAuth } from '@/composables/useAuth'
 import { CornerDownRight, ChevronDown, ChevronUp } from 'lucide-vue-next'
 
