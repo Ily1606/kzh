@@ -13,11 +13,7 @@ const activeTab = ref<'profile' | 'password'>('profile');
 <template>
   <div class="py-8 sm:py-12">
     <div class="mb-8">
-      <RouterLink to="/" class="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft class="size-4" />
-        Back to home
-      </RouterLink>
-      <h1 class="text-2xl font-semibold tracking-tight">Profile Settings</h1>
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
       <p class="mt-1 text-sm text-muted-foreground">Manage your account information and security.</p>
     </div>
 
