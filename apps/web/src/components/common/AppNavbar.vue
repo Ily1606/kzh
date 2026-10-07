@@ -27,10 +27,12 @@ async function handleLogout() {
       <div class="flex items-center gap-2 sm:gap-3">
         <template v-if="auth.isAuthenticated">
           <div class="hidden items-center gap-2 rounded-full border bg-muted/50 py-1 pl-1 pr-3 text-sm sm:flex">
-            <span class="grid size-7 place-items-center rounded-full bg-primary/10 text-primary"><UserRound class="size-3.5" /></span>
+            <img v-if="auth.user?.avatarLink" :src="auth.user.avatarLink" class="size-7 rounded-full object-cover border border-border" alt="Avatar" />
+            <span v-else class="grid size-7 place-items-center rounded-full bg-primary/10 text-primary"><UserRound class="size-3.5" /></span>
             <span class="text-muted-foreground">Hello, <span class="font-medium text-foreground">{{ auth.user?.name }}</span></span>
           </div>
-          <span class="grid size-8 place-items-center rounded-full bg-primary/10 text-primary sm:hidden"><UserRound class="size-4" /></span>
+          <img v-if="auth.user?.avatarLink" :src="auth.user.avatarLink" class="size-8 rounded-full object-cover border border-border sm:hidden" alt="Avatar" />
+          <span v-else class="grid size-8 place-items-center rounded-full bg-primary/10 text-primary sm:hidden"><UserRound class="size-4" /></span>
           <Button variant="outline" size="sm" @click="handleLogout"><LogOut /> <span class="hidden sm:inline">Logout</span></Button>
         </template>
         <template v-else>
