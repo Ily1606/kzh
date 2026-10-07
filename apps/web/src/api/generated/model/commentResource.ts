@@ -9,7 +9,8 @@ import type { CommentResourceAuthor } from './commentResourceAuthor';
 export interface CommentResource {
   id: string;
   plugin_id: string;
-  parent_comment_id: string;
+  /** @nullable */
+  parent_comment_id: string | null;
   content: string;
   /** @nullable */
   author: CommentResourceAuthor;

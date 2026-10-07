@@ -4,11 +4,14 @@
  * DSH
  * OpenAPI spec version: 0.0.1
  */
+import type { PluginResourceAuthor } from './pluginResourceAuthor';
 
 export interface PluginResource {
   id: string;
   name: string;
   user_id: string;
+  /** @nullable */
+  author: PluginResourceAuthor;
   title: string;
   license: string;
   /** @nullable */
