@@ -245,6 +245,9 @@ export const PluginTrendingResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Get one plugin's detail
+ */
 export const PluginShowParams = zod.object({
   "id": zod.string()
 })

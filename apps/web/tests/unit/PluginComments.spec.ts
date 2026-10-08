@@ -1,6 +1,6 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import PluginComments from '@/components/PluginComments.vue'
+import PluginComments from '@/components/pages/comment/PluginComments.vue'
 
 const mockCommentIndex = vi.fn()
 const mockCommentStore = vi.fn()

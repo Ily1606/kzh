@@ -69,9 +69,14 @@ class PluginController extends Controller
         return PluginResource::collection($paginator);
     }
 
-    public function show(string $id): JsonResponse
+    /**
+     * Get one plugin's detail.
+     *
+     * @unauthenticated
+     */
+    public function show(Request $request, string $id): JsonResponse
     {
-        $plugin = $this->pluginService->getPlugin($id);
+        $plugin = $this->pluginService->getPlugin($id, $request->user());
 
         return ApiResponse::successResponse([
             'plugin' => new PluginResource($plugin),
@@ -144,7 +149,7 @@ class PluginController extends Controller
         $limit = (int) $request->query('limit', $defaultLimit);
         $limit = max(1, min($limit, $maxLimit));
 
-        $plugins = $this->pluginService->getTrendingPlugins($limit);
+        $plugins = $this->pluginService->getTrendingPlugins($limit, $request->user());
 
         return ApiResponse::successResponse([
             'plugins' => $plugins,
