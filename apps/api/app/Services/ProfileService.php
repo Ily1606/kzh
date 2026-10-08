@@ -6,12 +6,17 @@ use App\Contracts\UserRepositoryInterface;
 use App\Events\Profile\UserAvatarUpdated;
 use App\Events\Profile\UserPasswordUpdated;
 use App\Events\Profile\UserProfileUpdated;
+use App\Mail\EmailChangeAlertMail;
+use App\Mail\EmailChangeVerifyMail;
+use App\Models\EmailChangeRequest;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use Throwable;
@@ -95,6 +100,57 @@ class ProfileService
         });
 
         UserPasswordUpdated::dispatch($user);
+
+        return $user;
+    }
+
+    public function requestEmailChange(User $user, string $currentPassword, string $newEmail): void
+    {
+        if (! Hash::check($currentPassword, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => [__('api.current_password_incorrect')],
+            ]);
+        }
+
+        $token = Str::random(64);
+
+        EmailChangeRequest::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'new_email' => $newEmail,
+                'token' => $token,
+                'expires_at' => now()->addMinutes(30),
+            ]
+        );
+
+        Mail::to($newEmail)->send(new EmailChangeVerifyMail($token));
+        Mail::to($user->email)->send(new EmailChangeAlertMail($newEmail));
+    }
+
+    public function verifyEmailChange(User $user, string $token): User
+    {
+        $request = EmailChangeRequest::where('user_id', $user->id)
+            ->where('token', $token)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$request) {
+            throw ValidationException::withMessages([
+                'token' => [__('api.invalid_or_expired_token')],
+            ]);
+        }
+
+        DB::transaction(function () use ($user, $request): void {
+            $this->userRepository->updateEmail($user, $request->new_email);
+
+            $request->delete();
+
+            $currentToken = $user->currentAccessToken();
+            $this->userRepository->revokeTokensExcept(
+                $user,
+                $currentToken instanceof PersonalAccessToken ? $currentToken->getKey() : null,
+            );
+        });
 
         return $user;
     }

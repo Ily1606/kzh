@@ -31,4 +31,7 @@ return [
     'plugin_unstarred_successfully' => 'Plugin unstarred successfully.',
     'plugin_updated_successfully' => 'Plugin updated successfully.',
     'plugin_update_requires_field' => 'At least one of name, title, license, or source_link is required.',
+    'email_change_requested' => 'Verification email sent. Please check your new email.',
+    'invalid_or_expired_token' => 'The token is invalid or has expired.',
+    'email_updated' => 'Email updated successfully.',
 ];

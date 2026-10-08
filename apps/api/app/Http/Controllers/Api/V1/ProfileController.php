@@ -11,6 +11,7 @@ use App\Services\ProfileService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
@@ -60,5 +61,34 @@ class ProfileController extends Controller
         );
 
         return ApiResponse::successResponse(new UserResource($user), __('api.password_updated'));
+    }
+
+    public function requestEmailChange(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'current_password' => 'required',
+            'new_email' => [
+                'required', 'email',
+                Rule::notIn([$user->email]),
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+        ]);
+
+        $this->profileService->requestEmailChange($user, $data['current_password'], $data['new_email']);
+
+        return ApiResponse::successResponse(null, __('api.email_change_requested'));
+    }
+
+    public function verifyEmailChange(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'token' => 'required|string',
+        ]);
+
+        $user = $this->profileService->verifyEmailChange($request->user(), $data['token']);
+
+        return ApiResponse::successResponse(new UserResource($user), __('api.email_updated'));
     }
 }

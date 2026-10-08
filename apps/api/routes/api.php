@@ -24,6 +24,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/user', [ProfileController::class, 'show']);
         Route::patch('/user', [ProfileController::class, 'updateProfile']);
         Route::post('/user/avatar', [ProfileController::class, 'updateAvatar'])->middleware('throttle:strict');
+        Route::post('/user/email/request', [ProfileController::class, 'requestEmailChange'])->middleware('throttle:strict');
+        Route::post('/user/email/verify', [ProfileController::class, 'verifyEmailChange'])->middleware('throttle:strict');
         Route::patch('/user/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:strict');
 
         // ================ Plugin ======================

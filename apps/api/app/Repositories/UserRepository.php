@@ -96,4 +96,12 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     {
         $user->tokens()->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->delete();
     }
+
+    public function updateEmail(User $user, string $newEmail): User
+    {
+        $user->email = $newEmail;
+        $user->save();
+
+        return $user;
+    }
 }

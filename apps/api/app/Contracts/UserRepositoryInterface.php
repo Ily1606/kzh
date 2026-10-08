@@ -38,4 +38,9 @@ interface UserRepositoryInterface
      * Revoke all tokens for the user, except the one with the given ID.
      */
     public function revokeTokensExcept(User $user, int|string|null $exceptId = null): void;
+
+    /**
+     * Update user's email.
+     */
+    public function updateEmail(User $user, string $newEmail): User;
 }
