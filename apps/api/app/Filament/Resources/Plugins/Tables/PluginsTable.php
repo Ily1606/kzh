@@ -17,7 +17,12 @@ class PluginsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn(Builder $query) => $query->with('user'))
+            ->modifyQueryUsing(fn(Builder $query) => $query
+                ->with('user')
+                ->withCount([
+                    'stars as star_count',
+                    'comments as comment_count' => fn(Builder $comments) => $comments->visible(),
+                ]))
             ->columns([
 
                 TextColumn::make('name')

@@ -28,8 +28,6 @@ interface PluginRepositoryInterface
      */
     public function update(Model $model, array $attributes): Plugin;
 
-    public function incrementCommentCount(string $pluginId): void;
-
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator;
 
     /**

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +41,17 @@ class UpdatePluginTest extends TestCase
                 'user_id' => $stargazer->id,
             ]);
         });
+    }
+
+    /**
+     * Comment count is COUNT over `comments` for the same reason, so a test that
+     * wants a plugin to "have N comments" has to create the rows.
+     */
+    private function commentTimes(Plugin $plugin, int $count): void
+    {
+        Comment::factory()->count($count)->create([
+            'plugin_id' => $plugin->id,
+        ]);
     }
 
     public function test_owner_can_update_the_four_editable_fields(): void
@@ -105,10 +117,10 @@ class UpdatePluginTest extends TestCase
         $plugin = $this->pluginFor($user, [
             'status' => PluginStatus::Approved,
             'approved_at' => $approvedAt,
-            'comment_count' => 3,
             'view_count' => 100,
         ]);
         $this->starTimes($plugin, 5);
+        $this->commentTimes($plugin, 3);
         Sanctum::actingAs($user);
 
         $response = $this->patchJson("/api/v1/plugins/{$plugin->id}", [
@@ -123,7 +135,7 @@ class UpdatePluginTest extends TestCase
         $plugin->refresh();
 
         $this->assertSame(5, $plugin->stars()->count());
-        $this->assertSame(3, $plugin->comment_count);
+        $this->assertSame(3, $plugin->comments()->count());
         $this->assertSame(100, $plugin->view_count);
         $this->assertSame(PluginStatus::Approved, $plugin->status);
         $this->assertTrue($plugin->approved_at->equalTo($approvedAt));

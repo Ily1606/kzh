@@ -43,7 +43,6 @@ class Plugin extends Model
         return [
             'approved_at' => 'datetime',
             'status' => PluginStatus::class,
-            'comment_count' => 'integer',
             'view_count' => 'integer',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',

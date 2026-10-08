@@ -2,16 +2,14 @@
 
 namespace Tests\Feature\Api\V1;
 
-use App\Contracts\PluginRepositoryInterface;
+use App\Contracts\CommentRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\User;
-use App\Repositories\PluginRepository;
+use App\Repositories\CommentRepository;
 use App\Services\CommentService;
 use App\Support\RequestContext;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Laravel\Sanctum\Sanctum;
@@ -31,7 +29,6 @@ class CreateCommentTest extends TestCase
         return Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
-            'comment_count' => 0,
         ]);
     }
 
@@ -76,17 +73,29 @@ class CreateCommentTest extends TestCase
         ]);
     }
 
-    public function test_comment_increments_plugin_comment_count(): void
+    /**
+     * `comment_count` is a COUNT over `comments`, so the create path writes no
+     * counter — the row is the only write. What the client observes is the
+     * number the plugin endpoint reports, which is why this asserts through the
+     * API rather than through an attribute on the model.
+     */
+    public function test_a_new_comment_raises_the_reported_comment_count(): void
     {
         Sanctum::actingAs(User::factory()->create());
         $plugin = $this->approvedPlugin();
 
-        $this->assertSame(0, $plugin->fresh()->comment_count);
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('data.plugin.comment_count', 0);
 
         $this->postJson("/api/v1/plugins/{$plugin->id}/comments", $this->payload())
             ->assertCreated();
 
-        $this->assertSame(1, $plugin->fresh()->comment_count);
+        $this->assertDatabaseCount('comments', 1);
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('data.plugin.comment_count', 1);
     }
 
     public function test_can_reply_to_an_existing_comment(): void
@@ -129,7 +138,13 @@ class CreateCommentTest extends TestCase
     // comment_count counts every row, thread or reply
     // -----------------------------------------------------------------------
 
-    public function test_a_reply_also_increments_the_plugin_comment_count(): void
+    /**
+     * It is a count over rows, not a count over threads: a reply sits in the
+     * same table as the comment it answers, so it counts too. The number the
+     * client renders next to the plugin is this one, which is why the assertion
+     * goes through the endpoint rather than through a model attribute.
+     */
+    public function test_a_reply_also_raises_the_reported_comment_count(): void
     {
         Sanctum::actingAs(User::factory()->create());
         $plugin = $this->approvedPlugin();
@@ -139,8 +154,11 @@ class CreateCommentTest extends TestCase
             'parent_comment_id' => $parent->id,
         ]))->assertCreated();
 
-        // plugin.comment_count is a row count, not a thread count.
-        $this->assertSame(1, $plugin->fresh()->comment_count);
+        $this->assertDatabaseCount('comments', 2);
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('data.plugin.comment_count', 2);
     }
 
     public function test_response_contains_correct_author_data(): void
@@ -261,9 +279,10 @@ class CreateCommentTest extends TestCase
     }
 
     /**
-     * A rejected reply must not leave a half-applied counter behind.
+     * A rejected reply leaves nothing behind: no comment row, and so no change
+     * to the number the plugin reports.
      */
-    public function test_a_rejected_reply_does_not_touch_the_plugin_counter(): void
+    public function test_a_rejected_reply_does_not_change_the_reported_comment_count(): void
     {
         Sanctum::actingAs(User::factory()->create());
         $plugin = $this->approvedPlugin();
@@ -273,90 +292,74 @@ class CreateCommentTest extends TestCase
             'parent_comment_id' => '00000000-0000-0000-0000-000000000000',
         ]))->assertNotFound();
 
-        $this->assertSame(0, $plugin->fresh()->comment_count);
+        // Only the factory-made parent survives the failed insert.
+        $this->assertDatabaseCount('comments', 1);
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('data.plugin.comment_count', 1);
     }
 
     // -----------------------------------------------------------------------
-    // Transaction: the insert and the counter update are all-or-nothing
+    // Transaction: the visibility check and the insert are all-or-nothing
     // -----------------------------------------------------------------------
 
     /**
-     * The comment row and `plugins.comment_count` must move together. If the
-     * counter update blows up mid-transaction, leaving a committed comment whose
-     * counter was never bumped, that drift is permanent — nothing in the codebase
-     * reconciles it.
+     * The `for update` lock on the parent and the insert that follows it are
+     * only meaningful together: a reply that failed halfway through must leave
+     * no row behind, or the thread gains a comment whose parent nobody can
+     * reach.
      *
-     * The real service is kept; only the plugin repository is doubled, so the
-     * failure is injected at exactly the point the transaction is supposed to
-     * cover. `comment_count` is the only counter the create path writes: the
-     * reply count is computed by the list queries, never stored.
+     * The failure is injected at the insert rather than at a counter update,
+     * because `comment_count` is a COUNT over `comments` — the insert is now
+     * the only write this path makes, so it is the only place a partial write
+     * could originate. The real service is kept and only the comment
+     * repository is doubled, which puts the fault exactly where the
+     * transaction is supposed to cover.
      */
-    public function test_a_failing_counter_update_rolls_back_the_whole_comment(): void
+    public function test_a_failing_insert_rolls_back_the_whole_reply(): void
     {
         $user = User::factory()->create();
         $plugin = $this->approvedPlugin();
         $parent = Comment::factory()->create(['plugin_id' => $plugin->id]);
 
-        // Let every real call through, then fail the plugin counter.
-        $real = new PluginRepository($this->app);
+        // Let every real call through, then fail the insert.
+        $real = new CommentRepository($this->app);
 
-        $failing = new class($real) implements PluginRepositoryInterface
+        $failing = new class($real) implements CommentRepositoryInterface
         {
-            public function __construct(private readonly PluginRepository $real) {}
-
-            public function getModel(): string
-            {
-                return $this->real->getModel();
-            }
-
-            public function findApprovedById(string $id): Plugin
-            {
-                return $this->real->findApprovedById($id);
-            }
-
-            public function findById(string $id): Plugin
-            {
-                return $this->real->findById($id);
-            }
+            public function __construct(private readonly CommentRepository $real) {}
 
             /**
              * @param  array<string, mixed>  $attributes
              */
-            public function update(Model $model, array $attributes): Plugin
+            public function create(array $attributes): Comment
             {
-                return $this->real->update($model, $attributes);
+                throw new RuntimeException('comment insert exploded');
             }
 
-            public function incrementCommentCount(string $pluginId): void
+            public function paginateRootByPlugin(string $pluginId, int $perPage, string $sort): LengthAwarePaginator
             {
-                throw new RuntimeException('comment counter exploded');
+                return $this->real->paginateRootByPlugin($pluginId, $perPage, $sort);
             }
 
-            /**
-             * @param  array<string, mixed>  $attributes
-             */
-            public function create(array $attributes): Plugin
+            public function paginateRepliesByParent(string $parentCommentId, int $perPage, string $sort): LengthAwarePaginator
             {
-                return $this->real->create($attributes);
+                return $this->real->paginateRepliesByParent($parentCommentId, $perPage, $sort);
             }
 
-            public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
+            public function findVisibleByIdAndPlugin(string $id, string $pluginId, bool $lock = false): Comment
             {
-                return $this->real->getPaginatedApprovedPlugins($perPage);
+                return $this->real->findVisibleByIdAndPlugin($id, $pluginId, $lock);
             }
 
-            public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
+            public function depthOf(string $id, int $stopAt): int
             {
-                return $this->real->getTrendingPlugins($daysLimit, $weights, $gravity, $ageOffset, $limit);
-            }
-
-            public function getTopAllTimePlugins(int $limit): Collection
-            {
-                return $this->real->getTopAllTimePlugins($limit);
+                return $this->real->depthOf($id, $stopAt);
             }
         };
 
-        $this->app->instance(PluginRepositoryInterface::class, $failing);
+        $this->app->instance(CommentRepositoryInterface::class, $failing);
 
         try {
             $this->app->make(CommentService::class)->create($user, $plugin->id, [
@@ -366,11 +369,10 @@ class CreateCommentTest extends TestCase
 
             $this->fail('Expected the service to propagate the failure.');
         } catch (RuntimeException) {
-            // Expected — the counter update blew up inside the transaction.
+            // Expected — the insert blew up inside the transaction.
         }
 
         $this->assertDatabaseCount('comments', 1); // only the parent survives
-        $this->assertSame(0, $plugin->fresh()->comment_count);
     }
 
     // -----------------------------------------------------------------------
@@ -421,7 +423,10 @@ class CreateCommentTest extends TestCase
             ->assertJsonPath('errors.parent_comment_id.0', __('api.comment_max_depth_reached'));
 
         $this->assertDatabaseCount('comments', 3); // nothing new persisted
-        $this->assertSame(0, $plugin->fresh()->comment_count);
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('data.plugin.comment_count', 3);
     }
 
     /**

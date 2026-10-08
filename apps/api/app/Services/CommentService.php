@@ -90,16 +90,12 @@ final class CommentService
                 $this->assertWithinDepthLimit($parent, $maxDepth);
             }
 
-            $comment = $this->commentRepository->create([
+            return $this->commentRepository->create([
                 'plugin_id' => $plugin->id,
                 'author_id' => $user->getAuthIdentifier(),
                 'parent_comment_id' => $parentId,
                 'content' => $data['content'],
             ]);
-
-            $this->pluginRepository->incrementCommentCount($plugin->id);
-
-            return $comment;
         });
 
         $comment->load('author.profile');

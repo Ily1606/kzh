@@ -32,11 +32,9 @@ class PluginResource extends JsonResource
             'approved_at' => $this->approved_at?->toISOString(),
             'status' => $this->status->value,
             'source_link' => $this->source_link,
-
             'star_count' => (int) ($this->star_count ?? $this->stars()->count()),
             'is_star' => $this->when($this->is_star !== null, (bool) $this->is_star),
-
-            'comment_count' => $this->comment_count,
+            'comment_count' => (int) ($this->comment_count ?? $this->comments()->visible()->count()),
             'view_count' => $this->view_count,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

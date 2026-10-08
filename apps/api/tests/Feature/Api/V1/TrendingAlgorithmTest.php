@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +33,19 @@ class TrendingAlgorithmTest extends TestCase
                 'user_id' => $stargazer->id,
             ]);
         });
+    }
+
+    /**
+     * Comment count is COUNT over `comments` for the same reason, so the
+     * weighted-comment cases seed rows rather than setting a column.
+     * `view_count` is the one interaction still stored as a number, because no
+     * table holds that fact — see `SyncPluginViews`.
+     */
+    private function commentTimes(Plugin $plugin, int $count): void
+    {
+        Comment::factory()->count($count)->create([
+            'plugin_id' => $plugin->id,
+        ]);
     }
 
     public function test_trend_01_plugins_within_days_limit_are_returned(): void
@@ -108,27 +122,27 @@ class TrendingAlgorithmTest extends TestCase
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subHours(2),
             'view_count' => 10,
-            'comment_count' => 1,
         ]);
         $this->starTimes($newPlugin, 1);
+        $this->commentTimes($newPlugin, 1);
 
         // TREND-07: Old, many interactions
         $oldPlugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subDays(20),
             'view_count' => 1000,
-            'comment_count' => 50,
         ]);
         $this->starTimes($oldPlugin, 100);
+        $this->commentTimes($oldPlugin, 50);
 
         // TREND-08: New, massive interactions
         $superNewPlugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subHours(1),
             'view_count' => 500,
-            'comment_count' => 20,
         ]);
         $this->starTimes($superNewPlugin, 50);
+        $this->commentTimes($superNewPlugin, 20);
 
         $response = $this->getJson('/api/v1/plugins/trending');
 
@@ -142,13 +156,14 @@ class TrendingAlgorithmTest extends TestCase
     public function test_trend_09_to_11_stars_comments_views_affect_score(): void
     {
         // Base plugin
-        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0]);
+        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0]);
         // View plugin
-        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 100, 'comment_count' => 0]);
+        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 100]);
         // Comment plugin
-        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 100]);
+        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0]);
+        $this->commentTimes($p3, 100);
         // Star plugin (highest weight)
-        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0]);
+        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0]);
         $this->starTimes($p4, 100);
 
         $response = $this->getJson('/api/v1/plugins/trending');
@@ -158,6 +173,37 @@ class TrendingAlgorithmTest extends TestCase
             ->assertJsonPath('data.plugins.1.id', $p3->id) // Comments have medium weight (5)
             ->assertJsonPath('data.plugins.2.id', $p2->id) // Views have lowest weight (1)
             ->assertJsonPath('data.plugins.3.id', $p1->id); // None
+    }
+
+    /**
+     * The trending queries build their own SQL rather than going through
+     * `withCount()`, so they cannot inherit `Comment::scopeVisible()`. Without this
+     * test a hand-written condition drifting from the Eloquent one would be silent:
+     * the ranking would follow moderated comments the user cannot read, while the
+     * list endpoint counted them out.
+     */
+    public function test_moderated_comments_do_not_affect_the_score(): void
+    {
+        $visible = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subHours(5),
+        ]);
+        $this->commentTimes($visible, 100);
+
+        $moderated = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subHours(5),
+        ]);
+        Comment::factory()->count(100)->hidden()->create(['plugin_id' => $moderated->id]);
+
+        $response = $this->getJson('/api/v1/plugins/trending');
+
+        $response->assertOk()
+            ->assertJsonPath('data.plugins.0.id', $visible->id)
+            // Both numbers come from the same visible-only rule: 100 counted here,
+            // and 0 for the plugin whose 100 rows are all moderated.
+            ->assertJsonPath('data.plugins.0.comment_count', 100)
+            ->assertJsonPath('data.plugins.1.comment_count', 0);
     }
 
     public function test_trend_12_gravity_affects_score(): void

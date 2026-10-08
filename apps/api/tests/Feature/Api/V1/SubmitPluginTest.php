@@ -57,16 +57,19 @@ class SubmitPluginTest extends TestCase
             ->assertJsonPath('data.plugin.approved_at', null)
             ->assertJsonMissingPath('data.plugin.deleted_at');
 
+        // `star_count` / `comment_count` are not columns, so they cannot be asserted
+        // here — the two row counts above already stand for them, and the
+        // response assertions above check the values the client actually reads.
         $this->assertDatabaseHas('plugins', [
             'user_id' => $user->id,
             'name' => 'Laravel Debugbar',
             'status' => PluginStatus::Pending->value,
-            'comment_count' => 0,
             'view_count' => 0,
             'approved_at' => null,
             'deleted_at' => null,
         ]);
         $this->assertDatabaseCount('stars', 0);
+        $this->assertDatabaseCount('comments', 0);
     }
 
     public function test_response_uses_the_plugin_resource_contract(): void
@@ -134,11 +137,11 @@ class SubmitPluginTest extends TestCase
         $this->assertDatabaseHas('plugins', [
             'user_id' => $user->id,
             'status' => PluginStatus::Pending->value,
-            'comment_count' => 0,
             'view_count' => 0,
             'approved_at' => null,
         ]);
         $this->assertDatabaseCount('stars', 0);
+        $this->assertDatabaseCount('comments', 0);
     }
 
     public function test_submission_requires_all_business_fields(): void
