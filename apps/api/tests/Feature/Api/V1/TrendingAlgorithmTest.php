@@ -85,73 +85,60 @@ class TrendingAlgorithmTest extends TestCase
         $response->assertOk()->assertJsonCount(0, 'data');
     }
 
-    public function test_trend_05_plugins_too_old_are_ignored_if_recent_plugins_exist(): void
+    public function test_trend_05_plugins_with_no_recent_activity_are_ignored(): void
     {
         config()->set('plugins.trending.days_limit', 10);
 
-        Plugin::factory()->create([
-            'status' => PluginStatus::Approved,
-            'approved_at' => now()->subDays(1), // Within limit
-        ]);
+        $plugin1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subDays(1)]);
+        $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subDays(15)]);
 
-        Plugin::factory()->create([
-            'status' => PluginStatus::Approved,
-            'approved_at' => now()->subDays(15), // Too old
-        ]);
+        // Manually track a view for plugin 1
+        \App\Services\TrendingTracker::trackView($plugin1->id);
 
         $response = $this->getJson('/api/v1/plugins/trending');
-        $response->assertOk()->assertJsonCount(1, 'data');
+        
+        // Plugin 2 should be excluded because it has no recent activity
+        $response->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $plugin1->id);
     }
 
-    public function test_trend_06_to_08_score_calculation_ranks_newer_plugins_higher_unless_interactions_are_massive(): void
+    public function test_trend_06_to_08_score_calculation_ranks_purely_by_recent_interactions(): void
     {
-        // TREND-06: New, few interactions
-        $newPlugin = Plugin::factory()->create([
-            'status' => PluginStatus::Approved,
-            'approved_at' => now()->subHours(2),
-            'view_count' => 10,
-            'comment_count' => 1,
-        ]);
-        $this->starTimes($newPlugin, 1);
-
-        // TREND-07: Old, many interactions
-        $oldPlugin = Plugin::factory()->create([
-            'status' => PluginStatus::Approved,
-            'approved_at' => now()->subDays(20),
-            'view_count' => 1000,
-            'comment_count' => 50,
-        ]);
-        $this->starTimes($oldPlugin, 100);
-
-        // TREND-08: New, massive interactions
-        $superNewPlugin = Plugin::factory()->create([
-            'status' => PluginStatus::Approved,
-            'approved_at' => now()->subHours(1),
-            'view_count' => 500,
-            'comment_count' => 20,
-        ]);
-        $this->starTimes($superNewPlugin, 50);
+        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(2)]);
+        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subDays(20)]);
+        
+        \App\Services\TrendingTracker::trackView($p1->id);
+        
+        // P2 gets a lot of recent activity despite being old
+        for ($i=0; $i<10; $i++) {
+            \App\Services\TrendingTracker::trackStar($p2->id);
+        }
 
         $response = $this->getJson('/api/v1/plugins/trending');
 
         $response->assertOk()
-            ->assertJsonCount(3, 'data')
-            ->assertJsonPath('data.0.id', $superNewPlugin->id) // #1: Super new and popular
-            ->assertJsonPath('data.1.id', $newPlugin->id)      // #2: New but not popular (Gravity decays old plugin heavily)
-            ->assertJsonPath('data.2.id', $oldPlugin->id);     // #3: Old but very popular
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $p2->id) // Old but highly active
+            ->assertJsonPath('data.1.id', $p1->id); 
     }
 
     public function test_trend_09_to_11_stars_comments_views_affect_score(): void
     {
         // Base plugin
-        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0]);
+        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5)]);
+        \App\Services\TrendingTracker::trackView($p1->id);
+
         // View plugin
-        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 100, 'comment_count' => 0]);
+        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5)]);
+        for($i=0; $i<10; $i++) \App\Services\TrendingTracker::trackView($p2->id);
+
         // Comment plugin
-        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 100]);
+        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5)]);
+        for($i=0; $i<10; $i++) \App\Services\TrendingTracker::trackComment($p3->id);
+
         // Star plugin (highest weight)
-        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0]);
-        $this->starTimes($p4, 100);
+        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5)]);
+        for($i=0; $i<10; $i++) \App\Services\TrendingTracker::trackStar($p4->id);
 
         $response = $this->getJson('/api/v1/plugins/trending');
 
@@ -159,25 +146,24 @@ class TrendingAlgorithmTest extends TestCase
             ->assertJsonPath('data.0.id', $p4->id) // Stars have highest weight (10)
             ->assertJsonPath('data.1.id', $p3->id) // Comments have medium weight (5)
             ->assertJsonPath('data.2.id', $p2->id) // Views have lowest weight (1)
-            ->assertJsonPath('data.3.id', $p1->id); // None
+            ->assertJsonPath('data.3.id', $p1->id); // Lowest
     }
 
-    public function test_trend_12_gravity_affects_score(): void
+    public function test_trend_12_age_does_not_affect_score_anymore(): void
     {
-        $newPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(1), 'view_count' => 10]);
-        $oldPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(24), 'view_count' => 1000]);
+        $newPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(1)]);
+        $oldPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subYears(2)]);
 
-        // With gravity 0, time doesn't matter, old plugin should win due to high views
-        config()->set('plugins.trending.gravity', 0);
-        Redis::flushall();
+        \App\Services\TrendingTracker::trackStar($newPlugin->id);
+        \App\Services\TrendingTracker::trackStar($oldPlugin->id);
+        \App\Services\TrendingTracker::trackStar($oldPlugin->id); // Old plugin has 2 stars
+
+        Redis::del(config('plugins.trending.keys.zset')); // force refresh
+        
         $response = $this->getJson('/api/v1/plugins/trending');
+        
+        // Old plugin wins purely based on having more stars in the time window
         $response->assertJsonPath('data.0.id', $oldPlugin->id);
-
-        // With extreme gravity 5.0, old plugin should lose heavily
-        config()->set('plugins.trending.gravity', 5.0);
-        Redis::flushall();
-        $response = $this->getJson('/api/v1/plugins/trending');
-        $response->assertJsonPath('data.0.id', $newPlugin->id);
     }
 
     public function test_trend_13_age_offset_prevents_division_by_zero(): void
@@ -200,9 +186,13 @@ class TrendingAlgorithmTest extends TestCase
 
     public function test_trend_15_sort_score_descending(): void
     {
-        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 10]);
-        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 100]);
-        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 50]);
+        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        
+        for($i=0; $i<10; $i++) \App\Services\TrendingTracker::trackView($p1->id);
+        for($i=0; $i<100; $i++) \App\Services\TrendingTracker::trackView($p2->id);
+        for($i=0; $i<50; $i++) \App\Services\TrendingTracker::trackView($p3->id);
 
         $response = $this->getJson('/api/v1/plugins/trending');
         $response->assertOk()
@@ -214,6 +204,7 @@ class TrendingAlgorithmTest extends TestCase
     public function test_trend_16_to_18_cache_behavior(): void
     {
         $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        \App\Services\TrendingTracker::trackView($plugin->id);
 
         // Cache miss
         $this->assertEquals(0, Redis::zcard(config('plugins.trending.keys.zset')));
@@ -223,7 +214,8 @@ class TrendingAlgorithmTest extends TestCase
         $this->assertEquals(1, Redis::zcard(config('plugins.trending.keys.zset')));
 
         // If we create a new plugin, it shouldn't appear because we hit cache
-        $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 9999]);
+        $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        for($i=0; $i<100; $i++) \App\Services\TrendingTracker::trackView($plugin2->id);
 
         $response = $this->getJson('/api/v1/plugins/trending');
         $response->assertOk()
@@ -242,6 +234,7 @@ class TrendingAlgorithmTest extends TestCase
     public function test_trend_19_resource_format(): void
     {
         $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        \App\Services\TrendingTracker::trackView($plugin->id);
 
         $response = $this->getJson('/api/v1/plugins/trending');
         $response->assertOk()
@@ -267,6 +260,7 @@ class TrendingAlgorithmTest extends TestCase
     public function test_trend_20_cache_resolves_to_redis_structures(): void
     {
         $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        \App\Services\TrendingTracker::trackView($plugin->id);
 
         // First call caches it
         $this->getJson('/api/v1/plugins/trending');
@@ -278,8 +272,11 @@ class TrendingAlgorithmTest extends TestCase
 
     public function test_trend_21_rejected_plugin_filtered_from_cache(): void
     {
-        $plugin1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 10]);
-        $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 5]);
+        $plugin1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        
+        for($i=0; $i<10; $i++) \App\Services\TrendingTracker::trackView($plugin1->id);
+        for($i=0; $i<5; $i++) \App\Services\TrendingTracker::trackView($plugin2->id);
 
         // First call caches both plugins' IDs
         $response1 = $this->getJson('/api/v1/plugins/trending');

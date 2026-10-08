@@ -23,60 +23,94 @@ class RefreshTrendingPlugins extends Command
      */
     public function handle(): void
     {
-        $daysLimit = config('plugins.trending.days_limit');
+        $daysLimit = (int) config('plugins.trending.days_limit', 7);
         $weightView = (float) config('plugins.trending.weights.view');
         $weightComment = (float) config('plugins.trending.weights.comment');
         $weightStar = (float) config('plugins.trending.weights.star');
-
-        $gravity = (float) config('plugins.trending.gravity');
-        $ageOffset = (float) config('plugins.trending.age_offset');
-
         $masterLimit = (int) config('plugins.trending.master_limit');
 
-        $weights = [
-            'view' => $weightView,
-            'comment' => $weightComment,
-            'star' => $weightStar,
-        ];
-
-        $results = $this->pluginRepository->getTrendingPlugins($daysLimit, $weights, $gravity, $ageOffset, $masterLimit);
-
-        if ($results->isEmpty()) {
-            $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
-        }
+        $activeIds = \App\Services\TrendingTracker::getActivePluginIds($daysLimit);
 
         $zsetKey = config('plugins.trending.keys.zset');
         $hashKey = config('plugins.trending.keys.objects');
 
-        if ($results->isEmpty()) {
-            Redis::del($zsetKey);
-            Redis::del($hashKey);
-            $this->info("No plugins found. Cleared trending cache.");
+        if (empty($activeIds)) {
+            // Fallback to all-time top
+            $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
+            
+            if ($results->isEmpty()) {
+                Redis::del($zsetKey);
+                Redis::del($hashKey);
+                $this->info("No plugins found. Cleared trending cache.");
+                return;
+            }
+
+            $this->storeResultsToRedis($results, $masterLimit, $zsetKey, $hashKey, true);
+            $this->info("Successfully refreshed {$results->count()} fallback plugins to Redis ZSET.");
             return;
         }
 
+        // We have active plugins, get their recent counts
+        $interactions = \App\Services\TrendingTracker::getBulkInteractionCounts($activeIds, $daysLimit);
+        
+        $scoredPlugins = [];
+        foreach ($interactions as $id => $counts) {
+            $score = ($counts['views'] * $weightView) + 
+                     ($counts['comments'] * $weightComment) + 
+                     ($counts['stars'] * $weightStar);
+            
+            if ($score > 0) {
+                $scoredPlugins[$id] = $score;
+            }
+        }
+
+        if (empty($scoredPlugins)) {
+            // Unlikely, but fallback just in case
+            $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
+            $this->storeResultsToRedis($results, $masterLimit, $zsetKey, $hashKey, true);
+            $this->info("Refreshed {$results->count()} fallback plugins to Redis ZSET.");
+            return;
+        }
+
+        // Sort descending
+        arsort($scoredPlugins);
+        
+        // Take top $masterLimit
+        $topIds = array_slice(array_keys($scoredPlugins), 0, $masterLimit);
+        
+        // Fetch full objects from DB
+        $plugins = $this->pluginRepository->findApprovedByIds($topIds);
+
+        // Put scores back into plugins (transient) if needed, but we don't strictly need it in the API response.
+        // Or we can just sort the collection properly. Since findApprovedByIds already sorts by the given ID array.
+        
+        $this->storeResultsToRedis($plugins, $masterLimit, $zsetKey, $hashKey, false, $scoredPlugins);
+        
+        $this->info("Successfully refreshed {$plugins->count()} trending plugins to Redis ZSET.");
+    }
+
+    private function storeResultsToRedis($plugins, $masterLimit, $zsetKey, $hashKey, $isFallback, $scoredPlugins = [])
+    {
         $tmpZsetKey = $zsetKey . '_tmp';
         $tmpHashKey = $hashKey . '_tmp';
 
-        // Clear temporary keys just in case a previous run crashed
         Redis::del($tmpZsetKey);
         Redis::del($tmpHashKey);
 
         $baseScore = $masterLimit;
-        foreach ($results as $index => $plugin) {
-            // Since the DB has already perfectly sorted the results (including tie-breakers),
-            // we can just use the index as the ZSET score (100, 99, 98...).
-            // This avoids floating-point precision issues and simplifies the logic.
-            $score = $baseScore - $index;
+        
+        foreach ($plugins as $index => $plugin) {
+            if ($isFallback) {
+                $score = $baseScore - $index;
+            } else {
+                $score = $scoredPlugins[$plugin->id] ?? 0;
+            }
 
             Redis::zadd($tmpZsetKey, $score, $plugin->id);
             Redis::hset($tmpHashKey, $plugin->id, serialize($plugin));
         }
 
-        // Atomically swap the temporary keys with the live keys to guarantee zero downtime
         Redis::rename($tmpZsetKey, $zsetKey);
         Redis::rename($tmpHashKey, $hashKey);
-
-        $this->info("Successfully refreshed {$results->count()} trending plugins to Redis ZSET.");
     }
 }

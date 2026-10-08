@@ -202,6 +202,8 @@ final class PluginService
 
         if (Cache::add($cacheKey, true, $ttl)) {
             $bufferedViews = (int) Redis::hincrby($bufferKey, $plugin->id, 1);
+            
+            TrendingTracker::trackView($plugin->id);
 
             return new PluginViewResult(true, $plugin->view_count + $bufferedViews);
         }
