@@ -1,16 +1,16 @@
 <x-mail::message>
-# Verify Your New Email
+# {{ __('mail.email_change_verify.greeting') }}
 
-You recently requested to change the email address for your DSH account.
+{{ __('mail.email_change_verify.body', ['app' => config('app.name')]) }}
 
-Please click the button below to verify this new email address.
+{{ __('mail.email_change_verify.action') }}
 
 <x-mail::button :url="$url">
-Verify Email
+{{ __('mail.email_change_verify.button') }}
 </x-mail::button>
 
-If you did not request this change, you can safely ignore this email.
+{{ __('mail.email_change_verify.footer') }}
 
-Thanks,<br>
+{{ __('mail.email_change_verify.thanks') }}<br>
 {{ config('app.name') }}
 </x-mail::message>

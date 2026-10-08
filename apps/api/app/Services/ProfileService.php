@@ -3,18 +3,16 @@
 namespace App\Services;
 
 use App\Contracts\UserRepositoryInterface;
+use App\Events\Profile\EmailChangeRequested;
 use App\Events\Profile\UserAvatarUpdated;
 use App\Events\Profile\UserPasswordUpdated;
 use App\Events\Profile\UserProfileUpdated;
-use App\Mail\EmailChangeAlertMail;
-use App\Mail\EmailChangeVerifyMail;
 use App\Models\EmailChangeRequest;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -113,18 +111,11 @@ class ProfileService
         }
 
         $token = Str::random(64);
+        $expiresInMinutes = config('auth.email_change.expire');
 
-        EmailChangeRequest::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'new_email' => $newEmail,
-                'token' => $token,
-                'expires_at' => now()->addMinutes(30),
-            ]
-        );
+        $this->userRepository->createEmailChangeRequest($user, $newEmail, $token, $expiresInMinutes);
 
-        Mail::to($newEmail)->send(new EmailChangeVerifyMail($token));
-        Mail::to($user->email)->send(new EmailChangeAlertMail($newEmail));
+        event(new EmailChangeRequested($user, $newEmail, $token));
     }
 
     public function verifyEmailChange(User $user, string $token): User
@@ -140,18 +131,6 @@ class ProfileService
             ]);
         }
 
-        DB::transaction(function () use ($user, $request): void {
-            $this->userRepository->updateEmail($user, $request->new_email);
-
-            $request->delete();
-
-            $currentToken = $user->currentAccessToken();
-            $this->userRepository->revokeTokensExcept(
-                $user,
-                $currentToken instanceof PersonalAccessToken ? $currentToken->getKey() : null,
-            );
-        });
-
-        return $user;
+        return $this->userRepository->applyEmailChange($user, $request);
     }
 }

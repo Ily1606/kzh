@@ -17,7 +17,7 @@ class EmailChangeVerifyMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Verify Your New Email',
+            subject: __('mail.email_change_verify.subject'),
         );
     }
 

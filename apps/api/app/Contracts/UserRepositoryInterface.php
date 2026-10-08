@@ -43,4 +43,14 @@ interface UserRepositoryInterface
      * Update user's email.
      */
     public function updateEmail(User $user, string $newEmail): User;
+
+    /**
+     * Create an email change request for a user.
+     */
+    public function createEmailChangeRequest(User $user, string $newEmail, string $token, int $expiresInMinutes): void;
+
+    /**
+     * Apply the email change request, updating the user's email and deleting the request, and revoking tokens.
+     */
+    public function applyEmailChange(User $user, \App\Models\EmailChangeRequest $request): User;
 }

@@ -17,7 +17,7 @@ class EmailChangeAlertMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Security Alert: Email Change Requested',
+            subject: __('mail.email_change_alert.subject'),
         );
     }
 

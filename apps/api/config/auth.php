@@ -143,4 +143,18 @@ return [
         'password_reset_per_ip' => (int) env('AUTH_LIMITER_PASSWORD_RESET_PER_IP', 10),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email Change
+    |--------------------------------------------------------------------------
+    |
+    | The expiry time is the number of minutes that the email change token
+    | will be considered valid.
+    |
+    */
+
+    'email_change' => [
+        'expire' => (int) env('AUTH_EMAIL_CHANGE_EXPIRE', 30),
+    ],
+
 ];

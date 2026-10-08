@@ -1,14 +1,14 @@
 <x-mail::message>
-# Security Alert: Email Change Requested
+# {{ __('mail.email_change_alert.greeting') }}
 
-We noticed a request to change the email address associated with your DSH account to **{{ $newEmail }}**.
+{{ __('mail.email_change_alert.body', ['app' => config('app.name'), 'email' => $newEmail]) }}
 
-If you requested this change, no further action is required from this email address.
+{{ __('mail.email_change_alert.action') }}
 
-**If you did not request this change, your account may be compromised.**
+{{ __('mail.email_change_alert.warning') }}
 
-Please secure your account immediately.
+{{ __('mail.email_change_alert.footer') }}
 
-Thanks,<br>
+{{ __('mail.email_change_alert.thanks') }}<br>
 {{ config('app.name') }}
 </x-mail::message>

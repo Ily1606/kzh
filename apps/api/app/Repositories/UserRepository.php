@@ -3,9 +3,11 @@
 namespace App\Repositories;
 
 use App\Contracts\UserRepositoryInterface;
+use App\Models\EmailChangeRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * @extends BaseRepository<User>
@@ -101,6 +103,35 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     {
         $user->email = $newEmail;
         $user->save();
+
+        return $user;
+    }
+
+    public function createEmailChangeRequest(User $user, string $newEmail, string $token, int $expiresInMinutes): void
+    {
+        EmailChangeRequest::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'new_email' => $newEmail,
+                'token' => $token,
+                'expires_at' => now()->addMinutes($expiresInMinutes),
+            ]
+        );
+    }
+
+    public function applyEmailChange(User $user, EmailChangeRequest $request): User
+    {
+        DB::transaction(function () use ($user, $request): void {
+            $this->updateEmail($user, $request->new_email);
+
+            $request->delete();
+
+            $currentToken = $user->currentAccessToken();
+            $this->revokeTokensExcept(
+                $user,
+                $currentToken instanceof PersonalAccessToken ? $currentToken->getKey() : null,
+            );
+        });
 
         return $user;
     }
