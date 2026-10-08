@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
+use App\Models\PluginDailyView;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -100,12 +101,12 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     {
         $this->model->newQuery()->where('id', $id)->increment('view_count', $count);
         
-        \App\Models\PluginDailyView::upsert(
+        PluginDailyView::upsert(
             [
                 ['plugin_id' => $id, 'date' => now()->format('Y-m-d'), 'views_count' => $count],
             ],
             ['plugin_id', 'date'],
-            ['views_count' => \Illuminate\Support\Facades\DB::raw("plugin_daily_views.views_count + {$count}")]
+            ['views_count' => DB::raw("plugin_daily_views.views_count + {$count}")]
         );
     }
 
