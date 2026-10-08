@@ -317,6 +317,101 @@ class ListMyPluginsTest extends TestCase
         $this->assertLessThanOrEqual(5, $queries);
     }
 
+    public function test_marks_is_star_only_on_approved_plugins(): void
+    {
+        $user = User::factory()->create();
+
+        // `stars` has no Eloquent model (composite primary key), so there is
+        // no StarFactory to seed through. The table is written to directly.
+        $starred = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDay(),
+        ]);
+        $approvedNotStarred = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+        $pending = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Pending,
+        ]);
+
+        DB::table('stars')->insert([
+            'plugin_id' => $starred->id,
+            'user_id' => $user->id,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/v1/user/plugins');
+
+        $response->assertOk()
+            ->assertJsonPath('data.2.id', $starred->id)
+            ->assertJsonPath('data.2.is_star', true)
+            ->assertJsonPath('data.1.id', $approvedNotStarred->id)
+            ->assertJsonPath('data.1.is_star', false)
+            // A star row cannot exist on a plugin that is not approved:
+            // StarService resolves through findApprovedById, which throws
+            // before it writes. Reporting `false` here would assert the caller
+            // has not starred a plugin they cannot star, so the field is
+            // absent instead.
+            ->assertJsonPath('data.0.id', $pending->id)
+            ->assertJsonMissingPath('data.0.is_star');
+    }
+
+    public function test_rejected_plugin_carries_no_is_star_field(): void
+    {
+        $user = User::factory()->create();
+
+        Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Rejected,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/user/plugins')
+            ->assertOk()
+            ->assertJsonPath('data.0.status', 'rejected')
+            ->assertJsonMissingPath('data.0.is_star');
+    }
+
+    public function test_does_not_query_stars_when_the_status_filter_excludes_approved(): void
+    {
+        $user = User::factory()->create();
+
+        Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Pending,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        $this->getJson('/api/v1/user/plugins?status=pending')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonMissingPath('data.0.is_star');
+
+        // The approved subset of the page is empty, so there is nothing to ask
+        // the stars table about — one less query on a list that renders no
+        // star toggle at all. Matched on the pluck the flag resolution issues;
+        // the repository's own `withCount` subquery also mentions "stars".
+        $this->assertSame(
+            [],
+            array_values(array_filter(
+                $queries,
+                fn (string $sql): bool => str_contains($sql, 'select "plugin_id" from "stars"'),
+            )),
+        );
+    }
+
     public function test_response_uses_plugin_resource_format(): void
     {
         $user = User::factory()->create();

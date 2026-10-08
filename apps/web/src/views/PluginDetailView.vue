@@ -1,23 +1,26 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
-import { getPlugin } from '@/api/generated/endpoints'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { useRoute, RouterLink } from 'vue-router'
 import type { PluginResource } from '@/api/generated/model'
-import { ArrowUpRight, Check, Copy, Terminal, Eye, Star, FileText, BookOpen, Scale, Calendar } from 'lucide-vue-next'
+import { ArrowUpRight, Check, Copy, Terminal, Eye, Star, FileText, BookOpen, Scale, Calendar, Loader2 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { formatRelativeDate } from '@/utils/date'
 import PluginComments from '@/components/pages/comment/PluginComments.vue'
+import { useAuth } from '@/composables/useAuth'
+import { usePluginsStore } from '@/stores'
 
 const route = useRoute()
 const pluginId = route.params.id as string
 
-const { pluginShow } = getPlugin()
-const plugin = ref<PluginResource | null>(null)
-const isLoading = ref(true)
-const error = ref('')
-const isStarred = ref(false)
+const auth = useAuth()
+const store = usePluginsStore()
+
+const plugin = computed<PluginResource | null>(() => store.findById(pluginId))
+const isStarred = computed(() => plugin.value?.is_star === true)
+
 const copied = ref(false)
 
 const readmeHtml = ref('')
@@ -105,24 +108,6 @@ async function scrollToHash() {
   }
 }
 
-async function fetchPlugin() {
-  try {
-    const res = await pluginShow(pluginId)
-    const body = res.data as any
-    plugin.value = body?.data?.plugin || body?.plugin || body
-    if (plugin.value?.source_link) {
-      fetchReadme(plugin.value.source_link)
-    }
-  } catch (err: any) {
-    error.value = 'Failed to load plugin details.'
-  } finally {
-    isLoading.value = false
-    if (!isReadmeLoading.value) {
-      scrollToHash()
-    }
-  }
-}
-
 async function copyInstallCommand() {
   if (plugin.value) {
     try {
@@ -137,30 +122,37 @@ async function copyInstallCommand() {
   }
 }
 
-function toggleStar() {
-  if (!plugin.value) return
-  isStarred.value = !isStarred.value
-  if (isStarred.value) {
-    plugin.value.star_count = (plugin.value.star_count || 0) + 1
-  } else {
-    plugin.value.star_count = Math.max(0, (plugin.value.star_count || 1) - 1)
-  }
+async function toggleStar() {
+  if (!plugin.value || !auth.isAuthenticated) return
+
+  await store.setStar(plugin.value.id, !isStarred.value)
 }
 
 function onCommentAdded() {
-  if (plugin.value) {
-    plugin.value.comment_count = (plugin.value.comment_count || 0) + 1
-  }
+  if (!plugin.value) return
+
+  store.patchPlugin(plugin.value.id, {
+    comment_count: (plugin.value.comment_count ?? 0) + 1,
+  })
 }
 
-onMounted(() => {
-  fetchPlugin()
+onMounted(async () => {
+  // Costs nothing when an earlier page already cached this plugin, which is the
+  // case for every arrival from the catalogue, trending or Resources. A hard
+  // refresh or a shared link arrives with an empty store and pays one request.
+  const loaded = await store.ensurePlugin(pluginId)
+
+  if (loaded?.source_link) {
+    fetchReadme(loaded.source_link)
+  }
+
+  scrollToHash()
 })
 </script>
 
 <template>
   <div class="mx-auto max-w-4xl py-12 px-4 sm:px-6">
-    <div v-if="isLoading" class="text-center py-12">
+    <div v-if="store.isFetchingPlugin && !plugin" class="text-center py-12">
       <div class="animate-pulse flex flex-col items-center">
         <div class="h-12 w-12 bg-muted rounded-full mb-4"></div>
         <div class="h-6 w-1/3 bg-muted rounded mb-2"></div>
@@ -168,8 +160,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-else-if="error" class="text-center py-12 text-destructive">
-      {{ error }}
+    <div v-else-if="store.fetchError && !plugin" class="text-center py-12 text-destructive">
+      {{ store.fetchError }}
     </div>
 
     <div v-else-if="plugin" class="space-y-8">
@@ -183,7 +175,7 @@ onMounted(() => {
           <p class="text-lg text-muted-foreground">{{ plugin.title }}</p>
 
           <!-- Thông tin chung: Tác giả, License, Ngày cập nhật, Views và Stars -->
-          <div class="@container grid grid-col-1 items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">
+          <div class="@container grid grid-cols-1 items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">
             <span class="flex items-center gap-x-2">
               <BookOpen class="size-5 text-muted-foreground" />
               <span>By: <span class="font-medium text-foreground">{{ plugin.author?.name }}</span></span>
@@ -193,7 +185,7 @@ onMounted(() => {
               <span>{{ plugin.license }} license</span>
             </span>
             <span class="flex items-center gap-x-2">
-              <Calendar class="size-5 text-muted-foreground" />
+              <Calendar class="size-5" />
               <span>{{ formatRelativeDate(plugin.updated_at) }}</span>
           </span>
             <span class="flex items-center gap-x-2">
@@ -201,7 +193,7 @@ onMounted(() => {
               <span>{{ plugin.view_count || 0 }}</span> views
             </span>
             <span class="flex items-center gap-x-2">
-              <Star class="size-4 text-muted-ground" />
+              <Star class="size-4 text-muted-foreground" />
               <span>{{ plugin.star_count || 0 }}</span> stars
             </span>
           </div>
@@ -225,15 +217,57 @@ onMounted(() => {
           </div>
 
           <div class="flex items-center gap-2">
+            <!--
+              The star button is disabled for a guest, and `Button` carries
+              `disabled:pointer-events-none` — so the disabled button cannot be
+              the popover trigger and would swallow the click. `asChild` makes
+              the span wrapping it the trigger instead.
+            -->
+            <Popover v-if="!auth.isAuthenticated">
+              <PopoverTrigger as-child>
+                <span class="inline-flex flex-1">
+                  <Button
+                    variant="outline"
+                    disabled
+                    class="w-full gap-2 font-medium"
+                  >
+                    <Star class="size-4 text-muted-foreground" />
+                    <span>Star</span>
+                    <span class="ml-1 px-1.5 py-0.5 rounded-full text-xs font-mono bg-muted text-muted-foreground">
+                      {{ plugin.star_count || 0 }}
+                    </span>
+                  </Button>
+                </span>
+              </PopoverTrigger>
+
+              <PopoverContent>
+                <p class="font-medium">Sign in to star this plugin</p>
+                <p class="mt-1 text-sm text-muted-foreground">
+                  Starring needs an account so the count means something.
+                </p>
+                <RouterLink
+                  :to="{ name: 'login', query: { redirect: route.fullPath } }"
+                  class="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+                >
+                  Sign in
+                </RouterLink>
+              </PopoverContent>
+            </Popover>
+
             <Button
+              v-else
               variant="outline"
               class="flex-1 gap-2 transition-all cursor-pointer font-medium"
+              :disabled="store.isStarring(plugin.id)"
+              :aria-pressed="isStarred"
               :class="{
                 'border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100': isStarred
               }"
               @click="toggleStar"
             >
+              <Loader2 v-if="store.isStarring(plugin.id)" class="size-4 animate-spin" />
               <Star
+                v-else
                 class="size-4 transition-transform duration-200"
                 :class="isStarred ? 'fill-amber-500 text-amber-500 scale-110' : 'text-muted-foreground'"
               />

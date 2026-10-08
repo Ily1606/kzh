@@ -150,27 +150,35 @@ final class PluginService
     }
 
     /**
-     * @param  User  $user  Signed-in viewer, or null for a guest. Drives whether
-     *                      each plugin carries the viewer-specific `is_star` flag.
-     */
-    /**
      * The caller's own plugins for the Resources page.
      *
-     * No `is_star` resolution: this list is the owner's own inventory, and
-     * nothing on it renders a star toggle. Resolving the flag would add a
-     * query per page for a value nobody reads.
+     * `is_star` is resolved for the approved plugins on the page only. A star
+     * row cannot exist on a plugin that is not approved
      *
      * @param  PluginStatus|null  $status  Restrict to one status, or null for all of them.
      */
     public function getPaginatedPluginsByUser(User $user, ?PluginStatus $status, int $perPage): LengthAwarePaginator
     {
-        return $this->pluginRepository->getPaginatedPluginsByUser(
+        $paginator = $this->pluginRepository->getPaginatedPluginsByUser(
             $user->getAuthIdentifier(),
             $status,
             $perPage,
         );
+
+        $approved = array_values(array_filter(
+            $paginator->items(),
+            static fn (Plugin $plugin): bool => $plugin->status === PluginStatus::Approved,
+        ));
+
+        $this->markStarredFlag($approved, (string) $user->getAuthIdentifier());
+
+        return $paginator;
     }
 
+    /**
+     * @param  User|null  $user  Signed-in viewer, or null for a guest. Drives whether
+     *                           each plugin carries the viewer-specific `is_star` flag.
+     */
     public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
     {
         $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage);
@@ -182,27 +190,23 @@ final class PluginService
             return $paginator;
         }
 
-        $plugins = $paginator->items();
-
-        // One query for the whole page instead of one per plugin. Only the ids
-        // on this page are sent, so the result set stays the size of the page.
-        $starredIds = $this->starRepository->starredPluginIds(
-            array_map(static fn (Plugin $plugin): string => $plugin->id, $plugins),
-            (string) $user->getAuthIdentifier(),
-        );
-
-        // `is_star` is a transient attribute, not a column: PluginResource reads
-        // it when present and omits the field otherwise (see PluginResource).
-        foreach ($plugins as $plugin) {
-            $plugin->is_star = in_array($plugin->id, $starredIds, true);
-        }
+        $this->markStarredFlag($paginator->items(), (string) $user->getAuthIdentifier());
 
         return $paginator;
     }
 
-    public function getPlugin(string $id): Plugin
+    /**
+     * @param  User|null  $user  Signed-in viewer, or null for a guest.
+     */
+    public function getPlugin(string $id, ?User $user = null): Plugin
     {
-        return $this->pluginRepository->findApprovedById($id);
+        $plugin = $this->pluginRepository->findApprovedById($id);
+
+        if ($user !== null) {
+            $this->markStarredFlag([$plugin], (string) $user->getAuthIdentifier());
+        }
+
+        return $plugin;
     }
 
     /**
@@ -260,8 +264,16 @@ final class PluginService
      * - 2 (Age Offset): Prevents division by zero for brand new items.
      *
      * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
+     *
+     * The ranking and the cached payload are viewer-independent: one cache
+     * entry per limit serves every user. The viewer-specific `is_star` flag is
+     * therefore resolved after the cache read and injected into the returned
+     * copy only — writing it into the cached value would hand one user's stars
+     * to the next caller.
+     *
+     * @param  User|null  $user  Signed-in viewer, or null for a guest.
      */
-    public function getTrendingPlugins(int $limit): array
+    public function getTrendingPlugins(int $limit, ?User $user = null): array
     {
         $cacheTtl = config('plugins.trending.cache_ttl');
         $daysLimit = config('plugins.trending.days_limit');
@@ -299,6 +311,47 @@ final class PluginService
             Cache::put($cacheKey, $result, $cacheTtl);
         }
 
+        if ($user !== null && $result !== []) {
+            // `$result` is already a copy of the cached array, so writing the
+            // flag into it touches nothing the next caller will read.
+            $starredIds = $this->starRepository->starredPluginIds(
+                array_map(static fn (array $plugin): string => $plugin['id'], $result),
+                (string) $user->getAuthIdentifier(),
+            );
+
+            foreach ($result as &$plugin) {
+                $plugin['is_star'] = in_array($plugin['id'], $starredIds, true);
+            }
+            unset($plugin);
+        }
+
         return $result;
+    }
+
+    /**
+     * Set the transient `is_star` flag on each plugin, from one query for the
+     * whole page instead of one per plugin. Only the ids passed in are sent, so
+     * the result set stays the size of the set.
+     *
+     * `is_star` is not a column: PluginResource reads it when present and omits
+     * the field otherwise (see PluginResource). Anything left unflagged is
+     * therefore absent from the response rather than reported as `false`.
+     *
+     * @param  list<Plugin>  $plugins
+     */
+    private function markStarredFlag(array $plugins, string $userId): void
+    {
+        if ($plugins === []) {
+            return;
+        }
+
+        $starredIds = $this->starRepository->starredPluginIds(
+            array_map(static fn (Plugin $plugin): string => $plugin->id, $plugins),
+            $userId,
+        );
+
+        foreach ($plugins as $plugin) {
+            $plugin->is_star = in_array($plugin->id, $starredIds, true);
+        }
     }
 }

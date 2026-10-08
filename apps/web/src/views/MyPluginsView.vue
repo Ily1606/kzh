@@ -1,20 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { getPlugin } from '@/api/generated/endpoints'
-import type { PluginResource } from '@/api/generated/model'
 import { PluginStatus } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import MyPluginRow from '@/components/pages/plugin/MyPluginRow.vue'
-import { notifyError } from '@/utils/toast'
-import { pluginConfig } from '@/config/plugins'
+import { usePluginsStore } from '@/stores'
 import { AlertCircle, LoaderCircle, PackageOpen, Plus } from 'lucide-vue-next'
 
-const { pluginMyPlugins } = getPlugin()
+const store = usePluginsStore()
 const route = useRoute()
 const router = useRouter()
-
-const PER_PAGE = pluginConfig.numberPluginPerPage
 
 const STATUS_TABS: Array<{ value?: PluginStatus; label: string }> = [
   { label: 'All' },
@@ -25,12 +20,8 @@ const STATUS_TABS: Array<{ value?: PluginStatus; label: string }> = [
 
 const VALID_STATUSES = new Set<PluginStatus>(Object.values(PluginStatus))
 
-const plugins = ref<PluginResource[]>([])
-const meta = ref<{ current_page: number; last_page: number; total: number } | null>(null)
-const isFetching = ref(true)
-const fetchError = ref<string | null>(null)
-
-
+// Only meaningful on the All tab: the endpoint paginates the current filter,
+// so its `total` counts that filter, not the owner's whole inventory.
 const allTabTotal = ref<number | null>(null)
 
 const activeStatus = computed<PluginStatus | undefined>(() => {
@@ -48,7 +39,7 @@ const activeTabLabel = computed(
   () => STATUS_TABS.find((tab) => tab.value === activeStatus.value)?.label ?? 'All',
 )
 
-const showPagination = computed(() => (meta.value?.last_page ?? 1) > 1)
+const showPagination = computed(() => store.mine.lastPage > 1)
 
 function setStatus(value?: PluginStatus) {
   router.push({
@@ -67,30 +58,10 @@ function goToPage(page: number) {
 }
 
 async function fetchMyPlugins(page = 1) {
-  isFetching.value = true
-  fetchError.value = null
+  await store.fetchMine(page, activeStatus.value)
 
-  try {
-    const res = await pluginMyPlugins({
-      page,
-      per_page: PER_PAGE,
-      status: activeStatus.value,
-    })
-
-    plugins.value = res.data ?? []
-    meta.value = res.meta ?? null
-
-    if (activeStatus.value === undefined) {
-      allTabTotal.value = res.meta?.total ?? null
-    }
-  } catch (err: any) {
-    plugins.value = []
-    meta.value = null
-    const message = err?.response?.data?.message || 'Could not load your plugins.'
-    fetchError.value = message
-    notifyError(message)
-  } finally {
-    isFetching.value = false
+  if (activeStatus.value === undefined) {
+    allTabTotal.value = store.fetchError ? null : store.mine.total
   }
 }
 
@@ -159,25 +130,25 @@ watch([activeStatus, () => route.query.page], () => {
       :aria-labelledby="`resources-tab-${activeStatus ?? 'all'}`"
     >
       <!-- Loading -->
-      <div v-if="isFetching" class="flex flex-col items-center justify-center py-20">
+      <div v-if="store.isFetchingMine" class="flex flex-col items-center justify-center py-20">
         <LoaderCircle class="size-10 animate-spin text-primary mb-4" />
         <p class="text-muted-foreground text-sm">Loading your plugins...</p>
       </div>
 
       <!-- Error -->
-      <div v-else-if="fetchError" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
+      <div v-else-if="store.fetchError" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
         <div class="mx-auto size-12 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
           <AlertCircle class="size-6" />
         </div>
         <h3 class="text-lg font-semibold">Something went wrong</h3>
-        <p class="text-sm text-muted-foreground max-w-sm mx-auto">{{ fetchError }}</p>
+        <p class="text-sm text-muted-foreground max-w-sm mx-auto">{{ store.fetchError }}</p>
         <Button variant="outline" size="sm" @click="fetchMyPlugins(currentPageFromQuery())">
           Try again
         </Button>
       </div>
 
       <!-- No plugins at all -->
-      <div v-else-if="plugins.length === 0 && activeStatus === undefined" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
+      <div v-else-if="store.minePlugins.length === 0 && activeStatus === undefined" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
         <div class="mx-auto size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
           <PackageOpen class="size-6" />
         </div>
@@ -191,7 +162,7 @@ watch([activeStatus, () => route.query.page], () => {
       </div>
 
       <!-- Nothing in this particular tab -->
-      <div v-else-if="plugins.length === 0" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-2">
+      <div v-else-if="store.minePlugins.length === 0" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-2">
         <h3 class="text-base font-semibold">No {{ activeTabLabel.toLowerCase() }} plugins</h3>
         <p class="text-sm text-muted-foreground">
           Switch to another tab to see the rest of your plugins.
@@ -200,25 +171,25 @@ watch([activeStatus, () => route.query.page], () => {
 
       <template v-else>
         <ul class="rounded-2xl border bg-card/60 overflow-hidden">
-          <MyPluginRow v-for="plugin in plugins" :key="plugin.id" :plugin="plugin" />
+          <MyPluginRow v-for="plugin in store.minePlugins" :key="plugin.id" :plugin="plugin" />
         </ul>
 
         <!-- Pagination -->
         <div v-if="showPagination" class="pt-2 flex items-center justify-center gap-4 border-t">
           <Button
             variant="outline"
-            :disabled="isFetching || (meta?.current_page ?? 1) <= 1"
-            @click="goToPage((meta?.current_page ?? 1) - 1)"
+            :disabled="store.isFetchingMine || store.mine.page <= 1"
+            @click="goToPage(store.mine.page - 1)"
           >
             Previous
           </Button>
           <span class="text-sm font-medium text-muted-foreground">
-            Page {{ meta?.current_page }} of {{ meta?.last_page }}
+            Page {{ store.mine.page }} of {{ store.mine.lastPage }}
           </span>
           <Button
             variant="outline"
-            :disabled="isFetching || (meta?.current_page ?? 1) >= (meta?.last_page ?? 1)"
-            @click="goToPage((meta?.current_page ?? 1) + 1)"
+            :disabled="store.isFetchingMine || store.mine.page >= store.mine.lastPage"
+            @click="goToPage(store.mine.page + 1)"
           >
             Next
           </Button>

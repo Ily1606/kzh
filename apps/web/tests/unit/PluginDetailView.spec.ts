@@ -1,195 +1,425 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { ref } from 'vue'
+import { createApp } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import PluginDetailView from '@/views/PluginDetailView.vue'
+import { useAuthStore, usePluginsStore } from '@/stores'
+import type { PluginResource, UserResource } from '@/api/generated/model'
 
 const mockPluginShow = vi.fn()
+const mockStarStore = vi.fn()
+const mockNotifyError = vi.fn()
 
 vi.mock('@/api/generated/endpoints', () => ({
   getPlugin: () => ({
     pluginShow: mockPluginShow
-  })
+  }),
+  getStar: () => ({ starStore: mockStarStore }),
+  getAuth: () => ({ authLogout: vi.fn() }),
+  getProfile: () => ({ profileShow: vi.fn() })
 }))
 
-const mockRoute = {
-  params: { id: 'plugin-123' },
-  hash: '#comments'
-}
+vi.mock('@/utils/toast', () => ({
+  notifyError: (message: string) => mockNotifyError(message),
+  notifySuccess: vi.fn()
+}))
+
+const mockRoute = ref({
+  params: { id: 'plugin-123' } as Record<string, string>,
+  hash: '',
+  fullPath: '/plugins/plugin-123',
+  query: {} as Record<string, string | string[]>
+})
 
 vi.mock('vue-router', () => ({
-  useRoute: () => mockRoute,
-  RouterLink: { template: '<a><slot></slot></a>' }
+  useRoute: () => mockRoute.value,
+  useRouter: () => ({ push: vi.fn() }),
+  // Renders a real href from `to` so the sign-in target is assertable.
+  RouterLink: {
+    props: ['to'],
+    template: '<a :href="typeof to === \'string\' ? to : `/${to.name}?redirect=${to.query.redirect}`"><slot /></a>'
+  }
 }))
 
-// Mock fetch for README
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
-// Mock scrollIntoView
 window.HTMLElement.prototype.scrollIntoView = vi.fn()
+
+function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
+  return {
+    id: 'plugin-123',
+    name: '@dsh/my-plugin',
+    user_id: 'user-456',
+    author: { id: 'user-456', name: 'Jane Dev', avatar_url: null },
+    title: 'My awesome plugin',
+    license: 'MIT',
+    approved_at: '2026-10-01T00:00:00Z',
+    status: 'approved',
+    source_link: 'https://github.com/owner/repo',
+    star_count: 5,
+    comment_count: 2,
+    view_count: 100,
+    created_at: '2026-10-01T00:00:00Z',
+    updated_at: '2026-10-06T00:00:00Z',
+    ...overrides,
+  }
+}
+
+function signIn() {
+  const auth = useAuthStore()
+  auth.setUser({ id: 'user-456', name: 'Jane', email: 'j@example.com' } as UserResource)
+  auth.setToken('mock-token')
+}
+
+/** Seeds the store the way an earlier page would have, so no fetch is needed. */
+function seedStore(plugin: PluginResource = makePlugin()) {
+  const store = usePluginsStore()
+  store.put([plugin])
+  return store
+}
+
+function mountView() {
+  // Attached to the document: the popover content is portalled to `body`, so a
+  // detached mount cannot see it.
+  return mount(PluginDetailView, {
+    global: { stubs: { PluginComments: true } },
+    attachTo: document.body
+  })
+}
+
+function starButton(wrapper: ReturnType<typeof mountView>) {
+  return wrapper.findAll('button').find((b) => /Star/.test(b.text()))
+}
 
 describe('PluginDetailView.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockPluginShow.mockResolvedValue({
-      data: {
-        plugin: {
-          id: 'plugin-123',
-          name: '@dsh/my-plugin',
-          title: 'My awesome plugin',
-          license: 'MIT',
-          user_id: 'user-456',
-          updated_at: '2026-10-06T00:00:00Z',
-          view_count: 100,
-          star_count: 5,
-          comment_count: 2,
-          source_link: 'https://github.com/owner/repo'
-        }
-      }
-    })
-    
+
+    const pinia = createPinia()
+    pinia.use(piniaPluginPersistedstate)
+    createApp({}).use(pinia)
+    setActivePinia(pinia)
+    localStorage.clear()
+
+    mockRoute.value.hash = ''
+    mockRoute.value.query = {}
+
+    mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin() } })
+    mockStarStore.mockResolvedValue({ data: { starred: true, star_count: 6 } })
+    mockNotifyError.mockImplementation(() => {})
     mockFetch.mockResolvedValue({
       ok: true,
       text: () => Promise.resolve('# Hello Markdown\nThis is README')
     })
-    
+
     Object.assign(navigator, {
-      clipboard: {
-        writeText: vi.fn().mockResolvedValue(undefined)
-      }
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) }
     })
   })
 
-  it('renders loading state initially', async () => {
-    mockPluginShow.mockReturnValue(new Promise(() => {}))
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
+  describe('reading the plugin', () => {
+    it('renders from the store without calling the detail API', async () => {
+      seedStore()
+
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      expect(mockPluginShow).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('@dsh/my-plugin')
+      expect(wrapper.text()).toContain('My awesome plugin')
+      expect(wrapper.text()).toContain('MIT license')
+      expect(wrapper.text()).toContain('100 views')
     })
-    
-    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+
+    it('renders the README fetched from the repository', async () => {
+      seedStore()
+
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('raw.githubusercontent.com/owner/repo'))
+      expect(wrapper.html()).toContain('Hello Markdown')
+    })
+
+    it('fetches once when the store does not have the plugin', async () => {
+      mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin({ name: '@dsh/from-api' }) } })
+
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      // The hard-refresh / shared-link case.
+      expect(mockPluginShow).toHaveBeenCalledWith('plugin-123')
+      expect(wrapper.text()).toContain('@dsh/from-api')
+    })
+
+    it('caches the fetched plugin so a second mount does not refetch', async () => {
+      mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin() } })
+
+      mountView()
+      await flushPromises()
+
+      mountView()
+      await flushPromises()
+
+      expect(mockPluginShow).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows the error state when the plugin cannot be loaded', async () => {
+      mockPluginShow.mockRejectedValue({ response: { data: { message: 'Failed to load plugin details.' } } })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Failed to load plugin details.')
+    })
+
+    it('shows the skeleton while the first load is in flight', async () => {
+      mockPluginShow.mockReturnValue(new Promise(() => {}))
+
+      const wrapper = mountView()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+    })
   })
 
-  it('fetches and displays plugin details and README', async () => {
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
+  describe('README handling', () => {
+    it('handles gracefully when the README fetch fails', async () => {
+      seedStore()
+      mockFetch.mockResolvedValue({ ok: false })
+
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('No README available for this plugin.')
     })
-    
-    await flushPromises()
-    // Markdown rendering is async and might require an extra tick
-    await wrapper.vm.$nextTick()
-    
-    expect(mockPluginShow).toHaveBeenCalledWith('plugin-123')
-    
-    // Check plugin details
-    expect(wrapper.text()).toContain('@dsh/my-plugin')
-    expect(wrapper.text()).toContain('My awesome plugin')
-    expect(wrapper.text()).toContain('License: MIT')
-    expect(wrapper.text()).toContain('100 views')
-    
-    // Check if fetch was called with a raw github URL
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('raw.githubusercontent.com/owner/repo'))
-    
-    // Check if markdown was rendered (Heading should be mapped to h1 or text)
-    expect(wrapper.html()).toContain('Hello Markdown')
+
+    it('handles gracefully when source_link is missing', async () => {
+      seedStore(makePlugin({ source_link: '' }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('No README available for this plugin.')
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
   })
 
-  it('handles error when fetching plugin fails', async () => {
-    mockPluginShow.mockRejectedValue(new Error('API error'))
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
+  describe('copy install command', () => {
+    it('copies the install command to the clipboard', async () => {
+      seedStore()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.find('button[title="Copy command"]').trigger('click')
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('npx dsh add @dsh/my-plugin')
     })
-    
-    await flushPromises()
-    
-    expect(wrapper.text()).toContain('Failed to load plugin details.')
   })
 
-  it('handles gracefully when README fetch fails', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false
+  describe('star button state', () => {
+    it('shows "Star" and the stored count when not starred', async () => {
+      seedStore(makePlugin({ is_star: false, star_count: 5 }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('5 stars')
+      expect(starButton(wrapper)?.text()).toContain('Star')
+      expect(starButton(wrapper)?.text()).not.toContain('Starred')
     })
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
+
+    it('shows "Starred" when is_star is true in the store', async () => {
+      signIn()
+      seedStore(makePlugin({ is_star: true, star_count: 5 }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(starButton(wrapper)?.text()).toContain('Starred')
+      expect(starButton(wrapper)?.attributes('aria-pressed')).toBe('true')
     })
-    
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-    
-    expect(wrapper.text()).toContain('No README available for this plugin.')
+
+    it('shows "Star" when the response carried no is_star', async () => {
+      seedStore(makePlugin({ is_star: undefined, star_count: 5 }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      // Guest responses omit the field entirely; an unstarred icon is the right
+      // reading, and clicking still lands the correct state.
+      expect(starButton(wrapper)?.text()).toContain('Star')
+      expect(starButton(wrapper)?.text()).not.toContain('Starred')
+    })
   })
 
-  it('handles gracefully when source_link is missing', async () => {
-    mockPluginShow.mockResolvedValue({
-      data: {
-        plugin: {
-          id: 'plugin-123',
-          name: '@dsh/no-readme',
-          title: 'No readme plugin'
-        }
-      }
+  describe('starring as a signed-in user', () => {
+    it('calls the API with starred true and updates the count', async () => {
+      signIn()
+      seedStore(makePlugin({ is_star: false, star_count: 5 }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await starButton(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(mockStarStore).toHaveBeenCalledWith('plugin-123', { starred: true })
+      expect(wrapper.text()).toContain('6 stars')
+      expect(starButton(wrapper)?.text()).toContain('Starred')
     })
-    
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
+
+    it('calls the API with starred false to unstar', async () => {
+      signIn()
+      seedStore(makePlugin({ is_star: true, star_count: 5 }))
+      mockStarStore.mockResolvedValue({ data: { starred: false, star_count: 4 } })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await starButton(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(mockStarStore).toHaveBeenCalledWith('plugin-123', { starred: false })
+      expect(wrapper.text()).toContain('4 stars')
+      expect(starButton(wrapper)?.text()).toContain('Star')
     })
-    
-    await flushPromises()
-    
-    expect(wrapper.text()).toContain('No README available for this plugin.')
-    expect(mockFetch).not.toHaveBeenCalled()
+
+    it('lets the server count win over the optimistic one', async () => {
+      signIn()
+      seedStore(makePlugin({ is_star: false, star_count: 5 }))
+      mockStarStore.mockResolvedValue({ data: { starred: true, star_count: 17 } })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await starButton(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('17 stars')
+    })
+
+    it('writes the change through to the store', async () => {
+      signIn()
+      const store = seedStore(makePlugin({ is_star: false, star_count: 5 }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await starButton(wrapper)!.trigger('click')
+      await flushPromises()
+
+      // One write, seen by every list holding this plugin.
+      expect(store.findById('plugin-123')).toMatchObject({ is_star: true, star_count: 6 })
+    })
+
+    it('rolls back and notifies when the API fails', async () => {
+      signIn()
+      seedStore(makePlugin({ is_star: false, star_count: 5 }))
+      mockStarStore.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await starButton(wrapper)!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('5 stars')
+      expect(starButton(wrapper)?.text()).not.toContain('Starred')
+      expect(mockNotifyError).toHaveBeenCalledWith('Too many requests.')
+    })
+
+    it('disables the button while the request is in flight', async () => {
+      signIn()
+      seedStore(makePlugin({ is_star: false, star_count: 5 }))
+
+      let release!: () => void
+      mockStarStore.mockImplementation(() => new Promise((resolve) => {
+        release = () => resolve({ data: { starred: true, star_count: 6 } })
+      }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await starButton(wrapper)!.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      expect(starButton(wrapper)?.attributes('disabled')).toBeDefined()
+      expect(wrapper.find('.animate-spin').exists()).toBe(true)
+
+      release()
+      await flushPromises()
+    })
   })
 
-  it('copies install command to clipboard', async () => {
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
+  describe('starring as a guest', () => {
+    it('disables the button and never calls the API', async () => {
+      seedStore(makePlugin({ is_star: false, star_count: 5 }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const button = starButton(wrapper)
+      expect(button?.attributes('disabled')).toBeDefined()
+
+      await button!.trigger('click')
+      await flushPromises()
+
+      expect(mockStarStore).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('5 stars')
     })
-    
-    await flushPromises()
-    
-    const copyBtn = wrapper.find('button[title="Copy command"]')
-    await copyBtn.trigger('click')
-    
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('npx dsh add @dsh/my-plugin')
+
+    it('offers a sign-in prompt in a popover', async () => {
+      seedStore(makePlugin({ is_star: false, star_count: 5 }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      // The disabled button cannot be the trigger, so the wrapper span is.
+      const trigger = wrapper.find('[data-slot="popover-trigger"]')
+      expect(trigger.exists()).toBe(true)
+      expect(trigger.attributes('aria-expanded')).toBe('false')
+
+      await trigger.trigger('click')
+      await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve, 30))
+
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+
+      // The content is portalled to the document body, not into the wrapper.
+      const content = document.querySelector('[data-slot="popover-content"]')
+      expect(content).not.toBeNull()
+      expect(content?.textContent).toContain('Sign in to star this plugin')
+      // The link comes back to this page after signing in.
+      expect(content?.querySelector('a')?.getAttribute('href'))
+        .toBe('/login?redirect=/plugins/plugin-123')
+
+      wrapper.unmount()
+    })
   })
 
-  it('toggles star count', async () => {
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
-    })
-    
-    await flushPromises()
-    
-    const starBtn = wrapper.findAll('button').find(b => b.text().includes('Star'))
-    expect(starBtn).toBeDefined()
-    
-    // Initial state: not starred, 5 stars
-    expect(wrapper.text()).toContain('5 stars')
-    
-    // Click star
-    await starBtn!.trigger('click')
-    expect(wrapper.text()).toContain('Starred')
-    // Top summary updates to 6
-    expect(wrapper.text()).toContain('6 stars')
-    
-    // Click unstar
-    await starBtn!.trigger('click')
-    expect(wrapper.text()).toContain('Star')
-    expect(wrapper.text()).toContain('5 stars')
-  })
+  describe('comments', () => {
+    it('increments the comment count when comment-added fires', async () => {
+      const store = seedStore(makePlugin({ comment_count: 2 }))
 
-  it('increments comment count when comment-added event is emitted', async () => {
-    const wrapper = mount(PluginDetailView, {
-      global: { stubs: { PluginComments: true } }
+      const wrapper = mountView()
+      await flushPromises()
+
+      const pluginComments = wrapper.findComponent({ name: 'PluginComments' })
+      expect(pluginComments.props('totalCommentCount')).toBe(2)
+
+      await pluginComments.vm.$emit('comment-added')
+
+      expect(pluginComments.props('totalCommentCount')).toBe(3)
+      expect(store.findById('plugin-123')?.comment_count).toBe(3)
     })
-    
-    await flushPromises()
-    
-    // The plugin object starts with 2 comments, but it is passed as a prop
-    const pluginComments = wrapper.findComponent({ name: 'PluginComments' })
-    expect(pluginComments.props('totalCommentCount')).toBe(2)
-    
-    // Emit event
-    await pluginComments.vm.$emit('comment-added')
-    
-    expect(pluginComments.props('totalCommentCount')).toBe(3)
   })
 })

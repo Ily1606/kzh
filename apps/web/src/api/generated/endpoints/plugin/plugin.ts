@@ -86,7 +86,10 @@ const pluginTrending = (
     },
       options);
     }
-  const pluginShow = (
+  /**
+ * @summary Get one plugin's detail
+ */
+const pluginShow = (
     id: string,
  options?: SecondParameter<typeof customInstance<PluginShow200>>,) => {
       return customInstance<PluginShow200>(
