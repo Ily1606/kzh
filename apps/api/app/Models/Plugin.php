@@ -46,7 +46,6 @@ class Plugin extends Model
         return [
             'approved_at' => 'datetime',
             'status' => PluginStatus::class,
-            'star_count' => 'integer',
             'comment_count' => 'integer',
             'view_count' => 'integer',
             'created_at' => 'datetime',
@@ -72,5 +71,10 @@ class Plugin extends Model
     {
         return $query->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at');
+    }
+
+    public function stars(): HasMany
+    {
+        return $this->hasMany(Star::class);
     }
 }

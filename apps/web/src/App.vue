@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
+import { computed } from 'vue'
+import { useRoute, RouterView } from 'vue-router'
+import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import AuthLayout from '@/layouts/AuthLayout.vue'
+
+const route = useRoute()
+
+const layout = computed(() => {
+  if (route.meta.layout === 'auth') return AuthLayout
+  return DefaultLayout
+})
 </script>
 
 <template>
-  <div>
-    <nav>
-      <RouterLink to="/">Home</RouterLink>
-      |
-      <RouterLink to="/login">Login</RouterLink>
-    </nav>
+  <component :is="layout">
     <RouterView />
-  </div>
+  </component>
 </template>

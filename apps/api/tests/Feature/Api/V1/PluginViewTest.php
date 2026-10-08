@@ -27,7 +27,7 @@ class PluginViewTest extends TestCase
     public function test_view_01_authenticated_user_first_view(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, [], 'api');
 
         $plugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
@@ -48,7 +48,7 @@ class PluginViewTest extends TestCase
     public function test_view_02_authenticated_user_view_again_within_24h(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, [], 'api');
 
         $plugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
@@ -71,7 +71,7 @@ class PluginViewTest extends TestCase
     public function test_view_03_authenticated_user_view_again_after_ttl(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, [], 'api');
 
         $plugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
@@ -224,7 +224,7 @@ class PluginViewTest extends TestCase
     public function test_view_11_cache_ttl_is_respected(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, [], 'api');
 
         $plugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
@@ -244,7 +244,7 @@ class PluginViewTest extends TestCase
     public function test_view_12_two_different_plugins_viewed_by_same_user(): void
     {
         $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        Sanctum::actingAs($user, [], 'api');
 
         $pluginA = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
         $pluginB = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
@@ -259,20 +259,21 @@ class PluginViewTest extends TestCase
     public function test_view_13_concurrent_requests_from_same_viewer(): void
     {
         $user = User::factory()->create();
-        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
-        // Mock request object
-        $request = new Request;
-        $request->setUserResolver(function () use ($user) {
-            return $user;
-        });
+        // The service identifies the viewer via Auth::user(), not the request's
+        // user resolver — a bare `new Request` has no route, so the fingerprint
+        // fallback would throw. Acting as the user hits the same branch a real
+        // authenticated request does.
+        Sanctum::actingAs($user, [], 'api');
+
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
         $service = app(PluginService::class);
 
         // Verify Cache::add logic by calling the service method twice in sequence.
         // The second call will hit the Cache::add returning false branch.
-        $result1 = $service->incrementViewIfNotViewed($plugin->id, (string) $user->id);
-        $result2 = $service->incrementViewIfNotViewed($plugin->id, (string) $user->id);
+        $result1 = $service->incrementViewIfNotViewed($plugin->id, new Request);
+        $result2 = $service->incrementViewIfNotViewed($plugin->id, new Request);
 
         $this->assertTrue($result1->counted);
         $this->assertFalse($result2->counted);

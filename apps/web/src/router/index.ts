@@ -1,11 +1,99 @@
 import { createRouter, createWebHistory } from "vue-router";
-import HomeView from "../views/HomeView.vue";
-import LoginView from "../views/LoginView.vue";
+import HomeView from "@/views/HomeView.vue";
+import LoginView from "@/views/LoginView.vue";
+import RegisterView from "@/views/RegisterView.vue";
+import ProfileView from "@/views/ProfileView.vue";
+import { useAuth } from "@/composables/useAuth";
+
+import PublishPluginView from "@/views/PublishPluginView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' }
+    }
+    return { top: 0 }
+  },
   routes: [
-    { path: "/", name: "home", component: HomeView },
-    { path: "/login", name: "login", component: LoginView },
+    {
+      path: "/",
+      name: "home",
+      component: HomeView,
+      meta: { layout: 'default' }
+    },
+    {
+      path: "/plugins",
+      name: "plugins",
+      component: () => import("@/views/PluginsView.vue"),
+      meta: { layout: 'default' }
+    },
+    {
+      path: "/publish",
+      name: "publish",
+      component: PublishPluginView,
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
+      path: "/login",
+      name: "login",
+      component: LoginView,
+      meta: { layout: 'auth', title: 'Sign in to publish plugins', guestOnly: true }
+    },
+    {
+      path: "/register",
+      name: "register",
+      component: RegisterView,
+      meta: { layout: 'auth', title: 'Create a publisher account', guestOnly: true }
+    },
+    {
+      path: "/forgot-password",
+      name: "forgot-password",
+      component: () => import('@/views/ForgotPasswordView.vue'),
+      meta: { layout: 'auth', title: 'Forgot Password', guestOnly: true }
+    },
+    {
+      path: "/reset-password",
+      name: "reset-password",
+      component: () => import('@/views/ResetPasswordView.vue'),
+      meta: { layout: 'auth', title: 'Reset Password', guestOnly: true }
+    },
+    {
+      path: "/plugins/:id",
+      name: "plugin-detail",
+      component: () => import("@/views/PluginDetailView.vue"),
+      meta: { layout: 'default' }
+    },
+    {
+      path: "/profile",
+      name: "profile",
+      component: ProfileView,
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
+      meta: { layout: 'default' }
+    }
   ],
+});
+
+router.beforeEach((to) => {
+  const auth = useAuth();
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { name: 'login' };
+  }
+
+  if (to.meta.guestOnly && auth.isAuthenticated) {
+    return { name: 'home' };
+  }
+
+  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } };
+  }
 });

@@ -4,8 +4,10 @@ namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
@@ -18,6 +20,20 @@ class TrendingAlgorithmTest extends TestCase
         parent::setUp();
         Cache::flush();
         Redis::flushall();
+    }
+
+    /**
+     * Star count is COUNT over `stars`, so a test that wants a plugin to
+     * "have N stars" must create the rows — one distinct user per star.
+     */
+    private function starTimes(Plugin $plugin, int $count): void
+    {
+        User::factory()->count($count)->create()->each(function (User $stargazer) use ($plugin): void {
+            DB::table('stars')->insert([
+                'plugin_id' => $plugin->id,
+                'user_id' => $stargazer->id,
+            ]);
+        });
     }
 
     public function test_trend_01_plugins_within_days_limit_are_returned(): void
@@ -95,8 +111,8 @@ class TrendingAlgorithmTest extends TestCase
             'approved_at' => now()->subHours(2),
             'view_count' => 10,
             'comment_count' => 1,
-            'star_count' => 1,
         ]);
+        $this->starTimes($newPlugin, 1);
 
         // TREND-07: Old, many interactions
         $oldPlugin = Plugin::factory()->create([
@@ -104,8 +120,8 @@ class TrendingAlgorithmTest extends TestCase
             'approved_at' => now()->subDays(20),
             'view_count' => 1000,
             'comment_count' => 50,
-            'star_count' => 100,
         ]);
+        $this->starTimes($oldPlugin, 100);
 
         // TREND-08: New, massive interactions
         $superNewPlugin = Plugin::factory()->create([
@@ -113,8 +129,8 @@ class TrendingAlgorithmTest extends TestCase
             'approved_at' => now()->subHours(1),
             'view_count' => 500,
             'comment_count' => 20,
-            'star_count' => 50,
         ]);
+        $this->starTimes($superNewPlugin, 50);
 
         $response = $this->getJson('/api/v1/plugins/trending');
 
@@ -128,13 +144,14 @@ class TrendingAlgorithmTest extends TestCase
     public function test_trend_09_to_11_stars_comments_views_affect_score(): void
     {
         // Base plugin
-        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0, 'star_count' => 0]);
+        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0]);
         // View plugin
-        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 100, 'comment_count' => 0, 'star_count' => 0]);
+        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 100, 'comment_count' => 0]);
         // Comment plugin
-        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 100, 'star_count' => 0]);
+        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 100]);
         // Star plugin (highest weight)
-        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0, 'star_count' => 100]);
+        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0, 'comment_count' => 0]);
+        $this->starTimes($p4, 100);
 
         $response = $this->getJson('/api/v1/plugins/trending');
 

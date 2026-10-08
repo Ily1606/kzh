@@ -3,8 +3,11 @@
 namespace App\Repositories;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\Enums\PluginStatus;
 use App\Models\Plugin;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +37,28 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->model->newQuery()
             ->approved()
             ->findOrFail($id);
+    }
+
+    public function findById(string $id): Plugin
+    {
+        return $this->model->newQuery()->findOrFail($id);
+    }
+
+    /**
+     * Write the given attributes onto the plugin and return it re-read.
+     *
+     * `updated_at` moving is correct here, unlike in incrementCommentCount():
+     * that is a bookkeeping write, while this is a real edit of the plugin's
+     * content.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function update(Model $model, array $attributes): Plugin
+    {
+        /** @var Plugin $updated */
+        $updated = parent::update($model, $attributes);
+
+        return $updated;
     }
 
     /**
@@ -78,8 +103,10 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
 
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
     {
-        return $this->model->newQuery()
-            ->approved()
+        return $this->baseQuery()
+            ->where('status', PluginStatus::Approved)
+            ->whereNotNull('approved_at')
+            ->withCount(['stars as star_count'])
             ->orderByDesc('approved_at')
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -92,18 +119,29 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
     {
         $secondsInHour = 3600.0;
+        $starCountSql = $this->starCountSql();
 
         return $this->model->newQuery()
             ->approved()
             ->where('approved_at', '>=', now()->subDays($daysLimit))
-            ->selectRaw("*, (
-                (view_count * {$weights['view']} + comment_count * {$weights['comment']} + star_count * {$weights['star']} - 1)
+            ->selectRaw("*, {$starCountSql} as star_count, (
+                (view_count * {$weights['view']} + comment_count * {$weights['comment']} + ({$starCountSql}) * {$weights['star']} - 1)
                 / POWER({$this->getAgeInSecondsSql()}/{$secondsInHour} + {$ageOffset}, {$gravity})
             ) as trending_score")
             ->orderByDesc('trending_score')
             ->orderByDesc('id')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * Shared skeleton for every query that feeds `PluginResource`.
+     *
+     * @return Builder<Plugin>
+     */
+    private function baseQuery(): Builder
+    {
+        return $this->newQuery()->with('user.profile');
     }
 
     private function getAgeInSecondsSql(): string
@@ -115,13 +153,21 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         };
     }
 
+    private function starCountSql(): string
+    {
+        $prefix = $this->model->getConnection()->getTablePrefix();
+
+        return "(select count(*) from {$prefix}stars where {$prefix}stars.plugin_id = {$prefix}plugins.id)";
+    }
+
     public function getTopAllTimePlugins(int $limit): Collection
     {
-        return $this->model->newQuery()
-            ->approved()
+        return $this->baseQuery()
+            ->where('status', PluginStatus::Approved)
+            ->whereNotNull('approved_at')
+            ->selectRaw("*, {$this->starCountSql()} as star_count")
             ->orderByDesc('view_count')
-            ->orderByDesc('star_count')
-            ->orderByDesc('id')
+            ->orderByRaw($this->starCountSql().' desc')
             ->limit($limit)
             ->get();
     }

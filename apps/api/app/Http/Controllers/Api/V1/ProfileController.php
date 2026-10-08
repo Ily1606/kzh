@@ -16,6 +16,9 @@ class ProfileController extends Controller
 {
     public function __construct(private readonly ProfileService $profileService) {}
 
+    /**
+     * Get user's profile
+     */
     public function show(Request $request): JsonResponse
     {
         $user = $this->profileService->getProfile($request->user());
@@ -23,6 +26,9 @@ class ProfileController extends Controller
         return ApiResponse::successResponse(new UserResource($user), __('api.user_retrieved'));
     }
 
+    /**
+     * Update user's profile
+     */
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user = $this->profileService->updateProfile($request->user(), $request->validated());
@@ -30,6 +36,9 @@ class ProfileController extends Controller
         return ApiResponse::successResponse(new UserResource($user), __('api.profile_updated'));
     }
 
+    /**
+     * Update user's avatar
+     */
     public function updateAvatar(UpdateAvatarRequest $request): JsonResponse
     {
         $user = $this->profileService->updateAvatar($request->user(), $request->file('avatar'));
@@ -37,6 +46,9 @@ class ProfileController extends Controller
         return ApiResponse::successResponse(new UserResource($user), __('api.avatar_updated'));
     }
 
+    /**
+     * Update user's password
+     */
     public function updatePassword(UpdatePasswordRequest $request): JsonResponse
     {
         $data = $request->validated();

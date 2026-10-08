@@ -27,4 +27,8 @@ return [
     'comment_created_successfully' => 'Comment created successfully.',
     'plugin_view_already_counted' => 'You have already viewed this plugin in the last :hours hours.',
     'comment_max_depth_reached' => 'You cannot reply to this comment because the thread has reached its maximum depth.',
+    'plugin_starred_successfully' => 'Plugin starred successfully.',
+    'plugin_unstarred_successfully' => 'Plugin unstarred successfully.',
+    'plugin_updated_successfully' => 'Plugin updated successfully.',
+    'plugin_update_requires_field' => 'At least one of name, title, license, or source_link is required.',
 ];

@@ -95,6 +95,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Star event log channel
+    |--------------------------------------------------------------------------
+    |
+    | Channel used by the star lifecycle listener.
+    |
+    */
+
+    'star_channel' => env('LOG_STAR_CHANNEL'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Star event failure channel
+    |--------------------------------------------------------------------------
+    |
+    | Same reasoning as comment_failure_channel: a different channel from the one
+    | the star audit entries went to.
+    |
+    */
+
+    'star_failure_channel' => env('LOG_STAR_FAILURE_CHANNEL', 'stderr'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Log Channels
     |--------------------------------------------------------------------------
     |
