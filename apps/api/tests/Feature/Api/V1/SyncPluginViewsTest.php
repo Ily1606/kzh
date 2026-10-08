@@ -15,7 +15,7 @@ class SyncPluginViewsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Redis::flushdb();
+        Redis::flushall();
     }
 
     public function test_syncs_views_and_clears_buffer()

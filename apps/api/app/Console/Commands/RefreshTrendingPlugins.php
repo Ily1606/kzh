@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\Services\TrendingTracker;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -29,7 +30,7 @@ class RefreshTrendingPlugins extends Command
         $weightStar = (float) config('plugins.trending.weights.star');
         $masterLimit = (int) config('plugins.trending.master_limit');
 
-        $activeIds = \App\Services\TrendingTracker::getActivePluginIds($daysLimit);
+        $activeIds = TrendingTracker::getActivePluginIds($daysLimit);
 
         $zsetKey = config('plugins.trending.keys.zset');
         $hashKey = config('plugins.trending.keys.objects');
@@ -37,7 +38,7 @@ class RefreshTrendingPlugins extends Command
         if (empty($activeIds)) {
             // Fallback to all-time top
             $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
-            
+
             if ($results->isEmpty()) {
                 Redis::del($zsetKey);
                 Redis::del($hashKey);
@@ -51,14 +52,14 @@ class RefreshTrendingPlugins extends Command
         }
 
         // We have active plugins, get their recent counts
-        $interactions = \App\Services\TrendingTracker::getBulkInteractionCounts($activeIds, $daysLimit);
-        
+        $interactions = TrendingTracker::getBulkInteractionCounts($activeIds, $daysLimit);
+
         $scoredPlugins = [];
         foreach ($interactions as $id => $counts) {
-            $score = ($counts['views'] * $weightView) + 
-                     ($counts['comments'] * $weightComment) + 
+            $score = ($counts['views'] * $weightView) +
+                     ($counts['comments'] * $weightComment) +
                      ($counts['stars'] * $weightStar);
-            
+
             if ($score > 0) {
                 $scoredPlugins[$id] = $score;
             }
@@ -74,18 +75,18 @@ class RefreshTrendingPlugins extends Command
 
         // Sort descending
         arsort($scoredPlugins);
-        
+
         // Take top $masterLimit
         $topIds = array_slice(array_keys($scoredPlugins), 0, $masterLimit);
-        
+
         // Fetch full objects from DB
         $plugins = $this->pluginRepository->findApprovedByIds($topIds);
 
         // Put scores back into plugins (transient) if needed, but we don't strictly need it in the API response.
         // Or we can just sort the collection properly. Since findApprovedByIds already sorts by the given ID array.
-        
+
         $this->storeResultsToRedis($plugins, $masterLimit, $zsetKey, $hashKey, false, $scoredPlugins);
-        
+
         $this->info("Successfully refreshed {$plugins->count()} trending plugins to Redis ZSET.");
     }
 
@@ -98,7 +99,7 @@ class RefreshTrendingPlugins extends Command
         Redis::del($tmpHashKey);
 
         $baseScore = $masterLimit;
-        
+
         foreach ($plugins as $index => $plugin) {
             if ($isFallback) {
                 $score = $baseScore - $index;

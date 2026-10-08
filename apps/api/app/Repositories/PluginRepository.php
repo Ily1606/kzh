@@ -99,6 +99,14 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     public function incrementViewCount(string $id, int $count): void
     {
         $this->model->newQuery()->where('id', $id)->increment('view_count', $count);
+        
+        \App\Models\PluginDailyView::upsert(
+            [
+                ['plugin_id' => $id, 'date' => now()->format('Y-m-d'), 'views_count' => $count],
+            ],
+            ['plugin_id', 'date'],
+            ['views_count' => \Illuminate\Support\Facades\DB::raw("plugin_daily_views.views_count + {$count}")]
+        );
     }
 
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator

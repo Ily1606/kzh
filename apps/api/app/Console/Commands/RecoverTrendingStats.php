@@ -18,8 +18,8 @@ class RecoverTrendingStats extends Command
         $daysLimit = (int) config('plugins.trending.days_limit', 7);
         $this->info("Recovering trending data for the past {$daysLimit} days...");
 
-        // 1. Recover Comments (Accurate)
-        $this->info('Recovering comments (accurate)...');
+        // 1. Recover Comments
+        $this->info('Recovering comments...');
         $comments = DB::table('comments')
             ->select('plugin_id', DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
             ->where('created_at', '>=', now()->subDays($daysLimit))
@@ -31,40 +31,33 @@ class RecoverTrendingStats extends Command
         }
         $this->info("Recovered {$comments->count()} comment records.");
 
-        // 2. Recover Views & Stars (Approximation)
-        $this->info('Approximating views and stars (best effort)...');
-        $this->warn('Note: Views and stars are approximated because historical timestamps are not stored.');
-        
-        $plugins = DB::table('plugins')
-            ->select('id', 'view_count', 'star_count', 'created_at')
-            ->where('status', 'approved')
-            ->where(function($q) {
-                $q->where('view_count', '>', 0)->orWhere('star_count', '>', 0);
-            })
+        // 2. Recover Stars
+        $this->info('Recovering stars...');
+        $stars = DB::table('stars')
+            ->select('plugin_id', DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
+            ->whereNotNull('created_at')
+            ->where('created_at', '>=', now()->subDays($daysLimit))
+            ->groupBy('plugin_id', DB::raw('DATE(created_at)'))
             ->get();
 
-        $today = now()->format('Y-m-d');
-        
-        foreach ($plugins as $plugin) {
-            $createdAt = \Carbon\Carbon::parse($plugin->created_at);
-            $ageInDays = max(1, $createdAt->diffInDays(now()));
-            
-            // If the plugin is older than the limit, we only take a fraction of its total stats
-            $recentRatio = min(1, $daysLimit / $ageInDays);
-            
-            $approxViews = round($plugin->view_count * $recentRatio);
-            $approxStars = round($plugin->star_count * $recentRatio);
-            
-            if ($approxViews > 0) {
-                $this->saveToRedis('views', $plugin->id, $today, $approxViews);
-            }
-            if ($approxStars > 0) {
-                $this->saveToRedis('stars', $plugin->id, $today, $approxStars);
-            }
+        foreach ($stars as $star) {
+            $this->saveToRedis('stars', $star->plugin_id, $star->date, $star->count);
         }
-        $this->info("Approximated stats for {$plugins->count()} plugins.");
+        $this->info("Recovered {$stars->count()} star records.");
 
-        // 3. Re-run the refresh command
+        // 3. Recover Views
+        $this->info('Recovering daily views...');
+        $views = DB::table('plugin_daily_views')
+            ->select('plugin_id', 'date', 'views_count as count')
+            ->where('date', '>=', now()->subDays($daysLimit)->format('Y-m-d'))
+            ->get();
+
+        foreach ($views as $view) {
+            $this->saveToRedis('views', $view->plugin_id, $view->date, $view->count);
+        }
+        $this->info("Recovered {$views->count()} daily view records.");
+
+        // 4. Re-run the refresh command
         $this->info('Rebuilding trending ZSET...');
         Artisan::call('plugins:refresh-trending');
         $this->info(Artisan::output());

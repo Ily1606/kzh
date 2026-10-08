@@ -14,6 +14,7 @@ use App\Events\Plugin\PluginUpdated;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
@@ -202,7 +203,7 @@ final class PluginService
 
         if (Cache::add($cacheKey, true, $ttl)) {
             $bufferedViews = (int) Redis::hincrby($bufferKey, $plugin->id, 1);
-            
+
             TrendingTracker::trackView($plugin->id);
 
             return new PluginViewResult(true, $plugin->view_count + $bufferedViews);
@@ -231,7 +232,7 @@ final class PluginService
         $zsetKey = config('plugins.trending.keys.zset');
         $hashKey = config('plugins.trending.keys.objects');
 
-        $page = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
+        $page = Paginator::resolveCurrentPage() ?: 1;
 
         $start = ($page - 1) * $perPage;
         $end = $start + $perPage - 1;
