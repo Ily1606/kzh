@@ -8,7 +8,7 @@ class Star extends Model
 {
     public $incrementing = false;
 
-    public $timestamps = false;
+    public $timestamps = true;
 
     /**
      * @var list<string>

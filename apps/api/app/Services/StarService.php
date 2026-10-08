@@ -41,6 +41,7 @@ final class StarService
 
         if ($changed) {
             $this->dispatchStarEvent($starred, $plugin->id, $user, $requestContext);
+            TrendingTracker::trackStar($plugin->id, $starred ? 1 : -1);
         }
 
         return [

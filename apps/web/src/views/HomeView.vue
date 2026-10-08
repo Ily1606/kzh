@@ -25,7 +25,9 @@ onMounted(async () => {
       pluginTrending()
     ]);
     health.value = healthRes.data as unknown as HealthResponse;
-    if (pluginsRes.data?.plugins) {
+    if (Array.isArray(pluginsRes.data)) {
+      trendingPlugins.value = pluginsRes.data as PluginResource[];
+    } else if (pluginsRes.data?.plugins) {
       trendingPlugins.value = pluginsRes.data.plugins as PluginResource[];
     }
   } catch (e) {

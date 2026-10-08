@@ -98,6 +98,7 @@ final class CommentService
             ]);
 
             $this->pluginRepository->incrementCommentCount($plugin->id);
+            TrendingTracker::trackComment($plugin->id);
 
             return $comment;
         });

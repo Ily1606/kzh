@@ -16,12 +16,10 @@ class ListPluginsTest extends TestCase
 
     public function test_can_list_paginated_approved_plugins_sorted_by_approved_at_desc(): void
     {
-        // Create an unapproved plugin (should not be listed)
         Plugin::factory()->create([
             'status' => PluginStatus::Pending,
         ]);
 
-        // Create approved plugins
         $olderPlugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subDays(2),
@@ -36,16 +34,17 @@ class ListPluginsTest extends TestCase
 
         $response->assertOk()
             ->assertJsonCount(2, 'data')
-            // Assert ordering: newest first
             ->assertJsonPath('data.0.id', $newerPlugin->id)
             ->assertJsonPath('data.1.id', $olderPlugin->id)
-            // Assert paginated structure
             ->assertJsonStructure([
+                'success',
+                'message',
                 'data' => [
                     '*' => ['id', 'name', 'title', 'status', 'approved_at'],
                 ],
-                'links' => ['first', 'last', 'prev', 'next'],
-                'meta' => ['current_page', 'per_page', 'total'],
+                'meta' => [
+                    'pagination' => ['current_page', 'per_page', 'total', 'last_page'],
+                ],
             ]);
     }
 
@@ -65,7 +64,7 @@ class ListPluginsTest extends TestCase
         $response = $this->getJson('/api/v1/plugins');
         $response->assertOk()
             ->assertJsonCount(0, 'data')
-            ->assertJsonPath('meta.total', 0);
+            ->assertJsonPath('meta.pagination.total', 0);
     }
 
     public function test_respects_per_page_parameter(): void
@@ -78,8 +77,8 @@ class ListPluginsTest extends TestCase
         $response = $this->getJson('/api/v1/plugins?per_page=3');
         $response->assertOk()
             ->assertJsonCount(3, 'data')
-            ->assertJsonPath('meta.per_page', 3)
-            ->assertJsonPath('meta.total', 10);
+            ->assertJsonPath('meta.pagination.per_page', 3)
+            ->assertJsonPath('meta.pagination.total', 10);
     }
 
     public function test_caps_per_page_at_config_max(): void
@@ -92,9 +91,8 @@ class ListPluginsTest extends TestCase
         ]);
 
         $response = $this->getJson('/api/v1/plugins?per_page=50');
-        $response->assertOk()
-            ->assertJsonCount(5, 'data')
-            ->assertJsonPath('meta.per_page', 5);
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
     }
 
     public function test_uses_default_per_page_when_not_specified(): void
@@ -109,7 +107,7 @@ class ListPluginsTest extends TestCase
         $response = $this->getJson('/api/v1/plugins');
         $response->assertOk()
             ->assertJsonCount(2, 'data')
-            ->assertJsonPath('meta.per_page', 2);
+            ->assertJsonPath('meta.pagination.per_page', 2);
     }
 
     public function test_pagination_navigates_correctly(): void
@@ -122,8 +120,8 @@ class ListPluginsTest extends TestCase
         $response = $this->getJson('/api/v1/plugins?per_page=2&page=2');
         $response->assertOk()
             ->assertJsonCount(2, 'data')
-            ->assertJsonPath('meta.current_page', 2)
-            ->assertJsonPath('meta.last_page', 3);
+            ->assertJsonPath('meta.pagination.current_page', 2)
+            ->assertJsonPath('meta.pagination.last_page', 3);
     }
 
     public function test_returns_author_username(): void
@@ -211,6 +209,7 @@ class ListPluginsTest extends TestCase
         $response = $this->getJson('/api/v1/plugins');
         $response->assertOk()
             ->assertJsonStructure([
+                'success',
                 'data' => [
                     '*' => [
                         'id',
@@ -231,7 +230,6 @@ class ListPluginsTest extends TestCase
                 ],
             ]);
 
-        // Ensure sensitive fields are not exposed
         $response->assertJsonMissingPath('data.0.deleted_at');
     }
 

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
+use App\Http\Requests\Plugin\ListPluginsRequest;
 use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
+use App\Http\Resources\PluginViewResource;
 use App\Services\PluginService;
 use App\Support\ApiResponse;
 use App\Support\RequestContext;
@@ -21,25 +23,28 @@ class PluginController extends Controller
         private readonly PluginService $pluginService,
     ) {}
 
-    /**
-     * Get plugin list.
-     *
-     * @unauthenticated
-     */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(ListPluginsRequest $request): JsonResponse
     {
-        $defaultPerPage = config('plugins.pagination.default_per_page');
-        $maxPerPage = config('plugins.pagination.max_per_page');
-
-        $perPage = (int) $request->query('per_page', $defaultPerPage);
-        $perPage = max(1, min($perPage, $maxPerPage));
+        $perPage = (int) $request->validated('per_page', config('plugins.pagination.default_per_page'));
 
         $paginator = $this->pluginService->getPaginatedApprovedPlugins(
             $perPage,
             Auth::user()
         );
 
-        return PluginResource::collection($paginator);
+        return ApiResponse::successResponse(
+            PluginResource::collection($paginator)->resolve(),
+            'Plugins retrieved successfully.',
+            200,
+            [
+                'pagination' => [
+                    'total' => $paginator->total(),
+                    'per_page' => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                ],
+            ]
+        );
     }
 
     public function show(string $id): JsonResponse
@@ -99,9 +104,19 @@ class PluginController extends Controller
      */
     public function trackView(Request $request, string $id): JsonResponse
     {
-        $result = $this->pluginService->incrementViewIfNotViewed($id, $request);
+        $viewerId = (string) ($request->user()?->getAuthIdentifier() ?? 'guest:'.sha1($request->ip().'|'.$request->userAgent()));
+        $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
+        $secondsInHour = 3600.0;
 
-        return ApiResponse::successResponse($result, $result['message']);
+        $ttl = (int) config('plugins.view_cache_ttl');
+        $message = $result->counted
+            ? __('api.plugin_view_counted')
+            : __('api.plugin_view_already_counted', ['hours' => max(1, (int) round($ttl / $secondsInHour))]);
+
+        return ApiResponse::successResponse(
+            (new PluginViewResource($result))->resolve(),
+            $message
+        );
     }
 
     /**
@@ -109,18 +124,27 @@ class PluginController extends Controller
      *
      * @unauthenticated
      */
-    public function trending(Request $request): JsonResponse
+    public function trending(ListPluginsRequest $request): JsonResponse
     {
-        $defaultLimit = config('plugins.trending_api.default_limit');
-        $maxLimit = config('plugins.trending_api.max_limit');
+        $perPage = (int) $request->validated('per_page', config('plugins.pagination.default_per_page'));
 
-        $limit = (int) $request->query('limit', $defaultLimit);
-        $limit = max(1, min($limit, $maxLimit));
+        $paginator = $this->pluginService->getTrendingPlugins(
+            $perPage,
+            Auth::user()
+        );
 
-        $plugins = $this->pluginService->getTrendingPlugins($limit);
-
-        return ApiResponse::successResponse([
-            'plugins' => $plugins,
-        ]);
+        return ApiResponse::successResponse(
+            PluginResource::collection($paginator)->resolve(),
+            'Trending plugins retrieved successfully.',
+            200,
+            [
+                'pagination' => [
+                    'total' => $paginator->total(),
+                    'per_page' => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                ],
+            ]
+        );
     }
 }
