@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PluginController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\StarController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -26,16 +27,28 @@ Route::prefix('v1')->group(function () {
         Route::patch('/user/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:strict');
 
         // ================ Plugin ======================
-        Route::post('/plugins', [PluginController::class, 'store'])
-            ->middleware('throttle:submit-plugin');
+        Route::prefix('plugins')
+            ->controller(PluginController::class)
+            ->group(function () {
+                Route::post('/', 'store')
+                    ->middleware('throttle:submit-plugin');
+
+                Route::patch('/{pluginId}', 'update')
+                    ->whereUuid('pluginId');
+            });
 
         // ================ Comment ====================
         Route::post('/plugins/{pluginId}/comments', [CommentController::class, 'store'])
             ->whereUuid('pluginId')
             ->middleware('throttle:create-comment');
+
+        // ================ Star ======================
+        Route::post('/plugins/{pluginId}/star', [StarController::class, 'store'])
+            ->whereUuid('pluginId')
+            ->middleware('throttle:star-plugin');
     });
 
-    Route::middleware('throttle:api')->group(function () {
+    Route::middleware(['set.api.guard', 'throttle:api'])->group(function () {
         Route::get('/plugins', [PluginController::class, 'index']);
         Route::get('/plugins/trending', [PluginController::class, 'trending']);
         Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])

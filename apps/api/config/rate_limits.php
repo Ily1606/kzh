@@ -14,4 +14,9 @@ return [
     // Maximum plugin submissions per minute, counted per authenticated user.
     // Read from env so each environment can tune it without a code change and redeploy.
     'submit_plugin_per_minute' => (int) env('PLUGIN_SUBMIT_PER_MINUTE', 5),
+
+    // Maximum star/unstar operations per minute, counted per authenticated user.
+    // Generous by default: the endpoint is idempotent, so a legitimate client
+    // never needs to repeat it — the ceiling is here to absorb abuse, not retries.
+    'star_plugin_per_minute' => (int) env('STAR_PLUGIN_PER_MINUTE', 30),
 ];

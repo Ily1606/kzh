@@ -8,6 +8,11 @@ use Illuminate\Http\JsonResponse;
 
 class HealthController extends Controller
 {
+    /**
+     * Health check
+     *
+     * @unauthenticated
+     */
     public function __invoke(): JsonResponse
     {
         return ApiResponse::successResponse(

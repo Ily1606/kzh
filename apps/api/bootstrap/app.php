@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // resolve ConsoleKernel, lúc đó container chưa có `config` -> crash.
         // Nguồn sự thật duy nhất: config/trustedproxy.php + TRUSTED_PROXIES.
         $middleware->trustProxies();
+
+        $middleware->alias([
+            'set.api.guard' => \App\Http\Middleware\SetApiGuard::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

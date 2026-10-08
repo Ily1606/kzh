@@ -6,6 +6,7 @@ use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -37,6 +38,28 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->findOrFail($id);
     }
 
+    public function findById(string $id): Plugin
+    {
+        return $this->model->newQuery()->findOrFail($id);
+    }
+
+    /**
+     * Write the given attributes onto the plugin and return it re-read.
+     *
+     * `updated_at` moving is correct here, unlike in incrementCommentCount():
+     * that is a bookkeeping write, while this is a real edit of the plugin's
+     * content.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function update(Model $model, array $attributes): Plugin
+    {
+        /** @var Plugin $updated */
+        $updated = parent::update($model, $attributes);
+
+        return $updated;
+    }
+
     /**
      * `DB::table()` returns the plain query builder, not the Eloquent one, and
      * that is the point: Eloquent's `Builder::increment()` calls
@@ -57,6 +80,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->model->newQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            ->withCount(['stars as star_count'])
             ->orderByDesc('approved_at')
             ->paginate($perPage);
     }
@@ -67,8 +91,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             ->where('approved_at', '>=', now()->subDays($daysLimit))
-            ->selectRaw("*, (
-                (view_count * ? + comment_count * ? + star_count * ?)
+            ->selectRaw("*, {$this->starCountSql()} as star_count, (
+                (view_count * ? + comment_count * ? + {$this->starCountSql()} * ?)
                 / POWER({$this->getAgeInSecondsSql()}/3600.0 + ?, ?)
             ) as trending_score", [
                 $weights['view'],
@@ -91,13 +115,21 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         };
     }
 
+    private function starCountSql(): string
+    {
+        $prefix = $this->model->getConnection()->getTablePrefix();
+
+        return "(select count(*) from {$prefix}stars where {$prefix}stars.plugin_id = {$prefix}plugins.id)";
+    }
+
     public function getTopAllTimePlugins(int $limit): Collection
     {
         return $this->model->newQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            ->selectRaw("*, {$this->starCountSql()} as star_count")
             ->orderByDesc('view_count')
-            ->orderByDesc('star_count')
+            ->orderByRaw($this->starCountSql().' desc')
             ->limit($limit)
             ->get();
     }

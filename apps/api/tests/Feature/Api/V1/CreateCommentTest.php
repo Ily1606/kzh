@@ -11,6 +11,7 @@ use App\Repositories\PluginRepository;
 use App\Services\CommentService;
 use App\Support\RequestContext;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Laravel\Sanctum\Sanctum;
@@ -311,6 +312,19 @@ class CreateCommentTest extends TestCase
             public function findApprovedById(string $id): Plugin
             {
                 return $this->real->findApprovedById($id);
+            }
+
+            public function findById(string $id): Plugin
+            {
+                return $this->real->findById($id);
+            }
+
+            /**
+             * @param  array<string, mixed>  $attributes
+             */
+            public function update(Model $model, array $attributes): Plugin
+            {
+                return $this->real->update($model, $attributes);
             }
 
             public function incrementCommentCount(string $pluginId): void
