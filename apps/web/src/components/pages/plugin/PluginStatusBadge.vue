@@ -12,7 +12,6 @@ const props = defineProps<{
   status: string
 }>()
 
-
 const VARIANTS: Record<string, BadgeVariant> = {
   approved: {
     label: 'Published',
