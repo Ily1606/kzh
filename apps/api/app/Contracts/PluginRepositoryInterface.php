@@ -2,6 +2,7 @@
 
 namespace App\Contracts;
 
+use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +30,14 @@ interface PluginRepositoryInterface
     public function update(Model $model, array $attributes): Plugin;
 
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator;
+
+    /**
+     * List one owner's plugins, whatever their review status.
+     *
+     * @param  string  $userId  Owner the list is scoped to.
+     * @param  PluginStatus|null  $status  Restrict to one status, or null for all of them.
+     */
+    public function getPaginatedPluginsByUser(string $userId, ?PluginStatus $status, int $perPage): LengthAwarePaginator;
 
     /**
      * @return Collection<int, Plugin>

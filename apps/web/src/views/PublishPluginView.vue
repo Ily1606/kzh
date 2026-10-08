@@ -2,8 +2,6 @@
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import * as z from 'zod'
 import { getPlugin } from '@/api/generated/endpoints'
 import { SubmitPluginRequestLicense } from '@/api/generated/model'
 import type { SubmitPluginRequest } from '@/api/generated/model'
@@ -20,42 +18,13 @@ import {
   Terminal,
   Sparkles
 } from 'lucide-vue-next'
+import { submitPluginSchema } from '@/schemas/plugin.schema'
 
 const router = useRouter()
 const { pluginStore } = getPlugin()
 
 const error = ref('')
 const isSuccess = ref(false)
-
-// Zod validation schema matching backend rules
-const licenseValues = Object.values(SubmitPluginRequestLicense) as [string, ...string[]]
-
-const submitPluginSchema = toTypedSchema(
-  z.object({
-    name: z
-      .string({ required_error: 'Plugin name is required' })
-      .trim()
-      .min(1, 'Plugin name is required')
-      .max(255, 'Plugin name must not exceed 255 characters'),
-    title: z
-      .string({ required_error: 'Display title is required' })
-      .trim()
-      .min(1, 'Display title is required')
-      .max(255, 'Display title must not exceed 255 characters'),
-    license: z.enum(licenseValues, {
-      errorMap: () => ({ message: 'Please select a valid license' }),
-    }),
-    source_link: z
-      .string({ required_error: 'Source link is required' })
-      .trim()
-      .min(1, 'Source link is required')
-      .max(2048, 'Source link must not exceed 2048 characters')
-      .url('Source link must be a valid URL')
-      .refine((url) => url.startsWith('https://'), {
-        message: 'Source link must start with https://',
-      }),
-  })
-)
 
 const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
   validationSchema: submitPluginSchema,
@@ -110,12 +79,15 @@ const onSubmit = handleSubmit(async (values) => {
   try {
     await pluginStore(values as SubmitPluginRequest)
     isSuccess.value = true
+
     setTimeout(() => {
-      router.push('/plugins')
+      router.push({ name: 'my-plugins', query: { status: 'pending' } })
     }, 2400)
+
   } catch (err: any) {
     if (err?.response?.status === 422 && err?.response?.data?.errors) {
       const serverErrors: Record<string, string> = {}
+
       for (const [key, msgs] of Object.entries(err.response.data.errors as Record<string, string[]>)) {
         if (msgs && msgs[0]) {
           serverErrors[key] = msgs[0]
@@ -123,6 +95,7 @@ const onSubmit = handleSubmit(async (values) => {
       }
       setErrors(serverErrors)
     }
+
     error.value = err?.response?.data?.message || 'An error occurred while submitting the plugin.'
   }
 })
@@ -156,11 +129,11 @@ const onSubmit = handleSubmit(async (values) => {
             </div>
             <h3 class="text-2xl font-bold">Plugin Submitted Successfully!</h3>
             <p class="text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">
-              Your plugin has been submitted to the registry queue and will be reviewed by an administrator shortly. Redirecting to plugins list...
+              Your plugin has been submitted to the registry queue and will be reviewed by an administrator shortly. Redirecting to your resources...
             </p>
             <div class="pt-2">
               <Button as-child variant="outline" class="rounded-full px-6">
-                <RouterLink to="/plugins">View all plugins</RouterLink>
+                <RouterLink to="/resources">View your resources</RouterLink>
               </Button>
             </div>
           </div>

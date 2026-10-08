@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { Toaster } from "vue-sonner";
 import "vue-sonner/style.css";
-import { ArrowLeft, UserRound, Lock } from "lucide-vue-next";
+import { UserRound, Lock } from "lucide-vue-next";
 import { SUCCESS_DURATION } from "@/utils/toast";
 import PersonalInfoForm from "@/components/pages/profile/PersonalInfoForm.vue";
 import ChangePasswordForm from "@/components/pages/profile/ChangePasswordForm.vue";
@@ -19,7 +19,7 @@ const activeTab = ref<'profile' | 'password'>('profile');
 
     <div class="flex flex-col md:flex-row gap-8">
       <!-- Sidebar -->
-      <aside class="md:w-64 flex-shrink-0">
+      <aside class="md:w-64 shrink-0">
         <nav class="flex flex-col space-y-1">
           <button
             @click="activeTab = 'profile'"

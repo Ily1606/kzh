@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginUpdated;
 use App\Events\Plugin\PluginViewed;
@@ -152,6 +153,24 @@ final class PluginService
      * @param  User  $user  Signed-in viewer, or null for a guest. Drives whether
      *                      each plugin carries the viewer-specific `is_star` flag.
      */
+    /**
+     * The caller's own plugins for the Resources page.
+     *
+     * No `is_star` resolution: this list is the owner's own inventory, and
+     * nothing on it renders a star toggle. Resolving the flag would add a
+     * query per page for a value nobody reads.
+     *
+     * @param  PluginStatus|null  $status  Restrict to one status, or null for all of them.
+     */
+    public function getPaginatedPluginsByUser(User $user, ?PluginStatus $status, int $perPage): LengthAwarePaginator
+    {
+        return $this->pluginRepository->getPaginatedPluginsByUser(
+            $user->getAuthIdentifier(),
+            $status,
+            $perPage,
+        );
+    }
+
     public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
     {
         $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage);

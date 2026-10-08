@@ -69,6 +69,22 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->paginate($perPage);
     }
 
+    public function getPaginatedPluginsByUser(string $userId, ?PluginStatus $status, int $perPage): LengthAwarePaginator
+    {
+        $query = $this->baseQuery()
+            ->where('user_id', $userId)
+            ->withCount(['stars as star_count']);
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        // Submission time rather than approved_at, which is null for anything
+        // not yet approved — and on this list that is most of the rows.
+        return $query
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+    }
 
     public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
     {

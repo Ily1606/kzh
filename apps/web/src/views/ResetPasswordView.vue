@@ -3,28 +3,16 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getPasswordReset } from "@/api/generated/endpoints";
 import { useForm } from "vee-validate";
-import { toTypedSchema } from "@vee-validate/zod";
-import * as z from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { resetPasswordSchema } from "@/schemas/auth.schema";
 
 const route = useRoute();
 const router = useRouter();
-
-const resetPasswordSchema = toTypedSchema(
-  z.object({
-    email: z.string().min(1, "Email is required").email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    password_confirmation: z.string().min(1, "Please confirm your password"),
-  }).refine((data) => data.password === data.password_confirmation, {
-    message: "Passwords do not match",
-    path: ["password_confirmation"],
-  })
-);
 
 const { handleSubmit, defineField, errors, setValues } = useForm({
   validationSchema: resetPasswordSchema,
@@ -70,9 +58,9 @@ const onSubmit = handleSubmit(async (values) => {
       password: values.password,
       password_confirmation: values.password_confirmation,
     });
-    
+
     successMsg.value = "Your password has been reset. You will be redirected to login.";
-    
+
     setTimeout(() => {
       router.push("/login");
     }, 2000);
@@ -97,7 +85,7 @@ const onSubmit = handleSubmit(async (values) => {
     <form class="space-y-4 p-6 pt-2" @submit.prevent="onSubmit">
       <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
       <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">{{ successMsg }}</Alert>
-      
+
       <div class="space-y-1.5">
         <Label for="email">Email</Label>
         <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" />

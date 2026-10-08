@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Enums\PluginStatus;
+use App\Http\Requests\Api\V1\ListMyPluginsRequest;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
 use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
@@ -37,6 +39,31 @@ class PluginController extends Controller
         $paginator = $this->pluginService->getPaginatedApprovedPlugins(
             $perPage,
             Auth::user()
+        );
+
+        return PluginResource::collection($paginator);
+    }
+
+    /**
+     * List the user's plugins
+     *
+     * Pass `?status=` to narrow the list; omit it to get every status.
+     */
+    #[Response(status: 422, description: 'The `status` query parameter is not a known review status.')]
+    public function myPlugins(ListMyPluginsRequest $request): AnonymousResourceCollection
+    {
+        $defaultPerPage = config('plugins.pagination.default_per_page');
+        $maxPerPage = config('plugins.pagination.max_per_page');
+
+        $perPage = (int) $request->query('per_page', $defaultPerPage);
+        $perPage = max(1, min($perPage, $maxPerPage));
+
+        $status = $request->validated('status');
+
+        $paginator = $this->pluginService->getPaginatedPluginsByUser(
+            $request->user(),
+            $status === null ? null : PluginStatus::from($status),
+            $perPage,
         );
 
         return PluginResource::collection($paginator);
