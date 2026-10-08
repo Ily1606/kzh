@@ -190,11 +190,11 @@ class TrendingAlgorithmTest extends TestCase
         $response->assertOk()->assertJsonCount(1, 'data');
     }
 
-    public function test_trend_14_limit_parameter(): void
+    public function test_trend_14_per_page_parameter(): void
     {
         Plugin::factory()->count(20)->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
-        $response = $this->getJson('/api/v1/plugins/trending?limit=5');
+        $response = $this->getJson('/api/v1/plugins/trending?per_page=5');
         $response->assertOk()->assertJsonCount(5, 'data');
     }
 

@@ -224,28 +224,47 @@ final class PluginService
      *
      * @return Collection<int, Plugin>
      */
-    public function getTrendingPlugins(int $limit): Collection
+    public function getTrendingPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
     {
         $zsetKey = config('plugins.trending.keys.zset');
         $hashKey = config('plugins.trending.keys.objects');
 
-        $ids = Redis::zrevrange($zsetKey, 0, $limit - 1);
+        $page = \Illuminate\Pagination\Paginator::resolveCurrentPage() ?: 1;
 
-        if (empty($ids)) {
+        $start = ($page - 1) * $perPage;
+        $end = $start + $perPage - 1;
+
+        $total = Redis::zcard($zsetKey);
+
+        if ($total === 0) {
             Artisan::call('plugins:refresh-trending');
-            $ids = Redis::zrevrange($zsetKey, 0, $limit - 1);
+            $total = Redis::zcard($zsetKey);
         }
 
+        $ids = Redis::zrevrange($zsetKey, $start, $end);
+
         if (empty($ids)) {
-            return new Collection;
+            return new LengthAwarePaginator([], $total, $perPage, $page);
         }
 
         $serializedPlugins = Redis::hmget($hashKey, $ids);
 
         $plugins = collect($serializedPlugins)
             ->filter()
-            ->map(fn ($serialized) => unserialize($serialized));
+            ->map(fn ($serialized) => unserialize($serialized))
+            ->values();
 
-        return new Collection($plugins->values());
+        if ($user !== null) {
+            $starredIds = $this->starRepository->starredPluginIds(
+                $plugins->pluck('id')->toArray(),
+                (string) $user->getAuthIdentifier()
+            );
+
+            $plugins->each(function ($plugin) use ($starredIds) {
+                $plugin->is_star = in_array($plugin->id, $starredIds, true);
+            });
+        }
+
+        return new LengthAwarePaginator($plugins, $total, $perPage, $page);
     }
 }

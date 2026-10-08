@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
-use App\Http\Requests\Plugin\GetTrendingPluginsRequest;
 use App\Http\Requests\Plugin\ListPluginsRequest;
 use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
@@ -125,15 +124,27 @@ class PluginController extends Controller
      *
      * @unauthenticated
      */
-    public function trending(GetTrendingPluginsRequest $request): JsonResponse
+    public function trending(ListPluginsRequest $request): JsonResponse
     {
-        $limit = (int) $request->validated('limit', config('plugins.trending_api.default_limit'));
+        $perPage = (int) $request->validated('per_page', config('plugins.pagination.default_per_page'));
 
-        $plugins = $this->pluginService->getTrendingPlugins($limit);
+        $paginator = $this->pluginService->getTrendingPlugins(
+            $perPage,
+            Auth::user()
+        );
 
         return ApiResponse::successResponse(
-            PluginResource::collection($plugins)->resolve(),
-            'Trending plugins retrieved successfully.'
+            PluginResource::collection($paginator)->resolve(),
+            'Trending plugins retrieved successfully.',
+            200,
+            [
+                'pagination' => [
+                    'total' => $paginator->total(),
+                    'per_page' => $paginator->perPage(),
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                ],
+            ]
         );
     }
 }

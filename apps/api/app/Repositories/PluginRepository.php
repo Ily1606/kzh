@@ -121,15 +121,15 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         $secondsInHour = 3600.0;
         $starCountSql = $this->starCountSql();
 
-        return $this->model->newQuery()
+        return $this->baseQuery()
             ->approved()
             ->where('approved_at', '>=', now()->subDays($daysLimit))
-            ->selectRaw("*, {$starCountSql} as star_count, (
+            ->selectRaw("{$this->model->getConnection()->getTablePrefix()}plugins.*, {$starCountSql} as star_count, (
                 (view_count * {$weights['view']} + comment_count * {$weights['comment']} + ({$starCountSql}) * {$weights['star']} - 1)
                 / POWER({$this->getAgeInSecondsSql()}/{$secondsInHour} + {$ageOffset}, {$gravity})
             ) as trending_score")
             ->orderByDesc('trending_score')
-            ->orderByDesc('id')
+            ->orderByDesc('plugins.id')
             ->limit($limit)
             ->get();
     }
