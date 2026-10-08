@@ -66,4 +66,23 @@ return [
         'age_offset' => env('PLUGIN_TRENDING_AGE_OFFSET', 2),
     ],
     'licenses' => array_column(PluginLicense::cases(), 'value'),
+    'categories' => [
+        'Ui & workspace',
+        'Vision',
+        'Multi-agent',
+        'Developer tools',
+        'Intergrations',
+        'Security & diagnotics',
+        'Fun',
+    ],
+    'tags' => [
+        'Manifest checked',
+        'May read files',
+        'May run commands',
+        'May access network',
+        'Changes DSH UI',
+        'Version not locked',
+        'Not runtime-tested by us',
+        'Needs credentials',
+    ],
 ];

@@ -3,7 +3,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPlugin } from '@/api/generated/endpoints'
 import type { PluginResource } from '@/api/generated/model'
-import { ArrowUpRight, Check, Copy, Terminal, Eye, Star, FileText, BookOpen, Scale, Calendar } from 'lucide-vue-next'
+import { ArrowUpRight, Check, Copy, Terminal, Eye, Star, FileText, BookOpen, Scale, Calendar, ShieldCheck } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
@@ -181,6 +181,21 @@ onMounted(() => {
           </div>
 
           <p class="text-lg text-muted-foreground">{{ plugin.title }}</p>
+          
+          <div class="flex flex-wrap items-center gap-2 pt-2">
+            <span v-if="plugin.category" class="rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium border border-border">
+              {{ plugin.category }}
+            </span>
+            <span 
+              v-for="tag in (plugin.tags as string[]) || []" 
+              :key="tag" 
+              class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground"
+              :class="{ 'bg-accent text-accent-foreground border-primary/20': tag === 'Manifest checked' }"
+            >
+              <ShieldCheck v-if="tag === 'Manifest checked'" class="size-3 inline-block mr-1" />
+              {{ tag }}
+            </span>
+          </div>
 
           <!-- Thông tin chung: Tác giả, License, Ngày cập nhật, Views và Stars -->
           <div class="@container grid grid-col-1 items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">

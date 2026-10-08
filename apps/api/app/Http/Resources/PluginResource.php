@@ -29,6 +29,8 @@ class PluginResource extends JsonResource
             ] : null,
             'title' => $this->title,
             'license' => $this->license,
+            'category' => $this->categories->first()?->name,
+            'tags' => $this->tags->pluck('name')->toArray(),
             'approved_at' => $this->approved_at?->toISOString(),
             'status' => $this->status->value,
             'source_link' => $this->source_link,

@@ -4,7 +4,9 @@
  * DSH
  * OpenAPI spec version: 0.0.1
  */
+import type { SubmitPluginRequestCategory } from './submitPluginRequestCategory';
 import type { SubmitPluginRequestLicense } from './submitPluginRequestLicense';
+import type { SubmitPluginRequestTagsItem } from './submitPluginRequestTagsItem';
 
 export interface SubmitPluginRequest {
   /** @maxLength 255 */
@@ -12,6 +14,9 @@ export interface SubmitPluginRequest {
   /** @maxLength 255 */
   title: string;
   license: SubmitPluginRequestLicense;
+  category: SubmitPluginRequestCategory;
+  /** @nullable */
+  tags?: SubmitPluginRequestTagsItem[] | null;
   /** @maxLength 2048 */
   source_link: string;
 }

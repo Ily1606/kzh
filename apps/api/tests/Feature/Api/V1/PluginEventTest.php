@@ -31,6 +31,7 @@ class PluginEventTest extends TestCase
             'name' => 'Event Plugin',
             'title' => 'Event Plugin Title',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/event-plugin',
         ], $overrides);
     }

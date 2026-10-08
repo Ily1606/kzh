@@ -20,6 +20,9 @@ class UpdatePluginRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'title' => ['sometimes', 'string', 'max:255'],
             'license' => ['sometimes', 'string', Rule::in(config('plugins.licenses', []))],
+            'category' => ['sometimes', 'string', Rule::in(config('plugins.categories', []))],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['string', Rule::in(config('plugins.tags', []))],
             'source_link' => ['sometimes', 'string', 'url:https', 'max:2048'],
         ];
     }
@@ -53,6 +56,8 @@ class UpdatePluginRequest extends FormRequest
                 'name',
                 'title',
                 'license',
+                'category',
+                'tags',
                 'source_link',
             ]));
 

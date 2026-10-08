@@ -21,19 +21,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
   export const getComment = () => {
 /**
- * The request is rate limited per authenticated user.
- *
- * Responses:
- * - 201: comment created successfully.
- * - 401: unauthenticated.
- * - 404: plugin not found, not approved, or parent comment not found / belongs to another plugin.
- * - 422: validation failed.
- *
- * The 201 and 422 responses are inferred by Scramble from the return value and
- * the validation rules on CreateCommentRequest, so they are not declared
- * explicitly. The 429 response has to be declared because it comes from the
- * `throttle:create-comment` middleware, which Scramble does not track.
- * @summary Create a new comment on an approved plugin (auth required)
+ * @summary Create a new comment on an approved plugin
  */
 const commentStore = (
     pluginId: string,
@@ -47,17 +35,7 @@ const commentStore = (
       options);
     }
   /**
- * Reddit-style: only root comments (parent_comment_id IS NULL) come back, so
- * `meta.total` counts threads instead of rows. Every item carries
- * `replies_count`; the client calls `replies()` when the user expands a
- * thread. `per_page` and `sort` (`newest` | `oldest`) are accepted as query
- * parameters and clamped to `comments.pagination.max_per_page`.
- *
- * Responses:
- * - 200: paginated collection of root comments in `data.comments`.
- * - 404: plugin not found or not approved.
- * - 422: invalid `per_page` or `sort`.
- * @summary Paginated list of the highest-level comments of an approved plugin
+ * @summary Paginated list of the top-level comments of an approved plugin
  */
 const commentIndex = (
     pluginId: string,
@@ -70,15 +48,6 @@ const commentIndex = (
       options);
     }
   /**
- * One level deep only — the same endpoint serves every depth, the client just
- * passes the ID of whichever comment it is expanding. A comment is 404 when
- * it does not exist, is hidden, is soft-deleted, or belongs to another
- * plugin.
- *
- * Responses:
- * - 200: paginated collection of direct replies in `data.comments`.
- * - 404: plugin or parent comment not found / not approved / not visible.
- * - 422: invalid `per_page` or `sort`.
  * @summary Paginated list of the direct replies of a single comment
  */
 const commentReplies = (

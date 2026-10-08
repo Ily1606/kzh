@@ -114,7 +114,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
      */
     private function baseQuery(): Builder
     {
-        return $this->newQuery()->with('user.profile');
+        return $this->newQuery()->with(['user.profile', 'categories', 'tags']);
     }
 
     private function getAgeInSecondsSql(): string

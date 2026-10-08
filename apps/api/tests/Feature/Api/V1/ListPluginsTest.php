@@ -196,9 +196,9 @@ class ListPluginsTest extends TestCase
         $this->getJson('/api/v1/plugins')->assertOk();
 
         // The plugins page plus its count query, plus exactly one query per
-        // eager loaded relation (users, user_profiles) — all batched. Without
+        // eager loaded relation (users, user_profiles, categories, tags) — all batched. Without
         // the eager loads this grows with the page size.
-        $this->assertLessThanOrEqual(4, $queries);
+        $this->assertLessThanOrEqual(6, $queries);
     }
 
     public function test_response_uses_plugin_resource_format(): void

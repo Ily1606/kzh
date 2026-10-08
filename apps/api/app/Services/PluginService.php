@@ -43,6 +43,8 @@ final class PluginService
                 'user_id' => $user->getAuthIdentifier(),
             ]);
 
+            $this->syncCategoryAndTags($plugin, $attributes);
+
             $plugin->refresh();
         } catch (UniqueConstraintViolationException) {
             throw ValidationException::withMessages([
@@ -57,6 +59,27 @@ final class PluginService
         );
 
         return $plugin;
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    private function syncCategoryAndTags(Plugin $plugin, array $attributes): void
+    {
+        if (isset($attributes['category'])) {
+            $category = \App\Models\Category::firstOrCreate(['name' => $attributes['category']]);
+            $plugin->categories()->sync([$category->id]);
+        }
+
+        if (array_key_exists('tags', $attributes)) {
+            $tagIds = [];
+            if (is_array($attributes['tags'])) {
+                foreach ($attributes['tags'] as $tagName) {
+                    $tagIds[] = \App\Models\Tag::firstOrCreate(['name' => $tagName])->id;
+                }
+            }
+            $plugin->tags()->sync($tagIds);
+        }
     }
 
     /**
@@ -84,7 +107,9 @@ final class PluginService
         $before = $this->editableValuesOf($plugin);
 
         try {
-            $updated = $this->pluginRepository->update($plugin, $attributes);
+            $updateAttributes = collect($attributes)->except(['category', 'tags'])->toArray();
+            $updated = $this->pluginRepository->update($plugin, $updateAttributes);
+            $this->syncCategoryAndTags($updated, $attributes);
         } catch (UniqueConstraintViolationException) {
             // Same shape as submit(): a name already held by this user comes
             // back as a field-level validation error, not a 500. Two requests
@@ -116,6 +141,8 @@ final class PluginService
             'name' => $plugin->name,
             'title' => $plugin->title,
             'license' => $plugin->license,
+            'category' => $plugin->categories->first()?->name,
+            'tags' => $plugin->tags->pluck('name')->toArray(),
             'source_link' => $plugin->source_link,
         ];
     }
