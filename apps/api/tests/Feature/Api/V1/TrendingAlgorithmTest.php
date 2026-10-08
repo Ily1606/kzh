@@ -19,7 +19,7 @@ class TrendingAlgorithmTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
-        Redis::flushall();
+        Redis::flushdb();
     }
 
     /**
