@@ -25,6 +25,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('/user', [ProfileController::class, 'updateProfile']);
         Route::post('/user/avatar', [ProfileController::class, 'updateAvatar'])->middleware('throttle:strict');
         Route::patch('/user/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:strict');
+        Route::get('/user/plugins', [PluginController::class, 'myPlugins']);
 
         // ================ Plugin ======================
         Route::prefix('plugins')

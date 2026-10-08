@@ -345,6 +345,11 @@ class CreateCommentTest extends TestCase
                 return $this->real->getPaginatedApprovedPlugins($perPage);
             }
 
+            public function getPaginatedPluginsByUser(string $userId, ?PluginStatus $status, int $perPage): LengthAwarePaginator
+            {
+                return $this->real->getPaginatedPluginsByUser($userId, $status, $perPage);
+            }
+
             public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
             {
                 return $this->real->getTrendingPlugins($daysLimit, $weights, $gravity, $ageOffset, $limit);
