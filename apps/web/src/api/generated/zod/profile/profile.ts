@@ -7,6 +7,9 @@
 import * as zod from 'zod';
 
 
+/**
+ * @summary Get user's profile
+ */
 export const ProfileShowResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("User retrieved successfully."),
@@ -24,6 +27,9 @@ export const ProfileShowResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Update user's profile
+ */
 export const profileUpdateProfileBodyNameMax = 255;
 
 export const profileUpdateProfileBodyGithubNameMax = 255;
@@ -55,6 +61,9 @@ export const ProfileUpdateProfileResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Update user's avatar
+ */
 export const ProfileUpdateAvatarBody = zod.object({
   "avatar": zod.instanceof(Blob).nullish()
 })
@@ -76,6 +85,43 @@ export const ProfileUpdateAvatarResponse = zod.object({
   "meta": zod.string()
 })
 
+export const ProfileRequestEmailChangeBody = zod.object({
+  "current_password": zod.string(),
+  "new_email": zod.string().email()
+})
+
+export const ProfileRequestEmailChangeResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Verification email sent. Please check your new email."),
+  "data": zod.null(),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+export const ProfileVerifyEmailChangeBody = zod.object({
+  "token": zod.string()
+})
+
+export const ProfileVerifyEmailChangeResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Email updated successfully."),
+  "data": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "avatarLink": zod.string(),
+  "githubName": zod.string().nullable(),
+  "githubLink": zod.string().nullable(),
+  "is_admin": zod.boolean(),
+  "created_at": zod.string().datetime({"offset":true}).nullable()
+}),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
+ * @summary Update user's password
+ */
 export const profileUpdatePasswordBodyNewPasswordMin = 8;
 
 export const profileUpdatePasswordBodyNewPasswordConfirmationMin = 8;

@@ -8,19 +8,6 @@ import * as zod from 'zod';
 
 
 /**
- * The plugin is created in the `pending` status and is only visible to other
- * users once an administrator approves it. The request is rate limited per
- * authenticated user.
- *
- * Responses:
- * - 201: the plugin was created and is pending review.
- * - 401: the request is not authenticated.
- * - 422: validation failed, or the plugin name is already taken.
- *
- * The 201 and 422 responses are inferred by Scramble from the return value and
- * the validation rules on SubmitPluginRequest, so they are not declared
- * explicitly. The 429 response has to be declared because it comes from the
- * `throttle:submit-plugin` middleware, which Scramble does not track.
  * @summary Submit a new plugin for review
  */
 export const pluginStoreBodyNameMax = 255;
@@ -46,12 +33,18 @@ export const PluginStoreResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "user_id": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "approved_at": zod.string().nullable(),
   "status": zod.string(),
   "source_link": zod.string(),
   "star_count": zod.number().int(),
+  "is_star": zod.boolean().optional(),
   "comment_count": zod.number().int(),
   "view_count": zod.number().int(),
   "created_at": zod.string().nullable(),
@@ -62,6 +55,9 @@ export const PluginStoreResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Get plugin list
+ */
 
 
 
@@ -77,12 +73,18 @@ export const PluginIndexResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "user_id": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "approved_at": zod.string().nullable(),
   "status": zod.string(),
   "source_link": zod.string(),
   "star_count": zod.number().int(),
+  "is_star": zod.boolean().optional(),
   "comment_count": zod.number().int(),
   "view_count": zod.number().int(),
   "created_at": zod.string().nullable(),
@@ -110,6 +112,61 @@ export const PluginIndexResponse = zod.object({
 })
 })
 
+/**
+ * @summary Update a plugin you own
+ */
+export const PluginUpdateParams = zod.object({
+  "pluginId": zod.string()
+})
+
+export const pluginUpdateBodyNameMax = 255;
+
+export const pluginUpdateBodyTitleMax = 255;
+
+export const pluginUpdateBodySourceLinkMax = 2048;
+
+
+
+export const PluginUpdateBody = zod.object({
+  "name": zod.string().max(pluginUpdateBodyNameMax).optional(),
+  "title": zod.string().max(pluginUpdateBodyTitleMax).optional(),
+  "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']).optional(),
+  "source_link": zod.string().url().max(pluginUpdateBodySourceLinkMax).optional()
+})
+
+export const PluginUpdateResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Plugin updated successfully."),
+  "data": zod.object({
+  "plugin": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "user_id": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
+  "title": zod.string(),
+  "license": zod.string(),
+  "approved_at": zod.string().nullable(),
+  "status": zod.string(),
+  "source_link": zod.string(),
+  "star_count": zod.number().int(),
+  "is_star": zod.boolean().optional(),
+  "comment_count": zod.number().int(),
+  "view_count": zod.number().int(),
+  "created_at": zod.string().nullable(),
+  "updated_at": zod.string().nullable()
+})
+}),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
+ * @summary Trending
+ */
 export const PluginTrendingResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Request successful."),
@@ -120,6 +177,44 @@ export const PluginTrendingResponse = zod.object({
   "meta": zod.string()
 })
 
+export const PluginShowParams = zod.object({
+  "id": zod.string()
+})
+
+export const PluginShowResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Request successful."),
+  "data": zod.object({
+  "plugin": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "user_id": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
+  "title": zod.string(),
+  "license": zod.string(),
+  "approved_at": zod.string().nullable(),
+  "status": zod.string(),
+  "source_link": zod.string(),
+  "star_count": zod.number().int(),
+  "is_star": zod.boolean().optional(),
+  "comment_count": zod.number().int(),
+  "view_count": zod.number().int(),
+  "created_at": zod.string().nullable(),
+  "updated_at": zod.string().nullable()
+})
+}),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
+ * Include request header `Authorization: Bearer <token>` if user logged in (optional).
+ * @summary Track view
+ */
 export const PluginTrackViewParams = zod.object({
   "id": zod.string()
 })

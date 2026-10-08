@@ -10,7 +10,9 @@ import type {
   PluginStore201,
   PluginTrackView200,
   PluginTrending200,
-  SubmitPluginRequest
+  PluginUpdate200,
+  SubmitPluginRequest,
+  UpdatePluginRequest
 } from '../../model';
 
 import { customInstance } from '../../../../services/api-mutator';
@@ -21,19 +23,6 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
   export const getPlugin = () => {
 /**
- * The plugin is created in the `pending` status and is only visible to other
- * users once an administrator approves it. The request is rate limited per
- * authenticated user.
- *
- * Responses:
- * - 201: the plugin was created and is pending review.
- * - 401: the request is not authenticated.
- * - 422: validation failed, or the plugin name is already taken.
- *
- * The 201 and 422 responses are inferred by Scramble from the return value and
- * the validation rules on SubmitPluginRequest, so they are not declared
- * explicitly. The 429 response has to be declared because it comes from the
- * `throttle:submit-plugin` middleware, which Scramble does not track.
  * @summary Submit a new plugin for review
  */
 const pluginStore = (
@@ -46,7 +35,10 @@ const pluginStore = (
     },
       options);
     }
-  const pluginIndex = (
+  /**
+ * @summary Get plugin list
+ */
+const pluginIndex = (
 
  options?: SecondParameter<typeof customInstance<PluginIndex200>>,) => {
       return customInstance<PluginIndex200>(
@@ -54,7 +46,24 @@ const pluginStore = (
     },
       options);
     }
-  const pluginTrending = (
+  /**
+ * @summary Update a plugin you own
+ */
+const pluginUpdate = (
+    pluginId: string,
+    updatePluginRequest?: UpdatePluginRequest,
+ options?: SecondParameter<typeof customInstance<PluginUpdate200>>,) => {
+      return customInstance<PluginUpdate200>(
+      {url: `/v1/plugins/${pluginId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: updatePluginRequest
+    },
+      options);
+    }
+  /**
+ * @summary Trending
+ */
+const pluginTrending = (
 
  options?: SecondParameter<typeof customInstance<PluginTrending200>>,) => {
       return customInstance<PluginTrending200>(
@@ -70,7 +79,11 @@ const pluginStore = (
     },
       options);
     }
-  const pluginTrackView = (
+  /**
+ * Include request header `Authorization: Bearer <token>` if user logged in (optional).
+ * @summary Track view
+ */
+const pluginTrackView = (
     id: string,
  options?: SecondParameter<typeof customInstance<PluginTrackView200>>,) => {
       return customInstance<PluginTrackView200>(
@@ -78,9 +91,10 @@ const pluginStore = (
     },
       options);
     }
-  return {pluginStore,pluginIndex,pluginTrending,pluginShow,pluginTrackView}};
+  return {pluginStore,pluginIndex,pluginUpdate,pluginTrending,pluginShow,pluginTrackView}};
 export type PluginStoreResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginStore']>>>
 export type PluginIndexResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginIndex']>>>
+export type PluginUpdateResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginUpdate']>>>
 export type PluginTrendingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrending']>>>
 export type PluginShowResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginShow']>>>
 export type PluginTrackViewResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrackView']>>>

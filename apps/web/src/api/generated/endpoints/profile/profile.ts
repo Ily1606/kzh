@@ -5,10 +5,14 @@
  * OpenAPI spec version: 0.0.1
  */
 import type {
+  ProfileRequestEmailChange200,
+  ProfileRequestEmailChangeBody,
   ProfileShow200,
   ProfileUpdateAvatar200,
   ProfileUpdatePassword200,
   ProfileUpdateProfile200,
+  ProfileVerifyEmailChange200,
+  ProfileVerifyEmailChangeBody,
   UpdateAvatarRequest,
   UpdatePasswordRequest,
   UpdateProfileRequest
@@ -21,6 +25,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
   export const getProfile = () => {
+/**
+ * @summary Get user's profile
+ */
 const profileShow = (
 
  options?: SecondParameter<typeof customInstance<ProfileShow200>>,) => {
@@ -29,7 +36,10 @@ const profileShow = (
     },
       options);
     }
-  const profileUpdateProfile = (
+  /**
+ * @summary Update user's profile
+ */
+const profileUpdateProfile = (
     updateProfileRequest?: UpdateProfileRequest,
  options?: SecondParameter<typeof customInstance<ProfileUpdateProfile200>>,) => {
       return customInstance<ProfileUpdateProfile200>(
@@ -39,7 +49,10 @@ const profileShow = (
     },
       options);
     }
-  const profileUpdateAvatar = (
+  /**
+ * @summary Update user's avatar
+ */
+const profileUpdateAvatar = (
     updateAvatarRequest?: UpdateAvatarRequest,
  options?: SecondParameter<typeof customInstance<ProfileUpdateAvatar200>>,) => {const formData = new FormData();
 if(updateAvatarRequest?.avatar !== undefined && updateAvatarRequest.avatar !== null) {
@@ -53,7 +66,30 @@ if(updateAvatarRequest?.avatar !== undefined && updateAvatarRequest.avatar !== n
     },
       options);
     }
-  const profileUpdatePassword = (
+  const profileRequestEmailChange = (
+    profileRequestEmailChangeBody: ProfileRequestEmailChangeBody,
+ options?: SecondParameter<typeof customInstance<ProfileRequestEmailChange200>>,) => {
+      return customInstance<ProfileRequestEmailChange200>(
+      {url: `/v1/user/email/request`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: profileRequestEmailChangeBody
+    },
+      options);
+    }
+  const profileVerifyEmailChange = (
+    profileVerifyEmailChangeBody: ProfileVerifyEmailChangeBody,
+ options?: SecondParameter<typeof customInstance<ProfileVerifyEmailChange200>>,) => {
+      return customInstance<ProfileVerifyEmailChange200>(
+      {url: `/v1/user/email/verify`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: profileVerifyEmailChangeBody
+    },
+      options);
+    }
+  /**
+ * @summary Update user's password
+ */
+const profileUpdatePassword = (
     updatePasswordRequest: UpdatePasswordRequest,
  options?: SecondParameter<typeof customInstance<ProfileUpdatePassword200>>,) => {
       return customInstance<ProfileUpdatePassword200>(
@@ -63,8 +99,10 @@ if(updateAvatarRequest?.avatar !== undefined && updateAvatarRequest.avatar !== n
     },
       options);
     }
-  return {profileShow,profileUpdateProfile,profileUpdateAvatar,profileUpdatePassword}};
+  return {profileShow,profileUpdateProfile,profileUpdateAvatar,profileRequestEmailChange,profileVerifyEmailChange,profileUpdatePassword}};
 export type ProfileShowResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getProfile>['profileShow']>>>
 export type ProfileUpdateProfileResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getProfile>['profileUpdateProfile']>>>
 export type ProfileUpdateAvatarResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getProfile>['profileUpdateAvatar']>>>
+export type ProfileRequestEmailChangeResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getProfile>['profileRequestEmailChange']>>>
+export type ProfileVerifyEmailChangeResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getProfile>['profileVerifyEmailChange']>>>
 export type ProfileUpdatePasswordResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getProfile>['profileUpdatePassword']>>>

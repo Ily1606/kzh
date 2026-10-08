@@ -8,17 +8,6 @@ import * as zod from 'zod';
 
 
 /**
- * The request is rate limited per IP, together with the rest of the auth
- * endpoint group.
- *
- * Responses:
- * - 201: the account was created and a token was issued.
- * - 422: validation failed.
- *
- * The 201 and 422 responses are inferred by Scramble from the return value
- * and the validation rules on RegisterRequest, so they are not declared
- * explicitly. The 429 has to be declared because it comes from the
- * `throttle:auth` middleware, which Scramble does not track.
  * @summary Register a new account
  */
 export const authRegisterBodyNameMax = 255;
@@ -59,19 +48,7 @@ export const AuthRegisterResponse = zod.object({
 })
 
 /**
- * The request is rate limited per IP, together with the rest of the auth
- * endpoint group. This is the endpoint an attacker hammers, so the 429 is
- * part of the contract rather than an accident.
- *
- * Responses:
- * - 200: the credentials were valid and a token was issued.
- * - 422: validation failed, or the credentials were rejected.
- *
- * The 200 and 422 responses are inferred by Scramble from the return value
- * and the validation rules on LoginRequest, so they are not declared
- * explicitly. The 429 has to be declared because it comes from the
- * `throttle:auth` middleware, which Scramble does not track.
- * @summary Exchange credentials for an API token
+ * @summary Login
  */
 export const AuthLoginBody = zod.object({
   "email": zod.string().email(),
@@ -98,6 +75,9 @@ export const AuthLoginResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Logout
+ */
 export const AuthLogoutResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Logout successful."),

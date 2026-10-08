@@ -19,6 +19,7 @@ export interface PluginResource {
   status: string;
   source_link: string;
   star_count: number;
+  is_star?: boolean;
   comment_count: number;
   view_count: number;
   /** @nullable */

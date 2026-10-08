@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { useRoute } from "vue-router";
 import { Toaster } from "vue-sonner";
 import "vue-sonner/style.css";
-import { ArrowLeft, UserRound, Lock } from "lucide-vue-next";
+import { UserRound, Lock, Mail } from "lucide-vue-next";
 import { SUCCESS_DURATION } from "@/utils/toast";
 import PersonalInfoForm from "@/components/pages/profile/PersonalInfoForm.vue";
 import ChangePasswordForm from "@/components/pages/profile/ChangePasswordForm.vue";
+import ChangeEmailForm from "@/components/pages/profile/ChangeEmailForm.vue";
 
-const activeTab = ref<'profile' | 'password'>('profile');
+const activeTab = ref<'profile' | 'email' | 'password'>('profile');
+const route = useRoute();
+
+onMounted(() => {
+  if (route.query.token) {
+    activeTab.value = 'email';
+  }
+});
 </script>
 
 <template>
@@ -30,6 +39,14 @@ const activeTab = ref<'profile' | 'password'>('profile');
             Personal Information
           </button>
           <button
+            @click="activeTab = 'email'"
+            class="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors"
+            :class="activeTab === 'email' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+          >
+            <Mail class="size-4" />
+            Change Email
+          </button>
+          <button
             @click="activeTab = 'password'"
             class="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors"
             :class="activeTab === 'password' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
@@ -44,6 +61,7 @@ const activeTab = ref<'profile' | 'password'>('profile');
       <main class="flex-1">
         <div class="max-w-xl">
           <PersonalInfoForm v-if="activeTab === 'profile'" />
+          <ChangeEmailForm v-else-if="activeTab === 'email'" />
           <ChangePasswordForm v-else />
         </div>
       </main>

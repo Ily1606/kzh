@@ -23,9 +23,8 @@ class EmailChangeVerifyMail extends Mailable
 
     public function content(): Content
     {
-        // In a real SPA, this would point to a frontend route (e.g. config('app.frontend_url') . '/verify-email?token=')
-        $url = url('/verify-email?token=' . $this->token);
-        
+        $url = config('app.frontend_url') . '/profile?token=' . $this->token;
+
         return new Content(
             markdown: 'emails.profile.email_change_verify',
             with: [

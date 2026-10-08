@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateAvatarRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\RequestEmailChangeRequest;
+use App\Http\Requests\VerifyEmailChangeRequest;
 use App\Http\Resources\UserResource;
 use App\Services\ProfileService;
 use App\Support\ApiResponse;
@@ -63,29 +65,19 @@ class ProfileController extends Controller
         return ApiResponse::successResponse(new UserResource($user), __('api.password_updated'));
     }
 
-    public function requestEmailChange(Request $request): JsonResponse
+    public function requestEmailChange(RequestEmailChangeRequest $request): JsonResponse
     {
         $user = $request->user();
-
-        $data = $request->validate([
-            'current_password' => 'required',
-            'new_email' => [
-                'required', 'email',
-                Rule::notIn([$user->email]),
-                Rule::unique('users', 'email')->ignore($user->id),
-            ],
-        ]);
+        $data = $request->validated();
 
         $this->profileService->requestEmailChange($user, $data['current_password'], $data['new_email']);
 
         return ApiResponse::successResponse(null, __('api.email_change_requested'));
     }
 
-    public function verifyEmailChange(Request $request): JsonResponse
+    public function verifyEmailChange(VerifyEmailChangeRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'token' => 'required|string',
-        ]);
+        $data = $request->validated();
 
         $user = $this->profileService->verifyEmailChange($request->user(), $data['token']);
 
