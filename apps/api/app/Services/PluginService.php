@@ -181,6 +181,11 @@ final class PluginService
         return $paginator;
     }
 
+    public function getPlugin(string $id): Plugin
+    {
+        return $this->pluginRepository->findApprovedById($id);
+    }
+
     /**
      * Increment plugin view count if the user/guest hasn't viewed it in the last 24 hours.
      *

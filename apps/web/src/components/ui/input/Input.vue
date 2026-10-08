@@ -2,7 +2,7 @@
 import type { HTMLAttributes } from 'vue'
 import { cn } from '@/utils/cn'
 defineOptions({ inheritAttrs: false })
-const model = defineModel<string | number>()
+const model = defineModel<string | number | null>()
 defineProps<{ class?: HTMLAttributes['class'] }>()
 </script>
 

@@ -6,6 +6,7 @@
  */
 import type {
   PluginIndex200,
+  PluginShow200,
   PluginStore201,
   PluginTrackView200,
   PluginTrending200,
@@ -61,6 +62,14 @@ const pluginStore = (
     },
       options);
     }
+  const pluginShow = (
+    id: string,
+ options?: SecondParameter<typeof customInstance<PluginShow200>>,) => {
+      return customInstance<PluginShow200>(
+      {url: `/v1/plugins/${id}`, method: 'GET'
+    },
+      options);
+    }
   const pluginTrackView = (
     id: string,
  options?: SecondParameter<typeof customInstance<PluginTrackView200>>,) => {
@@ -69,8 +78,9 @@ const pluginStore = (
     },
       options);
     }
-  return {pluginStore,pluginIndex,pluginTrending,pluginTrackView}};
+  return {pluginStore,pluginIndex,pluginTrending,pluginShow,pluginTrackView}};
 export type PluginStoreResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginStore']>>>
 export type PluginIndexResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginIndex']>>>
 export type PluginTrendingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrending']>>>
+export type PluginShowResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginShow']>>>
 export type PluginTrackViewResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrackView']>>>
