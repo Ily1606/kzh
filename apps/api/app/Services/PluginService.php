@@ -214,17 +214,17 @@ final class PluginService
     }
 
     /**
-     * Get trending plugins using the Hacker News Ranking Algorithm.
+     * Get trending plugins using the Sliding Time-Window Algorithm.
      *
-     * Formula: Score = (P - 1) / (T + 2)^G
-     * - P (Points): Composite score based on views, comments, and stars.
-     * - T (Time): Age of the plugin in hours.
-     * - G (Gravity): Decay rate. Higher gravity means older items drop faster.
-     * - 2 (Age Offset): Prevents division by zero for brand new items.
+     * Formula: Score = (Views * ViewWeight) + (Comments * CommentWeight) + (Stars * StarWeight)
      *
-     * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
+     * The algorithm calculates the score based on recent interactions (views, comments, stars)
+     * within a sliding time window (e.g., last 7 days). Older plugins can still trend if they
+     * receive a surge in recent activity, as the creation date is not used as a penalty.
      *
-     * @return Collection<int, Plugin>
+     * @param int $perPage
+     * @param User|null $user
+     * @return LengthAwarePaginator
      */
     public function getTrendingPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
     {
