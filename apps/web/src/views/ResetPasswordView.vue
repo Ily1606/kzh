@@ -100,7 +100,7 @@ const onSubmit = handleSubmit(async (values) => {
       <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
       <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">{{ successMsg }}</Alert>
       
-      <FormField v-slot="{ componentField }" name="email">
+      <FormField v-slot="{ componentField }: any" name="email">
         <FormItem class="space-y-1.5">
           <FormLabel>Email</FormLabel>
           <FormControl>
@@ -110,7 +110,7 @@ const onSubmit = handleSubmit(async (values) => {
         </FormItem>
       </FormField>
 
-      <FormField v-slot="{ componentField }" name="password">
+      <FormField v-slot="{ componentField }: any" name="password">
         <FormItem class="space-y-1.5">
           <FormLabel>New Password</FormLabel>
           <FormControl>
@@ -120,7 +120,7 @@ const onSubmit = handleSubmit(async (values) => {
         </FormItem>
       </FormField>
 
-      <FormField v-slot="{ componentField }" name="password_confirmation">
+      <FormField v-slot="{ componentField }: any" name="password_confirmation">
         <FormItem class="space-y-1.5">
           <FormLabel>Confirm New Password</FormLabel>
           <FormControl>

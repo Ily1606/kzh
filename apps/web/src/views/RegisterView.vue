@@ -70,7 +70,7 @@ const onSubmit = handleSubmit(async (values) => {
   <Card class="gap-0 overflow-hidden border-border/80 bg-card/90 py-0 shadow-xl shadow-primary/5">
     <form class="space-y-4 p-6" @submit.prevent="onSubmit">
       <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
-      <FormField v-slot="{ componentField }" name="name">
+      <FormField v-slot="{ componentField }: any" name="name">
         <FormItem class="space-y-1.5">
           <FormLabel>Full name</FormLabel>
           <FormControl>
@@ -79,7 +79,7 @@ const onSubmit = handleSubmit(async (values) => {
           <FormMessage />
         </FormItem>
       </FormField>
-      <FormField v-slot="{ componentField }" name="email">
+      <FormField v-slot="{ componentField }: any" name="email">
         <FormItem class="space-y-1.5">
           <FormLabel>Email</FormLabel>
           <FormControl>
@@ -88,7 +88,7 @@ const onSubmit = handleSubmit(async (values) => {
           <FormMessage />
         </FormItem>
       </FormField>
-      <FormField v-slot="{ componentField }" name="password">
+      <FormField v-slot="{ componentField }: any" name="password">
         <FormItem class="space-y-1.5">
           <FormLabel>Password</FormLabel>
           <FormControl>
@@ -97,7 +97,7 @@ const onSubmit = handleSubmit(async (values) => {
           <FormMessage />
         </FormItem>
       </FormField>
-      <FormField v-slot="{ componentField }" name="confirmPassword">
+      <FormField v-slot="{ componentField }: any" name="confirmPassword">
         <FormItem class="space-y-1.5">
           <FormLabel>Confirm password</FormLabel>
           <FormControl>

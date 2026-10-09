@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useForm, Field as FormField } from 'vee-validate';
+import { useForm } from 'vee-validate';
 import { useAuth } from "@/composables/useAuth";
 import { getProfile } from "@/api/generated/endpoints";
 import { profileSchema } from "@/schemas/profile.schema";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   FormControl,
+  FormField,
   FormItem,
   FormLabel,
   FormMessage,
@@ -97,7 +98,7 @@ onMounted(() => {
     </div>
 
     <form class="space-y-4" @submit="onSubmit">
-      <FormField v-slot="{ componentField }" name="name">
+      <FormField v-slot="{ componentField }: any" name="name">
         <FormItem class="space-y-1.5">
           <FormLabel>Name</FormLabel>
           <FormControl>
@@ -107,7 +108,7 @@ onMounted(() => {
         </FormItem>
       </FormField>
 
-      <FormField v-slot="{ componentField }" name="githubName">
+      <FormField v-slot="{ componentField }: any" name="githubName">
         <FormItem class="space-y-1.5">
           <FormLabel>GitHub username</FormLabel>
           <FormControl>
@@ -117,7 +118,7 @@ onMounted(() => {
         </FormItem>
       </FormField>
 
-      <FormField v-slot="{ componentField }" name="githubLink">
+      <FormField v-slot="{ componentField }: any" name="githubLink">
         <FormItem class="space-y-1.5">
           <FormLabel>GitHub URL</FormLabel>
           <FormControl>

@@ -46,7 +46,7 @@ const onSubmit = handleSubmit(async (values) => {
     </div>
 
     <form class="space-y-4" @submit="onSubmit">
-      <FormField v-slot="{ componentField }" name="current_password">
+      <FormField v-slot="{ componentField }: any" name="current_password">
         <FormItem class="space-y-1.5">
           <FormLabel>Current password</FormLabel>
           <FormControl>
@@ -56,7 +56,7 @@ const onSubmit = handleSubmit(async (values) => {
         </FormItem>
       </FormField>
 
-      <FormField v-slot="{ componentField }" name="new_password">
+      <FormField v-slot="{ componentField }: any" name="new_password">
         <FormItem class="space-y-1.5">
           <FormLabel>New password</FormLabel>
           <FormControl>
@@ -66,7 +66,7 @@ const onSubmit = handleSubmit(async (values) => {
         </FormItem>
       </FormField>
 
-      <FormField v-slot="{ componentField }" name="new_password_confirmation">
+      <FormField v-slot="{ componentField }: any" name="new_password_confirmation">
         <FormItem class="space-y-1.5">
           <FormLabel>Confirm new password</FormLabel>
           <FormControl>

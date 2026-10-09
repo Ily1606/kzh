@@ -67,7 +67,7 @@ const onSubmit = handleSubmit(async (values) => {
     <form class="space-y-4 p-6 pt-2" @submit.prevent="onSubmit">
       <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
       <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">{{ successMsg }}</Alert>
-      <FormField v-slot="{ componentField }" name="email">
+      <FormField v-slot="{ componentField }: any" name="email">
         <FormItem class="space-y-1.5">
           <FormLabel>Email</FormLabel>
           <FormControl>

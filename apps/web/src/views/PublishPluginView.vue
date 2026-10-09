@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
-import { useForm, Field as FormField } from 'vee-validate'
+import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
 import { getPlugin } from '@/api/generated/endpoints'
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   FormControl,
+  FormField,
   FormItem,
   FormLabel,
   FormMessage,
@@ -168,7 +169,7 @@ const onSubmit = handleSubmit(async (values) => {
           <!-- Form Fields with VeeValidate & Zod Schema Validation -->
           <form v-else @submit="onSubmit" novalidate class="space-y-6">
             <!-- Plugin Name -->
-            <FormField v-slot="{ componentField }" name="name">
+            <FormField v-slot="{ componentField }: any" name="name">
               <FormItem class="space-y-2">
                 <FormLabel class="text-sm font-medium">
                   Plugin name <span class="text-primary">*</span>
@@ -186,7 +187,7 @@ const onSubmit = handleSubmit(async (values) => {
             </FormField>
 
             <!-- Display Title -->
-            <FormField v-slot="{ componentField }" name="title">
+            <FormField v-slot="{ componentField }: any" name="title">
               <FormItem class="space-y-2">
                 <FormLabel class="text-sm font-medium">
                   Display title <span class="text-primary">*</span>
@@ -205,7 +206,7 @@ const onSubmit = handleSubmit(async (values) => {
             <!-- License & Source Link Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <!-- License -->
-              <FormField v-slot="{ componentField }" name="license">
+              <FormField v-slot="{ componentField }: any" name="license">
                 <FormItem class="space-y-2">
                   <FormLabel class="text-sm font-medium">
                     License <span class="text-primary">*</span>
@@ -229,7 +230,7 @@ const onSubmit = handleSubmit(async (values) => {
               </FormField>
 
               <!-- Source Link -->
-              <FormField v-slot="{ componentField }" name="source_link">
+              <FormField v-slot="{ componentField }: any" name="source_link">
                 <FormItem class="space-y-2">
                   <FormLabel class="text-sm font-medium">
                     Source link <span class="text-primary">*</span>

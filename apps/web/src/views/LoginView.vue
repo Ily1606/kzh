@@ -64,7 +64,7 @@ const onSubmit = handleSubmit(async (values) => {
     <form class="space-y-4 p-6" @submit="onSubmit">
       <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
       
-      <FormField v-slot="{ componentField }" name="email">
+      <FormField v-slot="{ componentField }: any" name="email">
         <FormItem class="space-y-1.5">
           <FormLabel>Email</FormLabel>
           <FormControl>
@@ -74,7 +74,7 @@ const onSubmit = handleSubmit(async (values) => {
         </FormItem>
       </FormField>
 
-      <FormField v-slot="{ componentField }" name="password">
+      <FormField v-slot="{ componentField }: any" name="password">
         <FormItem class="space-y-1.5">
           <div class="flex items-center justify-between">
             <FormLabel>Password</FormLabel>
