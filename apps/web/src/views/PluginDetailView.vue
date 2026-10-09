@@ -9,6 +9,7 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { formatRelativeDate } from '@/utils/date'
 import PluginComments from '@/components/pages/comment/PluginComments.vue'
+import StarTimeline from '@/components/pages/plugin/StarTimeline.vue'
 import { useAuth } from '@/composables/useAuth'
 import { usePluginsStore } from '@/stores'
 
@@ -292,6 +293,11 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+
+      <!-- Star Timeline Section -->
+      <section v-if="plugin" class="space-y-4">
+        <StarTimeline :plugin-id="plugin.id" />
+      </section>
 
       <section class="space-y-4">
         <div class="flex items-center justify-between">

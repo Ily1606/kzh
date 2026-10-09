@@ -65,6 +65,8 @@ export * from './setStarRequest';
 export * from './starStore200';
 export * from './starStore200Data';
 export * from './starStore200Message';
+export * from './starTimeline200';
+export * from './starTimeline200Data';
 export * from './submitPluginRequest';
 export * from './submitPluginRequestLicense';
 export * from './updateAvatarRequest';
