@@ -112,4 +112,113 @@ class ShowPluginTest extends TestCase
         $this->getJson("/api/v1/plugins/{$plugin->id}")
             ->assertNotFound();
     }
+
+    public function test_owner_can_open_their_own_pending_plugin(): void
+    {
+        $owner = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Pending,
+            'approved_at' => null,
+        ]);
+
+        Sanctum::actingAs($owner, [], 'api');
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('data.plugin.id', $plugin->id)
+            ->assertJsonPath('data.plugin.status', 'pending');
+    }
+
+    public function test_owner_can_open_their_own_rejected_plugin(): void
+    {
+        $owner = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Rejected,
+            'approved_at' => null,
+        ]);
+
+        Sanctum::actingAs($owner, [], 'api');
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('data.plugin.status', 'rejected');
+    }
+
+    /**
+     * The whole point of letting the author in is the author's own plugin. The
+     * moment this returns 200 for someone else, an unpublished package is
+     * readable by the public.
+     */
+    public function test_another_user_gets_404_for_a_pending_plugin(): void
+    {
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Pending]);
+        $stranger = User::factory()->create();
+
+        Sanctum::actingAs($stranger, [], 'api');
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertNotFound();
+    }
+
+    public function test_another_user_gets_404_for_a_rejected_plugin(): void
+    {
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Rejected]);
+        $stranger = User::factory()->create();
+
+        Sanctum::actingAs($stranger, [], 'api');
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertNotFound();
+    }
+
+    /**
+     * Author or not, a soft-deleted row is gone. The owner's door does not
+     * reach into the trash.
+     */
+    public function test_soft_deleted_plugin_is_404_even_for_its_owner(): void
+    {
+        $owner = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Pending,
+        ]);
+        $plugin->delete();
+
+        Sanctum::actingAs($owner, [], 'api');
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertNotFound();
+    }
+
+    /**
+     * The owner's read must be the same read the catalogue serves, apart from
+     * the status. `findById` skipping the eager load would answer 200 with
+     * `author: null`, and the client's cache merge would then write that null
+     * over an author it already had.
+     */
+    public function test_owner_read_returns_the_same_payload_shape_as_a_public_read(): void
+    {
+        $owner = User::factory()->create(['name' => 'Jane Dev']);
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Pending,
+            'approved_at' => null,
+        ]);
+
+        Sanctum::actingAs($owner, [], 'api');
+
+        $response = $this->getJson("/api/v1/plugins/{$plugin->id}")->assertOk();
+
+        $response->assertJsonStructure([
+            'data' => ['plugin' => [
+                'id', 'name', 'user_id', 'author' => ['id', 'name', 'avatar_url'],
+                'title', 'license', 'approved_at', 'status', 'source_link',
+                'star_count', 'comment_count', 'view_count', 'created_at', 'updated_at',
+            ]],
+        ]);
+
+        $response->assertJsonPath('data.plugin.author.name', 'Jane Dev');
+    }
 }

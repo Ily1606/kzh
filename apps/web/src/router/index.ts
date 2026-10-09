@@ -69,6 +69,12 @@ export const router = createRouter({
       meta: { layout: 'default' }
     },
     {
+      path: "/resources/:id/edit",
+      name: "plugin-edit",
+      component: () => import("@/views/EditPluginView.vue"),
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
       path: "/profile",
       name: "profile",
       component: () => import("@/views/ProfileView.vue"),

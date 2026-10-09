@@ -72,8 +72,12 @@ class PluginController extends Controller
     /**
      * Get one plugin's detail.
      *
+     * An approved plugin is public. A plugin still in review is readable by
+     * its own author only.
+     *
      * @unauthenticated
      */
+    #[Response(status: 404, description: 'The plugin does not exist, is soft-deleted, or is not approved and not the caller\'s.')]
     public function show(Request $request, string $id): JsonResponse
     {
         $plugin = $this->pluginService->getPlugin($id, $request->user());

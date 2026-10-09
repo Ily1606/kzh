@@ -10,6 +10,7 @@ const mockPluginIndex = vi.fn();
 const mockPluginTrending = vi.fn();
 const mockPluginMyPlugins = vi.fn();
 const mockPluginShow = vi.fn();
+const mockPluginUpdate = vi.fn();
 const mockStarStore = vi.fn();
 const mockNotifyError = vi.fn();
 
@@ -19,6 +20,7 @@ vi.mock('@/api/generated/endpoints', () => ({
     pluginTrending: mockPluginTrending,
     pluginMyPlugins: mockPluginMyPlugins,
     pluginShow: mockPluginShow,
+    pluginUpdate: mockPluginUpdate,
   }),
   getStar: () => ({ starStore: mockStarStore }),
 }));
@@ -357,6 +359,85 @@ describe('Plugins Store', () => {
       await store.setStar('nope', true);
 
       expect(mockStarStore).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updatePlugin()', () => {
+    it('sends only the four editable fields', async () => {
+      const store = usePluginsStore();
+      store.put([makePlugin()]);
+
+      mockPluginUpdate.mockResolvedValue({ data: { plugin: makePlugin({ title: 'Renamed' }) } });
+
+      await store.updatePlugin('plugin-1', { title: 'Renamed' });
+
+      expect(mockPluginUpdate).toHaveBeenCalledWith('plugin-1', { title: 'Renamed' });
+    });
+
+    it('writes the server response through, so every list sees the edit', async () => {
+      const store = usePluginsStore();
+      store.put([makePlugin({ title: 'My awesome plugin' })]);
+
+      // The server owns the fields the form never touched — `updated_at`, the
+      // comment recount — so the stored copy has to come from the response
+      // rather than from what the form happened to submit.
+      mockPluginUpdate.mockResolvedValue({
+        data: {
+          plugin: makePlugin({
+            title: 'Renamed',
+            updated_at: '2026-10-09T00:00:00Z',
+            comment_count: 9,
+          }),
+        },
+      });
+
+      const ok = await store.updatePlugin('plugin-1', { title: 'Renamed' });
+
+      expect(ok).toBe(true);
+      expect(store.findById('plugin-1')).toMatchObject({
+        title: 'Renamed',
+        updated_at: '2026-10-09T00:00:00Z',
+        comment_count: 9,
+      });
+    });
+
+    it('reports failure and keeps the stored plugin untouched', async () => {
+      const store = usePluginsStore();
+      store.put([makePlugin({ title: 'My awesome plugin' })]);
+
+      mockPluginUpdate.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } });
+
+      // A thrown error would leave the caller unable to tell "nothing happened"
+      // from "it changed and the cache is now stale".
+      const ok = await store.updatePlugin('plugin-1', { title: 'Renamed' });
+
+      expect(ok).toBe(false);
+      expect(mockNotifyError).toHaveBeenCalledWith('Too many requests.');
+      expect(store.findById('plugin-1')?.title).toBe('My awesome plugin');
+    });
+
+    it('falls back to a generic message when the response carries none', async () => {
+      const store = usePluginsStore();
+
+      mockPluginUpdate.mockRejectedValue({});
+
+      await store.updatePlugin('plugin-1', { title: 'Renamed' });
+
+      expect(mockNotifyError).toHaveBeenCalledWith('Could not save the plugin. Please try again.');
+    });
+
+    it('reports success even when the response has no plugin in it', async () => {
+      const store = usePluginsStore();
+      store.put([makePlugin()]);
+
+      mockPluginUpdate.mockResolvedValue({ data: {} });
+
+      // Nothing to write, so the cache keeps what it had — and the page is told
+      // the request itself went through.
+      const ok = await store.updatePlugin('plugin-1', { title: 'Renamed' });
+
+      expect(ok).toBe(false);
+      expect(store.findById('plugin-1')?.title).toBe('My awesome plugin');
     });
   });
 

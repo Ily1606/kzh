@@ -13,6 +13,7 @@ use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -200,10 +201,28 @@ final class PluginService
      */
     public function getPlugin(string $id, ?User $user = null): Plugin
     {
-        $plugin = $this->pluginRepository->findApprovedById($id);
+        $plugin = $this->resolveVisiblePlugin($id, $user);
 
         if ($user !== null) {
             $this->markStarredFlag([$plugin], (string) $user->getAuthIdentifier());
+        }
+
+        return $plugin;
+    }
+
+    /**
+     * The plugin behind the id, or a 404 for a caller who may not open it.
+     */
+    private function resolveVisiblePlugin(string $id, ?User $user): Plugin
+    {
+        $plugin = $this->pluginRepository->findById($id);
+
+        if ($plugin->status === PluginStatus::Approved) {
+            return $plugin;
+        }
+
+        if ($user === null || $plugin->user_id !== $user->getAuthIdentifier()) {
+            throw (new ModelNotFoundException)->setModel(Plugin::class, [$id]);
         }
 
         return $plugin;

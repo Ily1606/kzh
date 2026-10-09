@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { getPlugin, getStar } from '@/api/generated/endpoints';
-import type { PluginResource, PluginStatus } from '@/api/generated/model';
+import type { PluginResource, PluginStatus, UpdatePluginRequest } from '@/api/generated/model';
 import { pluginConfig } from '@/config/plugins';
 import { notifyError } from '@/utils/toast';
 import { useAuthStore } from './auth.store';
@@ -26,17 +26,8 @@ function errorMessage(err: unknown, fallback: string): string {
   return typeof message === 'string' && message.length > 0 ? message : fallback;
 }
 
-/**
- * Plugin data, and the only thing in the app that fetches it.
- *
- * Server state lives here; UI state (search box, expanded readme, copied
- * flag) stays in the views that own it.
- *
- * Not persisted: `is_star` belongs to whoever is signed in, so a persisted
- * cache would show the previous user's stars to the next one on this browser.
- */
 export const usePluginsStore = defineStore('plugins', () => {
-  const { pluginIndex, pluginTrending, pluginMyPlugins, pluginShow } = getPlugin();
+  const { pluginIndex, pluginTrending, pluginMyPlugins, pluginShow, pluginUpdate } = getPlugin();
   const { starStore } = getStar();
 
   const entities = ref<Record<string, PluginResource>>({});
@@ -65,16 +56,6 @@ export const usePluginsStore = defineStore('plugins', () => {
 
   /**
    * Merge a response into the cache.
-   *
-   * Always writes, and never replaces the whole map: `entities` is keyed by id,
-   * so putting the same plugin twice overwrites the same slot instead of
-   * leaving a duplicate behind. A field the incoming payload omits is kept as
-   * it was — `is_star` is absent from every response for a guest, and dropping
-   * the stored value on a guest response would make the star icon lie.
-   *
-   * Guarding this with `if (!entities[id])` would be the tempting version and
-   * is wrong: it freezes `star_count` at whatever the first response said,
-   * forever, no matter how many times the list is refetched.
    */
   function put(items: PluginResource[]): void {
     for (const plugin of items) {
@@ -273,6 +254,27 @@ export const usePluginsStore = defineStore('plugins', () => {
     }
   }
 
+  /**
+   * Apply an edit to a plugin the caller owns, and write the response through
+   * to the cache
+   */
+  async function updatePlugin(id: string, payload: UpdatePluginRequest): Promise<boolean> {
+    try {
+      const res = await pluginUpdate(id, payload);
+      const plugin = res.data?.plugin;
+
+      if (plugin) {
+        put([plugin]);
+      }
+
+      return Boolean(plugin);
+    } catch (err) {
+      notifyError(errorMessage(err, 'Could not save the plugin. Please try again.'));
+
+      return false;
+    }
+  }
+
   return {
     entities,
     trending,
@@ -298,6 +300,7 @@ export const usePluginsStore = defineStore('plugins', () => {
     fetchMine,
     ensurePlugin,
     setStar,
+    updatePlugin,
     reset,
   };
 });

@@ -36,10 +36,24 @@ const mockRoute = ref({
 vi.mock('vue-router', () => ({
   useRoute: () => mockRoute.value,
   useRouter: () => ({ push: vi.fn() }),
-  // Renders a real href from `to` so the sign-in target is assertable.
+  // Renders a real href from `to` so the sign-in target is assertable. Named
+  // routes with params keep the name visible: resolving `plugin-detail` + `{ id }`
+  // to a path needs the router's route table, which is not what these tests are
+  // about.
   RouterLink: {
     props: ['to'],
-    template: '<a :href="typeof to === \'string\' ? to : `/${to.name}?redirect=${to.query.redirect}`"><slot /></a>'
+    methods: {
+      href(to: string | { name?: string; query?: Record<string, unknown>; params?: Record<string, unknown> }): string {
+        if (typeof to === 'string') return to
+
+        const params = Object.entries(to.params ?? {})
+          .map(([key, value]) => `${key}=${value}`)
+          .join('&')
+
+        return `/${to.name}?redirect=${to.query?.redirect ?? ''}${params ? `&${params}` : ''}`
+      },
+    },
+    template: '<a :href="href(to)"><slot /></a>'
   }
 }))
 
@@ -420,6 +434,158 @@ describe('PluginDetailView.vue', () => {
 
       expect(pluginComments.props('totalCommentCount')).toBe(3)
       expect(store.findById('plugin-123')?.comment_count).toBe(3)
+    })
+
+    // Every status below is reached by clicking a row on Resources, where the
+    // plugin is already in the store, so these mount without a fetch. The API
+    // refusing comments on a plugin that is not approved is what the UI mirrors.
+    describe('a published plugin', () => {
+      it('shows the comments section', async () => {
+        seedStore(makePlugin({ status: 'approved' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(wrapper.findComponent({ name: 'PluginComments' }).exists()).toBe(true)
+      })
+
+      it('shows no status badge, because published is the unmarked case', async () => {
+        seedStore(makePlugin({ status: 'approved' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(wrapper.text()).not.toContain('Pending')
+        expect(wrapper.text()).not.toContain('Rejected')
+      })
+
+      it('offers the star button and the install command', async () => {
+        seedStore(makePlugin({ status: 'approved' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(starButton(wrapper)).toBeDefined()
+        expect(wrapper.text()).toContain('npx dsh add')
+      })
+    })
+
+    describe('a pending plugin seen by its owner', () => {
+      it('carries a Pending badge and a notice', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'pending', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(wrapper.text()).toContain('Pending')
+        expect(wrapper.text()).toContain('Waiting for review')
+      })
+
+      it('hides the comments section', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'pending', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(wrapper.findComponent({ name: 'PluginComments' }).exists()).toBe(false)
+      })
+
+      it('hides the star button and the install command, and keeps the source link', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'pending', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(starButton(wrapper)).toBeUndefined()
+        expect(wrapper.text()).not.toContain('npx dsh add')
+        // Readable and correctable by the author, so the repository is still
+        // one click away.
+        expect(wrapper.find('a[href="https://github.com/owner/repo"]').exists()).toBe(true)
+      })
+
+      it('offers the edit button, pointed at the edit page for this plugin', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'pending', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        // The stubbed RouterLink below cannot resolve a named route, so it puts
+        // the route name and the params in the href for the assertion to read.
+        const edit = wrapper.findAll('a').find((a) => /Edit plugin/.test(a.text()))
+        expect(edit?.attributes('href')).toContain('plugin-edit')
+        expect(edit?.attributes('href')).toContain('id=plugin-123')
+      })
+    })
+
+    describe('a rejected plugin seen by its owner', () => {
+      it('carries a Rejected badge and a notice', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'rejected', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(wrapper.text()).toContain('Rejected')
+      })
+
+      it('hides the comments section', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'rejected', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(wrapper.findComponent({ name: 'PluginComments' }).exists()).toBe(false)
+      })
+
+      it('offers no edit control at all', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'rejected', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        // Not a greyed-out button. A disabled control still reads as "the
+        // feature is here and you cannot use it", and the notice above already
+        // says the submission is closed.
+        expect(wrapper.findAll('a').find((a) => /Edit plugin/.test(a.text()))).toBeUndefined()
+        expect(wrapper.findAll('button').find((b) => /Edit plugin/.test(b.text()))).toBeUndefined()
+      })
+    })
+
+    describe('a plugin seen by someone else', () => {
+      it('offers no edit link to a stranger', async () => {
+        // `signIn()` in this file is the author; a different id is a stranger.
+        const auth = useAuthStore()
+        auth.setUser({ id: 'user-other', name: 'Someone', email: 'o@example.com' } as UserResource)
+        auth.setToken('mock-token')
+
+        seedStore(makePlugin({ status: 'pending', approved_at: null }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        // A pending plugin is only reachable by its author, so this state is
+        // not something the API can serve. The UI must not offer editing anyway.
+        expect(wrapper.findAll('a').find((a) => /Edit plugin/.test(a.text()))).toBeUndefined()
+      })
+
+      it('hides editing on a published plugin, even for its author', async () => {
+        signIn()
+        seedStore(makePlugin({ status: 'approved' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        // An edit to a live plugin is a re-review, not a correction, and that
+        // review flow is a separate piece of work.
+        expect(wrapper.findAll('button').find((b) => /Edit plugin/.test(b.text()))).toBeUndefined()
+        expect(wrapper.findAll('a').find((a) => /Edit plugin/.test(a.text()))).toBeUndefined()
+      })
     })
   })
 })

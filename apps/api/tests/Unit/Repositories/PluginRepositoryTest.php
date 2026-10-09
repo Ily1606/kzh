@@ -105,6 +105,22 @@ class PluginRepositoryTest extends TestCase
         app(PluginRepositoryInterface::class)->findById($plugin->id);
     }
 
+    /**
+     * `PluginResource` reads `author` off the loaded relation and sends
+     * `author: null` when it is not loaded, so a bare query here would make
+     * every response that goes through `findById` lose its author.
+     */
+    public function test_find_by_id_eager_loads_the_author(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        $found = app(PluginRepositoryInterface::class)->findById($plugin->id);
+
+        $this->assertTrue($found->relationLoaded('user'));
+        $this->assertTrue($found->user->relationLoaded('profile'));
+    }
+
     public function test_update_writes_only_the_given_attributes(): void
     {
         $user = User::factory()->create();

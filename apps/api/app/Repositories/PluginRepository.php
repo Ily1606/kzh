@@ -40,7 +40,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
 
     public function findById(string $id): Plugin
     {
-        return $this->model->newQuery()->findOrFail($id);
+        return $this->baseQuery()->findOrFail($id);
     }
 
     /**
