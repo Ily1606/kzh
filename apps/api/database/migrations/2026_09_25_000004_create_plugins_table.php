@@ -18,7 +18,6 @@ return new class extends Migration
             $table->timestamp('approved_at')->nullable();
             $table->enum('status', array_column(PluginStatus::cases(), 'value'))->default(PluginStatus::Pending->value);
             $table->string('source_link', 2048);
-            $table->unsignedInteger('comment_count')->default(0);
             $table->unsignedInteger('view_count')->default(0);
             $table->timestamps();
             $table->softDeletes();

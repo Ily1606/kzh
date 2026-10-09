@@ -31,7 +31,6 @@ class CommentEventTest extends TestCase
         return Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
-            'comment_count' => 0,
         ]);
     }
 

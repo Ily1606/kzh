@@ -38,7 +38,6 @@ class PluginRepositoryTest extends TestCase
             'license' => 'MIT',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar',
             'status' => PluginStatus::Pending,
-            'comment_count' => 0,
             'view_count' => 0,
         ]);
 
@@ -57,7 +56,10 @@ class PluginRepositoryTest extends TestCase
 
         $this->assertSame(PluginStatus::Pending, $plugin->status);
         $this->assertSame(0, $plugin->stars()->count());
-        $this->assertIsInt($plugin->comment_count);
+        // `comment_count` / `star_count` are aliases, never model attributes, so
+        // they are deliberately absent from casts(): a fresh model has neither.
+        $this->assertFalse($plugin->hasAttribute('comment_count'));
+        $this->assertFalse($plugin->hasAttribute('star_count'));
         $this->assertIsInt($plugin->view_count);
         $this->assertTrue($plugin->user->is($user));
         $this->assertTrue($user->plugins->contains($plugin));
@@ -159,9 +161,10 @@ class PluginRepositoryTest extends TestCase
             'title' => 'Edit mới',
         ]);
 
-        // Unlike incrementCommentCount(), which goes through DB::table()
-        // precisely to keep updated_at still: an edit of the content is a real
-        // edit, so the timestamp has to follow it.
+        // No counter update competes for this write: `star_count` and
+        // `comment_count` are counts over their own tables, so an edit of the
+        // content is the only thing that moves the plugin row, and the
+        // timestamp has to follow it.
         $this->assertTrue($updated->updated_at->greaterThan($before));
     }
 }

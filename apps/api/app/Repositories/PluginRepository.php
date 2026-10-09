@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\DB;
 
 /**
  * @extends BaseRepository<Plugin>
@@ -47,10 +46,6 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     /**
      * Write the given attributes onto the plugin and return it re-read.
      *
-     * `updated_at` moving is correct here, unlike in incrementCommentCount():
-     * that is a bookkeeping write, while this is a real edit of the plugin's
-     * content.
-     *
      * @param  array<string, mixed>  $attributes
      */
     public function update(Model $model, array $attributes): Plugin
@@ -61,30 +56,19 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $updated;
     }
 
-    /**
-     * `DB::table()` returns the plain query builder, not the Eloquent one, and
-     * that is the point: Eloquent's `Builder::increment()` calls
-     * `addUpdatedAtColumn()`, which would rewrite `updated_at` on every comment.
-     * A new comment is not an edit of the plugin, so the timestamp stays put.
-     * `DB::table()` still shares the connection with the caller's transaction,
-     * so the bump rolls back with the insert like any other write.
-     *
-     * DB::table() will update `comment_count` but will not update the Plugin's `updated_at` field.
-     */
-    public function incrementCommentCount(string $pluginId): void
-    {
-        DB::table('plugins')->where('id', $pluginId)->increment('comment_count');
-    }
-
     public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
     {
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
-            ->withCount(['stars as star_count'])
+            ->withCount([
+                'stars as star_count',
+                'comments as comment_count' => fn (Builder $comments) => $comments->visible(),
+            ])
             ->orderByDesc('approved_at')
             ->paginate($perPage);
     }
+
 
     public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
     {
@@ -92,8 +76,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             ->where('approved_at', '>=', now()->subDays($daysLimit))
-            ->selectRaw("*, {$this->starCountSql()} as star_count, (
-                (view_count * ? + comment_count * ? + {$this->starCountSql()} * ?)
+            ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count, (
+                (view_count * ? + {$this->commentCountSql()} * ? + {$this->starCountSql()} * ?)
                 / POWER({$this->getAgeInSecondsSql()}/3600.0 + ?, ?)
             ) as trending_score", [
                 $weights['view'],
@@ -133,12 +117,22 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return "(select count(*) from {$prefix}stars where {$prefix}stars.plugin_id = {$prefix}plugins.id)";
     }
 
+    private function commentCountSql(): string
+    {
+        $prefix = $this->model->getConnection()->getTablePrefix();
+
+        return "(select count(*) from {$prefix}comments
+            where {$prefix}comments.plugin_id = {$prefix}plugins.id
+            and {$prefix}comments.hidden_at is null
+            and {$prefix}comments.deleted_at is null)";
+    }
+
     public function getTopAllTimePlugins(int $limit): Collection
     {
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
-            ->selectRaw("*, {$this->starCountSql()} as star_count")
+            ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
             ->orderByDesc('view_count')
             ->orderByRaw($this->starCountSql().' desc')
             ->limit($limit)
