@@ -19,6 +19,7 @@ return new class extends Migration
             // which `insertOrIgnore` turns into "no rows affected" rather than a
             // 500. See StarRepository::insertIgnore().
             $table->primary(['plugin_id', 'user_id']);
+            $table->timestamps();
         });
     }
 

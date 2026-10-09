@@ -62,4 +62,13 @@ final class StarService
             requestContext: $requestContext,
         );
     }
+
+    public function getTimeline(string $pluginId)
+    {
+        $plugin = $this->pluginRepository->findById($pluginId);
+        $dateToCompare = $plugin->approved_at ?? $plugin->created_at;
+        $byMonth = $dateToCompare ? $dateToCompare->diffInMonths(now()) > 2 : false;
+
+        return $this->starRepository->getTimeline($pluginId, $byMonth);
+    }
 }
