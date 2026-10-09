@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
-import { usePluginsStore } from '@/stores'
-import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
 import PluginComments from '@/components/pages/comment/PluginComments.vue'
 import PluginDetailHeader from '@/components/pages/plugin-detail/PluginDetailHeader.vue'
 import PluginReadme from '@/components/pages/plugin-detail/PluginReadme.vue'
 import PluginStatusNotice from '@/components/pages/plugin-detail/PluginStatusNotice.vue'
+import StarTimeline from '@/components/pages/plugin/StarTimeline.vue'
+import { Button } from '@/components/ui/button'
+import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
+import { usePluginsStore } from '@/stores'
+import { FileText } from 'lucide-vue-next'
+import { computed, nextTick, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const store = usePluginsStore()
@@ -60,6 +63,8 @@ onMounted(async () => {
       <PluginDetailHeader :plugin="plugin" />
 
       <PluginStatusNotice :plugin="plugin" />
+
+      <StarTimeline :plugin-id="plugin.id" />
 
       <PluginReadme
         :source-link="plugin.source_link"
