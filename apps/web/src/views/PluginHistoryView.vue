@@ -2,6 +2,7 @@
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { ArrowLeft, Check, LoaderCircle, MessageSquare, RefreshCw, Send, X } from 'lucide-vue-next'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePluginsStore } from '@/stores'
 import { useAuth } from '@/composables/useAuth'
@@ -16,8 +17,7 @@ const auth = useAuth()
 const pluginId = computed(() => route.params.id as string)
 const plugin = computed(() => store.findById(pluginId.value))
 
-const { events, isLoading, error, currentPage, lastPage, total, sort, load } =
-  usePluginEvents(pluginId)
+const { events, isLoading, error, currentPage, lastPage, total, sort, load } = usePluginEvents(pluginId)
 
 const ICONS = {
   send: Send,
@@ -74,7 +74,7 @@ watch(pluginId, () => {
       <!-- Header -->
       <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b">
         <div class="space-y-3">
-          <h1 class="text-3xl font-bold tracking-tight">Review history</h1>
+          <h1 class="text-3xl font-bold tracking-tight">History timeline</h1>
 
           <p class="text-lg text-muted-foreground">
             <template v-if="plugin">
@@ -137,31 +137,33 @@ watch(pluginId, () => {
         </div>
 
         <!-- Timeline -->
-        <ol class="relative space-y-0">
-          <li
-            v-for="(event, index) in events"
-            :key="event.id"
-            class="relative flex gap-4 pb-8 last:pb-0"
-          >
-            <!-- Connector line between entries -->
-            <span
-              v-if="index < events.length - 1"
-              class="absolute left-3.75 top-9 bottom-0 w-px bg-border"
-              aria-hidden="true"
-            ></span>
+        <ol class="space-y-5">
+          <li v-for="event in events" :key="event.id" class="flex gap-4">
+            <div class="relative flex shrink-0 flex-col items-center">
+              <span
+                class="z-10 grid size-10 place-items-center rounded-full shadow-lg"
+                :class="describeEvent(event.event_type).tone.marker"
+              >
+                <component :is="iconOf(describeEvent(event.event_type))" class="size-5" />
+              </span>
 
-            <!-- Icon -->
-            <span
-              class="relative z-10 grid size-8 shrink-0 place-items-center rounded-full ring-4 ring-background"
-              :class="describeEvent(event.event_type).chip"
-            >
-              <component :is="iconOf(describeEvent(event.event_type))" class="size-4" />
-            </span>
+              <span
+                v-if="event !== events[events.length - 1]"
+                class="mt-2 w-0.5 flex-1 rounded-full"
+                :class="describeEvent(event.event_type).tone.rail"
+                aria-hidden="true"
+              ></span>
+            </div>
 
             <!-- Body -->
-            <div class="min-w-0 flex-1 pt-1">
-              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <p class="font-medium text-foreground">{{ describeEvent(event.event_type).label }}</p>
+            <div
+              class="min-w-0 flex-1 rounded-xl border p-4"
+              :class="describeEvent(event.event_type).tone.surface"
+            >
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Badge :variant="describeEvent(event.event_type).tone.badge">
+                  {{ describeEvent(event.event_type).label }}
+                </Badge>
                 <time
                   :datetime="event.created_at ?? undefined"
                   class="text-xs text-muted-foreground"
@@ -173,7 +175,8 @@ watch(pluginId, () => {
               <!-- The admin's message. Only reviewer actions carry one. -->
               <p
                 v-if="event.message"
-                class="mt-2 rounded-lg border border-border/60 bg-muted/40 p-3 text-sm text-foreground"
+                class="mt-3 rounded-lg border-l-2 bg-background/70 p-3 text-sm text-foreground"
+                :class="describeEvent(event.event_type).tone.accent"
               >
                 {{ event.message }}
               </p>

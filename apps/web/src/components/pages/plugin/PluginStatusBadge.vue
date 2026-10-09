@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Badge } from '@/components/ui/badge'
 
 type BadgeVariant = {
   label: string
@@ -11,10 +12,7 @@ const props = defineProps<{
   status: string
 }>()
 
-/*
-  Keyed by the wire value, not by the tab label: the API says `approved` where
-  the UI says "Published", and the query string carries the API's word.
-*/
+
 const VARIANTS: Record<string, BadgeVariant> = {
   approved: {
     label: 'Published',
@@ -42,10 +40,7 @@ const variant = computed<BadgeVariant>(() => VARIANTS[props.status] ?? {
 </script>
 
 <template>
-  <span
-    class="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-    :class="variant.class"
-  >
+  <Badge variant="outline" :class="variant.class">
     {{ variant.label }}
-  </span>
+  </Badge>
 </template>

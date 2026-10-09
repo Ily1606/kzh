@@ -6,6 +6,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import PluginHistoryView from '@/views/PluginHistoryView.vue'
 import { useAuthStore, usePluginsStore } from '@/stores'
+import { describeEvent } from '@/composables/usePluginEvents'
 import type { PluginResource, UserResource } from '@/api/generated/model'
 
 const mockPluginShow = vi.fn()
@@ -148,7 +149,7 @@ describe('PluginHistoryView.vue', () => {
       const wrapper = await mountView()
 
       expect(mockPluginEventIndex).toHaveBeenCalledWith('plugin-123', { page: 1, sort: 'newest' })
-      expect(wrapper.text()).toContain('Review history')
+      expect(wrapper.text()).toContain('History timeline')
       expect(mockReplace).not.toHaveBeenCalled()
     })
   })
@@ -174,6 +175,53 @@ describe('PluginHistoryView.vue', () => {
       expect(wrapper.text()).toContain('Approved by an admin')
       expect(wrapper.text()).toContain('Rejected by an admin')
       expect(wrapper.text()).toContain('Changes requested by an admin')
+    })
+
+    /*
+     * The timeline is limited to the three colours the theme defines: violet
+     * (`primary`), the neutrals and white. It shipped with amber, emerald and
+     * red in it, which are the sort of thing that creeps back in one entry at a
+     * time. Asserting on the class lists catches a stray hue directly rather
+     * than trusting review to notice, and pinning which entries are violet is
+     * what makes "submitted and resubmitted are purple" a real requirement
+     * rather than a preference.
+     */
+    describe('palette', () => {
+      const EVENT_TYPES = [
+        'created',
+        'resubmitted',
+        'update_requested',
+        'approved',
+        'rejected',
+        'some_future_type',
+      ]
+
+      it.each(EVENT_TYPES)('%s uses only theme colours', (eventType) => {
+        const { tone } = describeEvent(eventType)
+        const classes = Object.values(tone).join(' ')
+
+        // A literal Tailwind hue would be `bg-amber-600`, `text-emerald-700`
+        // and so on: a colour word after a bg-/text-/border- prefix.
+        expect(classes).not.toMatch(
+          /\b(?:bg|text|border|ring|shadow)-(?:amber|emerald|red|orange|blue|green|yellow|lime|sky|rose|pink|indigo|violet|fuchsia|cyan|teal)-/,
+        )
+      })
+
+      it.each(['created', 'resubmitted'])('%s is violet', (eventType) => {
+        const { tone } = describeEvent(eventType)
+
+        expect(tone.marker).toContain('bg-primary')
+        expect(tone.badge).toBe('default')
+      })
+
+      it.each(['update_requested', 'approved', 'rejected'])(
+        '%s stays off violet',
+        (eventType) => {
+          // Violet is reserved for the owner's own moves through review, so the
+          // three admin decisions must not borrow it.
+          expect(describeEvent(eventType).tone.marker).not.toContain('bg-primary')
+        },
+      )
     })
 
     /*
@@ -264,7 +312,7 @@ describe('PluginHistoryView.vue', () => {
 
       const wrapper = await mountView()
 
-      expect(wrapper.text()).toContain('Review history')
+      expect(wrapper.text()).toContain('History timeline')
       expect(wrapper.text()).not.toContain('waiting on you')
     })
   })
