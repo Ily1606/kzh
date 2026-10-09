@@ -130,10 +130,11 @@ class PluginsTable
                             ->required()
                             ->maxLength(500),
                     ])
-                    ->action(function ($record, array $data) {
-                        $record->update([
+                    ->action(function ($record) {
+                        $record->forceFill([
                             'status' => PluginStatus::Rejected,
-                        ]);
+                            'approved_at' => null,
+                        ])->save();
                     })
                     ->modalHeading(__('plugin.table.actions.reject_modal_heading'))
                     ->modalDescription(__('plugin.table.actions.reject_modal_description'))
@@ -143,11 +144,12 @@ class PluginsTable
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn($record) => $record->status === PluginStatus::Pending)
-                    ->action(function ($record, array $data) {
-                        $record->update([
+                    ->action(function ($record) {
+                        $record->forceFill([
                             'status' => PluginStatus::Approved,
-                        ]);
-                    })
+                            'approved_at' => now(),
+                        ])->save();
+                    }),
             ]);
     }
 }

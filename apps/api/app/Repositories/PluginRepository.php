@@ -73,7 +73,10 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     {
         $query = $this->baseQuery()
             ->where('user_id', $userId)
-            ->withCount(['stars as star_count']);
+            ->withCount([
+                'stars as star_count',
+                'comments as comment_count' => fn (Builder $comments) => $comments->visible(),
+            ]);
 
         if ($status !== null) {
             $query->where('status', $status);
