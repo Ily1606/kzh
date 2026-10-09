@@ -43,11 +43,11 @@ describe('LoginView.vue', () => {
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
 
-    expect(wrapper.text()).toContain('Invalid email address');
-    expect(wrapper.text()).toContain('Password must be at least 8 characters');
+    expect(wrapper.text()).toContain('Email is required');
+    expect(wrapper.text()).toContain('Password is required');
     expect(mockLogin).not.toHaveBeenCalled();
 
-    // Submit invalid email and short password
+    // Submit invalid email
     await wrapper.find('input[type="email"]').setValue('invalid-email');
     await wrapper.find('input[type="password"]').setValue('short');
 
@@ -55,7 +55,7 @@ describe('LoginView.vue', () => {
     await new Promise(r => setTimeout(r, 10));
 
     expect(wrapper.text()).toContain('Invalid email address');
-    expect(wrapper.text()).toContain('Password must be at least 8 characters');
+    // Note: short password is valid for login in the schema
     expect(mockLogin).not.toHaveBeenCalled();
   });
 

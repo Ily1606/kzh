@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useForm } from 'vee-validate';
+import { useForm, Field as FormField } from 'vee-validate';
 import { useAuth } from "@/composables/useAuth";
 import { getProfile } from "@/api/generated/endpoints";
 import { profileSchema } from "@/schemas/profile.schema";
@@ -8,8 +8,13 @@ import { notifyError, notifySuccess } from "@/utils/toast";
 import Avatar from "@/components/pages/profile/Avatar.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  FormControl,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 const auth = useAuth();
 const { profileUpdateProfile, profileUpdateAvatar } = getProfile();
@@ -17,10 +22,8 @@ const { profileUpdateProfile, profileUpdateAvatar } = getProfile();
 const avatarPreview = ref<string | null>(null);
 const avatarUploading = ref(false);
 
-// Ưu tiên ảnh vừa upload, không có thì dùng avatar từ server
 const currentAvatar = computed(() => avatarPreview.value || auth.user?.avatarLink || '');
 
-// Component Avatar.vue đã kiểm tra định dạng + dung lượng trước khi emit ra file
 async function uploadAvatar(file: File) {
   avatarUploading.value = true;
   try {
@@ -46,17 +49,11 @@ onUnmounted(revokePreview);
 
 const {
   handleSubmit,
-  defineField,
-  errors,
   isSubmitting,
   setValues,
 } = useForm({
   validationSchema: profileSchema,
 });
-
-const [name, nameProps] = defineField('name');
-const [githubName, githubNameProps] = defineField('githubName');
-const [githubLink, githubLinkProps] = defineField('githubLink');
 
 const onSubmit = handleSubmit(async (values) => {
   try {
@@ -72,7 +69,6 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-// Pre-fill from current user
 onMounted(() => {
   if (auth.user) {
     setValues({
@@ -91,7 +87,6 @@ onMounted(() => {
       <p class="text-sm text-muted-foreground">Update your name and GitHub details.</p>
     </div>
 
-    <!-- Avatar -->
     <div class="mb-6">
       <Avatar
         :src="currentAvatar"
@@ -101,24 +96,40 @@ onMounted(() => {
       />
     </div>
 
-    <form class="space-y-4" @submit.prevent="onSubmit">
-      <div class="space-y-1.5">
-        <Label for="profileName">Name</Label>
-        <Input id="profileName" v-model="name" v-bind="nameProps" type="text" autocomplete="name" placeholder="Your name" :aria-invalid="Boolean(errors.name)" />
-        <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
-      </div>
+    <form class="space-y-4" @submit="onSubmit">
+      <FormField v-slot="{ componentField }" name="name">
+        <FormItem class="space-y-1.5">
+          <FormLabel>Name</FormLabel>
+          <FormControl>
+            <Input type="text" autocomplete="name" placeholder="Your name" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-      <div class="space-y-1.5">
-        <Label for="githubName">GitHub username</Label>
-        <Input id="githubName" v-model="githubName" v-bind="githubNameProps" type="text" placeholder="johndoe" :aria-invalid="Boolean(errors.githubName)" />
-        <p v-if="errors.githubName" class="text-xs text-destructive">{{ errors.githubName }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="githubName">
+        <FormItem class="space-y-1.5">
+          <FormLabel>GitHub username</FormLabel>
+          <FormControl>
+            <Input type="text" placeholder="johndoe" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-      <div class="space-y-1.5">
-        <Label for="githubLink">GitHub URL</Label>
-        <Input id="githubLink" v-model="githubLink" v-bind="githubLinkProps" type="url" placeholder="https://github.com/johndoe" :aria-invalid="Boolean(errors.githubLink)" />
-        <p v-if="errors.githubLink" class="text-xs text-destructive">{{ errors.githubLink }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="githubLink">
+        <FormItem class="space-y-1.5">
+          <FormLabel>GitHub URL</FormLabel>
+          <FormControl>
+            <Input
+            type="url"
+            placeholder="https://github.com/johndoe"
+            v-bind="componentField"
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
       <div class="flex justify-start pt-2">
         <Button type="submit" :disabled="isSubmitting">

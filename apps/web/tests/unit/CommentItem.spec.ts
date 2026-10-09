@@ -1,6 +1,6 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import CommentItem from '@/components/CommentItem.vue'
+import CommentItem from '@/components/pages/comment/CommentItem.vue'
 import { ref } from 'vue'
 
 const mockCommentReplies = vi.fn()
@@ -80,8 +80,9 @@ describe('CommentItem.vue', () => {
     expect(textarea.exists()).toBe(true)
     await textarea.setValue('My reply')
 
-    // Find the Send Reply button
-    const submitBtn = wrapper.findAll('button').find(b => b.text().includes('Send Reply'))
+    // Find the Reply button inside the form
+    const buttons = wrapper.findAll('button')
+    const submitBtn = buttons.filter(b => b.text() === 'Reply').pop()
     await submitBtn!.trigger('click')
 
     expect(mockCommentStore).toHaveBeenCalledWith('1', { content: 'My reply', parent_comment_id: 'c1' })
@@ -102,7 +103,8 @@ describe('CommentItem.vue', () => {
 
     await wrapper.findAll('button').find(b => b.text().includes('Reply'))!.trigger('click')
     await wrapper.find('textarea').setValue('My reply')
-    await wrapper.findAll('button').find(b => b.text().includes('Send Reply'))!.trigger('click')
+    const submitBtnFail = wrapper.findAll('button').filter(b => b.text() === 'Reply').pop()
+    await submitBtnFail!.trigger('click')
     await flushPromises()
 
     expect(window.alert).toHaveBeenCalledWith('Reply error')
@@ -121,7 +123,7 @@ describe('CommentItem.vue', () => {
 
     await flushPromises()
 
-    expect(mockCommentReplies).toHaveBeenCalledWith('1', 'c1')
+    expect(mockCommentReplies).toHaveBeenCalledWith('1', 'c1', { page: 1, per_page: 10 })
     expect(wrapper.text()).toContain('Loaded reply')
   })
 
@@ -166,7 +168,7 @@ describe('CommentItem.vue', () => {
     await wrapper.findAll('button').find(b => b.text().includes('Reply'))!.trigger('click')
     await flushPromises()
     
-    expect(wrapper.text()).toContain('Please sign in to reply to this comment')
+    expect(wrapper.text()).toContain('Please sign in to reply.')
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 

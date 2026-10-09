@@ -41,9 +41,15 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@lucide/vue':
+        specifier: ^1.54.0
+        version: 1.54.0(vue@3.5.43(typescript@5.7.3))
       '@vee-validate/zod':
         specifier: ^4.15.1
         version: 4.15.1(vue@3.5.43(typescript@5.7.3))(zod@3.25.76)
+      '@vueuse/core':
+        specifier: ^15.0.0
+        version: 15.0.0(vue@3.5.43(typescript@5.7.3))
       axios:
         specifier: ^1.20.0
         version: 1.20.0
@@ -583,6 +589,11 @@ packages:
     engines: {node: '>=22.13.0'}
     os: [darwin, linux]
     hasBin: true
+
+  '@lucide/vue@1.54.0':
+    resolution: {integrity: sha512-fq5S0Fk3a3c2VPs+QRiiHZylZV+1pxyTyOYxoH507b/OdiqciUiEm83N7d7xijS8lDlsGFf12ad9AkLGVHRevg==}
+    peerDependencies:
+      vue: '>=3.0.1'
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -1197,11 +1208,27 @@ packages:
     peerDependencies:
       vue: ^3.5.0
 
+  '@vueuse/core@15.0.0':
+    resolution: {integrity: sha512-Zv67h5mrk7YHDJsRObx+DXaCBz6RKBUpxqLesJ+3xZNPG6yuQs7ja7kg3veFrrouYLWAqydQ7CwGEbLVxB43Ng==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      vue: ^3.5.0
+
   '@vueuse/metadata@14.4.0':
     resolution: {integrity: sha512-swx/255R6JyHZFJhx845iz5CRWDZdCfvkZOpACWc5+c5WHcG24mv8gUT1WIdFQaHt6dq79rvILd9QnCWiyVm9g==}
 
+  '@vueuse/metadata@15.0.0':
+    resolution: {integrity: sha512-sfWE5LADAKJ0KnjtGliMdSN8Ij/L7uP6rXIZlgPloAI4zvvefbw6H5Lt7KJA6RqQOYgVqWF5Guj50HHMIzygBg==}
+    engines: {node: '>=22'}
+
   '@vueuse/shared@14.4.0':
     resolution: {integrity: sha512-JRgY90Sz8DDtPMsaDflvPMp9xYk69JZAmbuDvAquUVXKr2gEjqtzGNTTthLfckH0BzBqvnu31gb4a8TGLRe79g==}
+    peerDependencies:
+      vue: ^3.5.0
+
+  '@vueuse/shared@15.0.0':
+    resolution: {integrity: sha512-vbNXhGrbV53xPOMSyOzMHQRvhMgZf7oNDw2RChUetVxwTIEkInQ1joZ9JbT0G3z2n2AJNjvmCWeM9ySYrnvogA==}
+    engines: {node: '>=22'}
     peerDependencies:
       vue: ^3.5.0
 
@@ -2813,6 +2840,10 @@ snapshots:
       - utf-8-validate
     optional: true
 
+  '@lucide/vue@1.54.0(vue@3.5.43(typescript@5.7.3))':
+    dependencies:
+      vue: 3.5.43(typescript@5.7.3)
+
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
@@ -3361,9 +3392,22 @@ snapshots:
       '@vueuse/shared': 14.4.0(vue@3.5.43(typescript@5.7.3))
       vue: 3.5.43(typescript@5.7.3)
 
+  '@vueuse/core@15.0.0(vue@3.5.43(typescript@5.7.3))':
+    dependencies:
+      '@types/web-bluetooth': 0.0.21
+      '@vueuse/metadata': 15.0.0
+      '@vueuse/shared': 15.0.0(vue@3.5.43(typescript@5.7.3))
+      vue: 3.5.43(typescript@5.7.3)
+
   '@vueuse/metadata@14.4.0': {}
 
+  '@vueuse/metadata@15.0.0': {}
+
   '@vueuse/shared@14.4.0(vue@3.5.43(typescript@5.7.3))':
+    dependencies:
+      vue: 3.5.43(typescript@5.7.3)
+
+  '@vueuse/shared@15.0.0(vue@3.5.43(typescript@5.7.3))':
     dependencies:
       vue: 3.5.43(typescript@5.7.3)
 

@@ -61,7 +61,7 @@ describe('HomeView.vue', () => {
     expect(pluginCards[0].props('plugin')).toEqual({ id: '10', name: '@dsh/test-trending-1' })
   })
 
-  it('falls back to mock plugins if API returns empty trending list', async () => {
+  it('displays empty state message if API returns empty trending list', async () => {
     mockPluginTrending.mockResolvedValue({ data: { plugins: [] } })
     const wrapper = mount(HomeView, {
       global: {
@@ -74,10 +74,7 @@ describe('HomeView.vue', () => {
     
     await flushPromises()
     
-    const pluginCards = wrapper.findAllComponents({ name: 'PluginCard' })
-    // Mock plugins array has 3 items
-    expect(pluginCards.length).toBe(3)
-    expect(pluginCards[0].props('fallback')).toBeDefined()
+    expect(wrapper.text()).toContain('No trending plugins available at the moment.')
   })
 
   it('displays error if API health check fails', async () => {

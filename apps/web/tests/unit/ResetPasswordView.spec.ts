@@ -43,15 +43,21 @@ describe('ResetPasswordView.vue', () => {
     expect(wrapper.findAll('input[type="password"]').length).toBe(2);
   });
 
-  it('displays error if passwords do not match', async () => {
+  it('displays error if passwords do not match or empty', async () => {
     const wrapper = mount(ResetPasswordView, {
       global: {
         stubs: ['RouterLink', 'Spinner']
       }
     });
 
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('different');
+    // Empty form test
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+    expect(wrapper.text()).toContain('Password must be at least 8 characters');
+    expect(wrapper.text()).toContain('Please confirm your password');
+
+    await wrapper.find('input[name="password"]').setValue('password123');
+    await wrapper.find('input[name="password_confirmation"]').setValue('different');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -69,8 +75,8 @@ describe('ResetPasswordView.vue', () => {
       }
     });
 
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('password123');
+    await wrapper.find('input[name="password"]').setValue('password123');
+    await wrapper.find('input[name="password_confirmation"]').setValue('password123');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -88,8 +94,8 @@ describe('ResetPasswordView.vue', () => {
 
     mockPasswordResetResetPassword.mockResolvedValueOnce({});
 
-    await wrapper.find('input[id="password"]').setValue('newPassword123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('newPassword123');
+    await wrapper.find('input[name="password"]').setValue('newPassword123');
+    await wrapper.find('input[name="password_confirmation"]').setValue('newPassword123');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -122,8 +128,8 @@ describe('ResetPasswordView.vue', () => {
       }
     });
 
-    await wrapper.find('input[id="password"]').setValue('newPassword123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('newPassword123');
+    await wrapper.find('input[name="password"]').setValue('newPassword123');
+    await wrapper.find('input[name="password_confirmation"]').setValue('newPassword123');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));

@@ -28,10 +28,10 @@ describe('PublishPluginView.vue', () => {
 
   it('renders correctly', () => {
     const wrapper = mount(PublishPluginView)
-    expect(wrapper.find('input#name').exists()).toBe(true)
-    expect(wrapper.find('input#title').exists()).toBe(true)
-    expect(wrapper.find('select#license').exists()).toBe(true)
-    expect(wrapper.find('input#source').exists()).toBe(true)
+    expect(wrapper.find('input[name="name"]').exists()).toBe(true)
+    expect(wrapper.find('input[name="title"]').exists()).toBe(true)
+    expect(wrapper.find('select[name="license"]').exists()).toBe(true)
+    expect(wrapper.find('input[name="source_link"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Publish plugin')
   })
 
@@ -50,18 +50,18 @@ describe('PublishPluginView.vue', () => {
   it('shows validation errors for invalid source link', async () => {
     const wrapper = mount(PublishPluginView)
 
-    await wrapper.find('input#name').setValue('my-plugin')
-    await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
+    await wrapper.find('input[name="name"]').setValue('my-plugin')
+    await wrapper.find('input[name="title"]').setValue('My Plugin')
+    await wrapper.find('select[name="license"]').setValue('MIT')
 
     // Invalid URL (not a URL)
-    await wrapper.find('input#source').setValue('not-a-url')
+    await wrapper.find('input[name="source_link"]').setValue('not-a-url')
     await wrapper.find('form').trigger('submit')
     await waitForValidation()
     expect(wrapper.text()).toContain('Source link must be a valid URL')
 
     // Invalid URL (does not start with https)
-    await wrapper.find('input#source').setValue('http://github.com/test/repo')
+    await wrapper.find('input[name="source_link"]').setValue('http://github.com/test/repo')
     await wrapper.find('form').trigger('submit')
     await waitForValidation()
     expect(wrapper.text()).toContain('Source link must start with https://')
@@ -73,10 +73,10 @@ describe('PublishPluginView.vue', () => {
     mockPluginStore.mockResolvedValueOnce({})
     const wrapper = mount(PublishPluginView)
 
-    await wrapper.find('input#name').setValue('my-plugin')
-    await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
-    await wrapper.find('input#source').setValue('https://github.com/test/repo')
+    await wrapper.find('input[name="name"]').setValue('my-plugin')
+    await wrapper.find('input[name="title"]').setValue('My Plugin')
+    await wrapper.find('select[name="license"]').setValue('MIT')
+    await wrapper.find('input[name="source_link"]').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')
     await waitForValidation()
@@ -112,10 +112,10 @@ describe('PublishPluginView.vue', () => {
 
     const wrapper = mount(PublishPluginView)
 
-    await wrapper.find('input#name').setValue('my-plugin')
-    await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
-    await wrapper.find('input#source').setValue('https://github.com/test/repo')
+    await wrapper.find('input[name="name"]').setValue('my-plugin')
+    await wrapper.find('input[name="title"]').setValue('My Plugin')
+    await wrapper.find('select[name="license"]').setValue('MIT')
+    await wrapper.find('input[name="source_link"]').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')
     await waitForValidation()
@@ -136,10 +136,10 @@ describe('PublishPluginView.vue', () => {
 
     const wrapper = mount(PublishPluginView)
 
-    await wrapper.find('input#name').setValue('my-plugin')
-    await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
-    await wrapper.find('input#source').setValue('https://github.com/test/repo')
+    await wrapper.find('input[name="name"]').setValue('my-plugin')
+    await wrapper.find('input[name="title"]').setValue('My Plugin')
+    await wrapper.find('select[name="license"]').setValue('MIT')
+    await wrapper.find('input[name="source_link"]').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')
     await waitForValidation()
@@ -152,10 +152,10 @@ describe('PublishPluginView.vue', () => {
 
     const wrapper = mount(PublishPluginView)
 
-    await wrapper.find('input#name').setValue('my-plugin')
-    await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
-    await wrapper.find('input#source').setValue('https://github.com/test/repo')
+    await wrapper.find('input[name="name"]').setValue('my-plugin')
+    await wrapper.find('input[name="title"]').setValue('My Plugin')
+    await wrapper.find('select[name="license"]').setValue('MIT')
+    await wrapper.find('input[name="source_link"]').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')
     await waitForValidation()

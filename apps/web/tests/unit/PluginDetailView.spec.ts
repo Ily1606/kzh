@@ -12,7 +12,7 @@ vi.mock('@/api/generated/endpoints', () => ({
 
 const mockRoute = {
   params: { id: 'plugin-123' },
-  hash: '#comments'
+  hash: ''
 }
 
 vi.mock('vue-router', () => ({
@@ -82,7 +82,7 @@ describe('PluginDetailView.vue', () => {
     // Check plugin details
     expect(wrapper.text()).toContain('@dsh/my-plugin')
     expect(wrapper.text()).toContain('My awesome plugin')
-    expect(wrapper.text()).toContain('License: MIT')
+    expect(wrapper.text()).toContain('MIT license')
     expect(wrapper.text()).toContain('100 views')
     
     // Check if fetch was called with a raw github URL

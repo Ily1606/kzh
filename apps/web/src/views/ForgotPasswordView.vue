@@ -1,30 +1,34 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { getPasswordReset } from "@/api/generated/endpoints";
-import { useForm } from "vee-validate";
+import { useForm, Field as FormField } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import * as z from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  FormControl,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { email as emailRule } from "@/schemas/auth";
 
 const forgotPasswordSchema = toTypedSchema(
   z.object({
-    email: z.string().min(1, "Email is required").email("Invalid email address"),
+    email: emailRule,
   })
 );
 
-const { handleSubmit, defineField, errors } = useForm({
+const { handleSubmit } = useForm({
   validationSchema: forgotPasswordSchema,
   initialValues: {
     email: "",
   },
 });
-
-const [email, emailProps] = defineField("email");
 
 const errorMsg = ref("");
 const successMsg = ref("");
@@ -63,11 +67,15 @@ const onSubmit = handleSubmit(async (values) => {
     <form class="space-y-4 p-6 pt-2" @submit.prevent="onSubmit">
       <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
       <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">{{ successMsg }}</Alert>
-      <div class="space-y-1.5">
-        <Label for="email">Email</Label>
-        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(errors.email)" />
-        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="email">
+        <FormItem class="space-y-1.5">
+          <FormLabel>Email</FormLabel>
+          <FormControl>
+            <Input type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Sending link" : "Email Password Reset Link" }}</Button>
     </form>
     <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">

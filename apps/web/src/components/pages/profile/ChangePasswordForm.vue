@@ -1,28 +1,27 @@
 <script setup lang="ts">
-import { useForm } from 'vee-validate';
+import { useForm, Field as FormField } from 'vee-validate';
 import { getProfile } from "@/api/generated/endpoints";
 import { passwordSchema } from "@/schemas/profile.schema";
 import { notifyError, notifySuccess } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  FormControl,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 const { profileUpdatePassword } = getProfile();
 
 const {
   handleSubmit,
-  defineField,
-  errors,
   isSubmitting,
   resetForm,
 } = useForm({
   validationSchema: passwordSchema,
 });
-
-const [currentPassword, currentPasswordProps] = defineField('current_password');
-const [newPassword, newPasswordProps] = defineField('new_password');
-const [confirmPassword, confirmPasswordProps] = defineField('new_password_confirmation');
 
 const onSubmit = handleSubmit(async (values) => {
   try {
@@ -46,24 +45,36 @@ const onSubmit = handleSubmit(async (values) => {
       <p class="text-sm text-muted-foreground">Update your password to keep your account secure.</p>
     </div>
 
-    <form class="space-y-4" @submit.prevent="onSubmit">
-      <div class="space-y-1.5">
-        <Label for="currentPassword">Current password</Label>
-        <Input id="currentPassword" v-model="currentPassword" v-bind="currentPasswordProps" type="password" autocomplete="current-password" :aria-invalid="Boolean(errors.current_password)" />
-        <p v-if="errors.current_password" class="text-xs text-destructive">{{ errors.current_password }}</p>
-      </div>
+    <form class="space-y-4" @submit="onSubmit">
+      <FormField v-slot="{ componentField }" name="current_password">
+        <FormItem class="space-y-1.5">
+          <FormLabel>Current password</FormLabel>
+          <FormControl>
+            <Input type="password" autocomplete="current-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-      <div class="space-y-1.5">
-        <Label for="newPassword">New password</Label>
-        <Input id="newPassword" v-model="newPassword" v-bind="newPasswordProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.new_password)" />
-        <p v-if="errors.new_password" class="text-xs text-destructive">{{ errors.new_password }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="new_password">
+        <FormItem class="space-y-1.5">
+          <FormLabel>New password</FormLabel>
+          <FormControl>
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-      <div class="space-y-1.5">
-        <Label for="confirmPassword">Confirm new password</Label>
-        <Input id="confirmPassword" v-model="confirmPassword" v-bind="confirmPasswordProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.new_password_confirmation)" />
-        <p v-if="errors.new_password_confirmation" class="text-xs text-destructive">{{ errors.new_password_confirmation }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="new_password_confirmation">
+        <FormItem class="space-y-1.5">
+          <FormLabel>Confirm new password</FormLabel>
+          <FormControl>
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
       <div class="flex justify-start pt-2">
         <Button type="submit" :disabled="isSubmitting">

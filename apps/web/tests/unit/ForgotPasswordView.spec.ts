@@ -33,6 +33,12 @@ describe('ForgotPasswordView.vue', () => {
       }
     });
 
+    // Empty email
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+    expect(wrapper.text()).toContain('Email is required');
+
+    // Invalid email
     await wrapper.find('input[type="email"]').setValue('invalid-email');
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));

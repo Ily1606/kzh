@@ -40,10 +40,19 @@ describe('RegisterView.vue', () => {
       }
     });
 
-    const nameInput = wrapper.find('input[id="fullName"]');
-    const emailInput = wrapper.find('input[id="email"]');
-    const passwordInput = wrapper.find('input[id="password"]');
-    const confirmPasswordInput = wrapper.find('input[id="confirmPassword"]');
+    // Empty form test
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Full name is required');
+    expect(wrapper.text()).toContain('Email is required');
+    expect(wrapper.text()).toContain('Password must be at least 8 characters');
+    expect(wrapper.text()).toContain('Please confirm your password');
+
+    const nameInput = wrapper.find('input[name="name"]');
+    const emailInput = wrapper.find('input[name="email"]');
+    const passwordInput = wrapper.find('input[name="password"]');
+    const confirmPasswordInput = wrapper.find('input[name="confirmPassword"]');
 
     await nameInput.setValue('John Doe');
     await emailInput.setValue('test@example.com');
@@ -66,10 +75,10 @@ describe('RegisterView.vue', () => {
 
     mockRegister.mockResolvedValueOnce(true);
 
-    const nameInput = wrapper.find('input[id="fullName"]');
-    const emailInput = wrapper.find('input[id="email"]');
-    const passwordInput = wrapper.find('input[id="password"]');
-    const confirmPasswordInput = wrapper.find('input[id="confirmPassword"]');
+    const nameInput = wrapper.find('input[name="name"]');
+    const emailInput = wrapper.find('input[name="email"]');
+    const passwordInput = wrapper.find('input[name="password"]');
+    const confirmPasswordInput = wrapper.find('input[name="confirmPassword"]');
 
     await nameInput.setValue('John Doe');
     await emailInput.setValue('test@example.com');
@@ -97,10 +106,10 @@ describe('RegisterView.vue', () => {
 
     mockRegister.mockRejectedValueOnce(new Error('Registration failed'));
 
-    await wrapper.find('input[id="fullName"]').setValue('John Doe');
-    await wrapper.find('input[id="email"]').setValue('test@example.com');
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="confirmPassword"]').setValue('password123');
+    await wrapper.find('input[name="name"]').setValue('John Doe');
+    await wrapper.find('input[name="email"]').setValue('test@example.com');
+    await wrapper.find('input[name="password"]').setValue('password123');
+    await wrapper.find('input[name="confirmPassword"]').setValue('password123');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
