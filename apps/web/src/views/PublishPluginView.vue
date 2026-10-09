@@ -5,7 +5,7 @@ import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import * as z from 'zod'
 import { getPlugin } from '@/api/generated/endpoints'
-import { SubmitPluginRequestLicense } from '@/api/generated/model'
+import { SubmitPluginRequestLicense, SubmitPluginRequestCategory, SubmitPluginRequestTagsItem } from '@/api/generated/model'
 import type { SubmitPluginRequest } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +29,8 @@ const isSuccess = ref(false)
 
 // Zod validation schema matching backend rules
 const licenseValues = Object.values(SubmitPluginRequestLicense) as [string, ...string[]]
+const categoryValues = Object.values(SubmitPluginRequestCategory) as [string, ...string[]]
+const tagValues = Object.values(SubmitPluginRequestTagsItem) as [string, ...string[]]
 
 const submitPluginSchema = toTypedSchema(
   z.object({
@@ -45,6 +47,10 @@ const submitPluginSchema = toTypedSchema(
     license: z.enum(licenseValues, {
       errorMap: () => ({ message: 'Please select a valid license' }),
     }),
+    category: z.enum(categoryValues, {
+      errorMap: () => ({ message: 'Please select a valid category' }),
+    }),
+    tags: z.array(z.enum(tagValues)).optional(),
     source_link: z
       .string({ required_error: 'Source link is required' })
       .trim()
@@ -63,6 +69,8 @@ const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
     name: '',
     title: '',
     license: SubmitPluginRequestLicense.MIT,
+    category: SubmitPluginRequestCategory['Ui_&_workspace'],
+    tags: [],
     source_link: '',
   },
 })
@@ -70,6 +78,8 @@ const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
 const [name, nameAttrs] = defineField('name')
 const [title, titleAttrs] = defineField('title')
 const [license, licenseAttrs] = defineField('license')
+const [category, categoryAttrs] = defineField('category')
+const [tags, tagsAttrs] = defineField('tags')
 const [source_link, sourceLinkAttrs] = defineField('source_link')
 
 // Carousel slides for the right-hand showcase card
@@ -200,6 +210,29 @@ const onSubmit = handleSubmit(async (values) => {
               <p v-if="errors.title" class="text-xs text-destructive">{{ errors.title }}</p>
             </div>
 
+            <!-- Category -->
+            <div class="space-y-2">
+              <Label for="category" class="text-sm font-medium">
+                Category <span class="text-primary">*</span>
+              </Label>
+              <select
+                id="category"
+                v-model="category"
+                v-bind="categoryAttrs"
+                class="flex h-11 w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground outline-none transition-colors focus-visible:bg-background focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
+                :class="{ 'border-destructive focus-visible:ring-destructive': errors.category }"
+              >
+                <option
+                  v-for="cat in Object.values(SubmitPluginRequestCategory)"
+                  :key="cat"
+                  :value="cat"
+                >
+                  {{ cat }}
+                </option>
+              </select>
+              <p v-if="errors.category" class="text-xs text-destructive">{{ errors.category }}</p>
+            </div>
+
             <!-- License & Source Link Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <!-- License -->
@@ -241,6 +274,27 @@ const onSubmit = handleSubmit(async (values) => {
                 />
                 <p v-if="errors.source_link" class="text-xs text-destructive">{{ errors.source_link }}</p>
               </div>
+            </div>
+            
+            <!-- Tags -->
+            <div class="space-y-3">
+              <Label class="text-sm font-medium">Tags</Label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label
+                  v-for="tag in Object.values(SubmitPluginRequestTagsItem)"
+                  :key="tag"
+                  class="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    :value="tag"
+                    v-model="tags"
+                    class="rounded border-border/60 bg-muted/40 text-primary focus-visible:ring-primary h-4 w-4"
+                  />
+                  {{ tag }}
+                </label>
+              </div>
+              <p v-if="errors.tags" class="text-xs text-destructive">{{ errors.tags }}</p>
             </div>
 
             <!-- Error Banner -->

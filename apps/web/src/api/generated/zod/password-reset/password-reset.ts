@@ -9,9 +9,6 @@ import * as zod from 'zod';
 
 /**
  * The request is rate limited per IP, together with the rest of the auth
- * endpoint group, because this is an unauthenticated endpoint that triggers
- * an outbound email. Declared for the same reason as in AuthController: the
- * `throttle:auth` middleware is invisible to Scramble.
  * @summary Send a password reset link
  */
 export const passwordResetSendResetLinkEmailBodyEmailMax = 255;

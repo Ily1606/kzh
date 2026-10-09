@@ -15,10 +15,15 @@ export interface PluginResource {
   title: string;
   license: string;
   /** @nullable */
+  category: string | null;
+  /** @nullable */
+  tags: unknown[] | null;
+  /** @nullable */
   approved_at: string | null;
   status: string;
   source_link: string;
   star_count: number;
+  is_star?: boolean;
   comment_count: number;
   view_count: number;
   /** @nullable */

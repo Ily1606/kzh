@@ -32,6 +32,7 @@ class SubmitPluginTest extends TestCase
             'name' => 'Laravel Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar',
         ], $overrides);
     }

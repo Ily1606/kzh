@@ -7,6 +7,9 @@
 import * as zod from 'zod';
 
 
+/**
+ * @summary Get user's profile
+ */
 export const ProfileShowResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("User retrieved successfully."),
@@ -24,6 +27,9 @@ export const ProfileShowResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Update user's profile
+ */
 export const profileUpdateProfileBodyNameMax = 255;
 
 export const profileUpdateProfileBodyGithubNameMax = 255;
@@ -55,6 +61,9 @@ export const ProfileUpdateProfileResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Update user's avatar
+ */
 export const ProfileUpdateAvatarBody = zod.object({
   "avatar": zod.instanceof(Blob).nullish()
 })
@@ -76,6 +85,9 @@ export const ProfileUpdateAvatarResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Update user's password
+ */
 export const profileUpdatePasswordBodyNewPasswordMin = 8;
 
 export const profileUpdatePasswordBodyNewPasswordConfirmationMin = 8;

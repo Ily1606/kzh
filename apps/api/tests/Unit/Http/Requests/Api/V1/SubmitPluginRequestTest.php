@@ -31,6 +31,7 @@ class SubmitPluginRequestTest extends TestCase
             'name' => 'Laravel Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/plugin',
         ], $overrides));
 
