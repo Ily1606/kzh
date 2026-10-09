@@ -246,6 +246,8 @@ export const PluginTrendingResponse = zod.object({
 })
 
 /**
+ * An approved plugin is public. A plugin still in review is readable by
+ * its own author only.
  * @summary Get one plugin's detail
  */
 export const PluginShowParams = zod.object({

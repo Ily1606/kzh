@@ -31,5 +31,10 @@ export function usePluginDetailAccess(plugin: Ref<PluginResource | null>) {
     canEdit: computed(
       () => isOwner.value && plugin.value?.status === PluginStatus.pending,
     ),
+
+    /**
+     * Owner only, and only once the plugin has actually loaded
+     */
+    showHistoryLink: computed(() => Boolean(plugin.value) && isOwner.value),
   }
 }

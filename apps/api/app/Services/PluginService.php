@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Enums\PluginEventType;
 use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginUpdated;
@@ -19,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
 
@@ -27,6 +29,7 @@ final class PluginService
     public function __construct(
         private readonly PluginRepositoryInterface $pluginRepository,
         private readonly StarRepositoryInterface $starRepository,
+        private readonly PluginEventService $pluginEventService,
     ) {}
 
     /**
@@ -37,13 +40,23 @@ final class PluginService
     public function submit(User $user, array $attributes, RequestContext $requestContext): Plugin
     {
         try {
-            $plugin = $this->pluginRepository->create([
-                'name' => $attributes['name'],
-                'title' => $attributes['title'],
-                'license' => $attributes['license'],
-                'source_link' => $attributes['source_link'],
-                'user_id' => $user->getAuthIdentifier(),
-            ]);
+            $plugin = DB::transaction(function () use ($user, $attributes): Plugin {
+
+                $created = $this->pluginRepository->create([
+                    'name' => $attributes['name'],
+                    'title' => $attributes['title'],
+                    'license' => $attributes['license'],
+                    'source_link' => $attributes['source_link'],
+                    'user_id' => $user->getAuthIdentifier(),
+                ]);
+
+                $this->pluginEventService->recordOwnerAction(
+                    $created,
+                    PluginEventType::Created,
+                );
+
+                return $created;
+            });
 
             $plugin->refresh();
         } catch (UniqueConstraintViolationException) {
@@ -86,7 +99,16 @@ final class PluginService
         $before = $this->editableValuesOf($plugin);
 
         try {
-            $updated = $this->pluginRepository->update($plugin, $attributes);
+            $updated = DB::transaction(function () use ($plugin, $attributes): Plugin {
+                $saved = $this->pluginRepository->update($plugin, $attributes);
+
+                $this->pluginEventService->recordOwnerAction(
+                    $saved,
+                    PluginEventType::Resubmitted,
+                );
+
+                return $saved;
+            });
         } catch (UniqueConstraintViolationException) {
             // Same shape as submit(): a name already held by this user comes
             // back as a field-level validation error, not a 500. Two requests
@@ -124,10 +146,6 @@ final class PluginService
 
     /**
      * Which fields actually changed value, and from what to what.
-     *
-     * Only fields whose value really moved. Re-sending a field with the value
-     * it already holds is not an edit worth an audit line, and logging one would
-     * claim the plugin changed when it did not.
      *
      * @param  array<string, mixed>  $before  Editable values before the write.
      * @param  array<string, mixed>  $after  Editable values after the write.

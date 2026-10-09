@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
-import { ArrowUpRight, BookOpen, Calendar, Eye, Scale, Star } from 'lucide-vue-next'
+import { RouterLink } from 'vue-router'
+import { ArrowUpRight, BookOpen, Calendar, Eye, History, Scale, Star } from 'lucide-vue-next'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
@@ -13,7 +14,7 @@ const props = defineProps<{
   plugin: PluginResource
 }>()
 
-const { showStatusBadge, showStar, showInstallCommand } = usePluginDetailAccess(
+const { showStatusBadge, showStar, showInstallCommand, showHistoryLink } = usePluginDetailAccess(
   toRef(props, 'plugin'),
 )
 </script>
@@ -51,6 +52,16 @@ const { showStatusBadge, showStar, showInstallCommand } = usePluginDetailAccess(
           <span>{{ plugin.star_count || 0 }}</span> stars
         </span>
       </div>
+
+      <!-- Owner-only. -->
+      <RouterLink
+        v-if="showHistoryLink"
+        :to="{ name: 'plugin-history', params: { id: plugin.id } }"
+        class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+      >
+        <History class="size-4" />
+        View review history
+      </RouterLink>
     </div>
 
     <div class="flex min-w-65 flex-col gap-3">

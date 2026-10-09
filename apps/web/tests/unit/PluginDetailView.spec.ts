@@ -67,7 +67,7 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     id: 'plugin-123',
     name: '@dsh/my-plugin',
     user_id: 'user-456',
-    author: { id: 'user-456', name: 'Jane Dev', avatar_url: null },
+    author: { id: 'user-456', name: 'Jane Dev', avatar_url: '' },
     title: 'My awesome plugin',
     license: 'MIT',
     approved_at: '2026-10-01T00:00:00Z',
@@ -106,6 +106,18 @@ function mountView() {
 
 function starButton(wrapper: ReturnType<typeof mountView>) {
   return wrapper.findAll('button').find((b) => /Star/.test(b.text()))
+}
+
+/*
+ * The RouterLink stub renders a real href from `to`, and named routes keep the
+ * name visible: resolving `plugin-history` + `{ id }` to a path needs the
+ * router's route table, which is not what this file is about. So the link is
+ * found by href rather than by its text.
+ */
+function historyLink(wrapper: ReturnType<typeof mountView>) {
+  return wrapper
+    .findAll('a')
+    .find((a) => /plugin-history/.test(a.attributes('href') ?? ''))
 }
 
 describe('PluginDetailView.vue', () => {
@@ -333,6 +345,56 @@ describe('PluginDetailView.vue', () => {
 
       // One write, seen by every list holding this plugin.
       expect(store.findById('plugin-123')).toMatchObject({ is_star: true, star_count: 6 })
+    })
+
+    it('review history link: is offered to the owner', async () => {
+      signIn()
+      seedStore(makePlugin({ user_id: 'user-456' }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(historyLink(wrapper)).toBeDefined()
+      expect(wrapper.text()).toContain('View review history')
+    })
+
+    /*
+     * The timeline is the owner's private record of the review. Rendering the
+     * link for anyone else advertises that such a record exists.
+     */
+    it('review history link: is hidden from a signed-in non-owner', async () => {
+      signIn()
+      seedStore(makePlugin({ user_id: 'someone-else' }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(historyLink(wrapper)).toBeUndefined()
+      expect(wrapper.text()).not.toContain('View review history')
+    })
+
+    it('review history link: is hidden from a guest', async () => {
+      seedStore(makePlugin({ user_id: 'user-456' }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(historyLink(wrapper)).toBeUndefined()
+    })
+
+    /*
+     * An approved plugin is still its author's, and its history still explains
+     * how it got approved. Gating the link on a pending status would hide the
+     * record of the one decision a publisher most wants to read back.
+     */
+    it('review history link: stays available on an approved plugin', async () => {
+      signIn()
+      seedStore(makePlugin({ user_id: 'user-456', status: 'approved' }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(historyLink(wrapper)).toBeDefined()
     })
 
     it('rolls back and notifies when the API fails', async () => {

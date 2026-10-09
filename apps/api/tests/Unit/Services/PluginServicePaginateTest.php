@@ -7,6 +7,7 @@ use App\Contracts\StarRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Services\PluginEventService;
 use App\Services\PluginService;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -28,7 +29,16 @@ class PluginServicePaginateTest extends TestCase
 
         $this->pluginRepositoryMock = Mockery::mock(PluginRepositoryInterface::class);
         $this->starRepositoryMock = Mockery::mock(StarRepositoryInterface::class);
-        $this->pluginService = new PluginService($this->pluginRepositoryMock, $this->starRepositoryMock);
+
+        // The timeline service is a collaborator of PluginService but plays no
+        // part in pagination, which is all this file exercises. Resolved from
+        // the container rather than mocked because it is final, and the
+        // constructor binds its repository lazily — nothing here calls it.
+        $this->pluginService = new PluginService(
+            $this->pluginRepositoryMock,
+            $this->starRepositoryMock,
+            app(PluginEventService::class),
+        );
     }
 
     protected function tearDown(): void

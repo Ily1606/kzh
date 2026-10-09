@@ -75,6 +75,12 @@ export const router = createRouter({
       meta: { layout: 'default', requiresAuth: true }
     },
     {
+      path: "/plugins/:id/history",
+      name: "plugin-history",
+      component: () => import("@/views/PluginHistoryView.vue"),
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
       path: "/profile",
       name: "profile",
       component: () => import("@/views/ProfileView.vue"),

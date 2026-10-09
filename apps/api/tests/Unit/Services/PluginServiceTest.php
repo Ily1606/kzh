@@ -10,7 +10,9 @@ use App\Services\PluginService;
 use App\Support\RequestContext;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Mockery;
 use PDOException;
@@ -18,6 +20,11 @@ use Tests\TestCase;
 
 class PluginServiceTest extends TestCase
 {
+    // update() now writes a timeline entry alongside the plugin row, so the
+    // cases that reach it need a real plugin_events table even though the
+    // plugin repository itself stays mocked.
+    use RefreshDatabase;
+
     public function test_duplicate_database_constraint_is_exposed_as_a_name_validation_error(): void
     {
         $repository = Mockery::mock(PluginRepositoryInterface::class);
@@ -57,8 +64,17 @@ class PluginServiceTest extends TestCase
     public function test_duplicate_database_constraint_on_update_is_exposed_as_a_name_validation_error(): void
     {
         $user = User::factory()->make();
-        $plugin = Plugin::factory()->make(['user_id' => $user->id]);
-        $pluginId = (string) $plugin->getKey();
+
+        // An explicit id, because `make()` does not assign the model's UUID.
+        // The service now writes a timeline entry keyed on this plugin, and a
+        // persisted plugin always has a key — a null one here would only ever
+        // be an artefact of the factory.
+        $plugin = Plugin::factory()->make([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+        ]);
+
+        $pluginId = $plugin->getKey();
 
         $repository = Mockery::mock(PluginRepositoryInterface::class);
         $repository->shouldReceive('findById')
@@ -119,9 +135,13 @@ class PluginServiceTest extends TestCase
         // PluginUpdateEventTest.
         Event::fake([PluginUpdated::class]);
 
-        $user = User::factory()->make();
-        $plugin = Plugin::factory()->make(['user_id' => $user->id]);
-        $pluginId = (string) $plugin->getKey();
+        // Created rather than made: alongside the plugin row, update() now
+        // writes the timeline entry that references it, so both the plugin and
+        // its owner need real rows for the foreign keys to hold.
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        $pluginId = $plugin->getKey();
 
         $attributes = ['title' => 'Debugbar mới'];
 
