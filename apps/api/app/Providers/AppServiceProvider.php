@@ -4,11 +4,13 @@ namespace App\Providers;
 
 use App\Contracts\AuthRepositoryInterface;
 use App\Contracts\CommentRepositoryInterface;
+use App\Contracts\PluginEventRepositoryInterface;
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Repositories\AuthRepository;
 use App\Repositories\CommentRepository;
+use App\Repositories\PluginEventRepository;
 use App\Repositories\PluginRepository;
 use App\Repositories\StarRepository;
 use App\Repositories\UserRepository;
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
         $this->app->bind(AuthRepositoryInterface::class, AuthRepository::class);
         $this->app->bind(PluginRepositoryInterface::class, PluginRepository::class);
+        $this->app->bind(PluginEventRepositoryInterface::class, PluginEventRepository::class);
         $this->app->bind(CommentRepositoryInterface::class, CommentRepository::class);
         $this->app->bind(StarRepositoryInterface::class, StarRepository::class);
     }

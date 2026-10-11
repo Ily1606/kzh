@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Enums\PluginStatus;
+use App\Http\Requests\Api\V1\ListMyPluginsRequest;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
 use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
@@ -42,9 +44,43 @@ class PluginController extends Controller
         return PluginResource::collection($paginator);
     }
 
-    public function show(string $id): JsonResponse
+    /**
+     * List the user's plugins
+     *
+     * Pass `?status=` to narrow the list; omit it to get every status.
+     */
+    #[Response(status: 422, description: 'The `status` query parameter is not a known review status.')]
+    public function myPlugins(ListMyPluginsRequest $request): AnonymousResourceCollection
     {
-        $plugin = $this->pluginService->getPlugin($id);
+        $defaultPerPage = config('plugins.pagination.default_per_page');
+        $maxPerPage = config('plugins.pagination.max_per_page');
+
+        $perPage = (int) $request->query('per_page', $defaultPerPage);
+        $perPage = max(1, min($perPage, $maxPerPage));
+
+        $status = $request->validated('status');
+
+        $paginator = $this->pluginService->getPaginatedPluginsByUser(
+            $request->user(),
+            $status === null ? null : PluginStatus::from($status),
+            $perPage,
+        );
+
+        return PluginResource::collection($paginator);
+    }
+
+    /**
+     * Get one plugin's detail.
+     *
+     * An approved plugin is public. A plugin still in review is readable by
+     * its own author only.
+     *
+     * @unauthenticated
+     */
+    #[Response(status: 404, description: 'The plugin does not exist, is soft-deleted, or is not approved and not the caller\'s.')]
+    public function show(Request $request, string $id): JsonResponse
+    {
+        $plugin = $this->pluginService->getPlugin($id, $request->user());
 
         return ApiResponse::successResponse([
             'plugin' => new PluginResource($plugin),
@@ -117,7 +153,7 @@ class PluginController extends Controller
         $limit = (int) $request->query('limit', $defaultLimit);
         $limit = max(1, min($limit, $maxLimit));
 
-        $plugins = $this->pluginService->getTrendingPlugins($limit);
+        $plugins = $this->pluginService->getTrendingPlugins($limit, $request->user());
 
         return ApiResponse::successResponse([
             'plugins' => $plugins,

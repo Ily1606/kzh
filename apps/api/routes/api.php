@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CommentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PluginController;
+use App\Http\Controllers\Api\V1\PluginEventController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\StarController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,7 @@ Route::prefix('v1')->group(function () {
         Route::patch('/user', [ProfileController::class, 'updateProfile']);
         Route::post('/user/avatar', [ProfileController::class, 'updateAvatar'])->middleware('throttle:strict');
         Route::patch('/user/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:strict');
+        Route::get('/user/plugins', [PluginController::class, 'myPlugins']);
 
         // ================ Plugin ======================
         Route::prefix('plugins')
@@ -34,6 +36,9 @@ Route::prefix('v1')->group(function () {
                     ->middleware('throttle:submit-plugin');
 
                 Route::patch('/{pluginId}', 'update')
+                    ->whereUuid('pluginId');
+
+                Route::get('/{pluginId}/events', [PluginEventController::class, 'index'])
                     ->whereUuid('pluginId');
             });
 

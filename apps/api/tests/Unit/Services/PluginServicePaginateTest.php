@@ -4,8 +4,10 @@ namespace Tests\Unit\Services;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Services\PluginEventService;
 use App\Services\PluginService;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -27,7 +29,16 @@ class PluginServicePaginateTest extends TestCase
 
         $this->pluginRepositoryMock = Mockery::mock(PluginRepositoryInterface::class);
         $this->starRepositoryMock = Mockery::mock(StarRepositoryInterface::class);
-        $this->pluginService = new PluginService($this->pluginRepositoryMock, $this->starRepositoryMock);
+
+        // The timeline service is a collaborator of PluginService but plays no
+        // part in pagination, which is all this file exercises. Resolved from
+        // the container rather than mocked because it is final, and the
+        // constructor binds its repository lazily — nothing here calls it.
+        $this->pluginService = new PluginService(
+            $this->pluginRepositoryMock,
+            $this->starRepositoryMock,
+            app(PluginEventService::class),
+        );
     }
 
     protected function tearDown(): void
@@ -183,6 +194,64 @@ class PluginServicePaginateTest extends TestCase
         $this->starRepositoryMock->shouldNotReceive('starredPluginIds');
 
         $result = $this->pluginService->getPaginatedApprovedPlugins(10);
+
+        $this->assertNull($result->items()[0]->is_star);
+    }
+
+    // -----------------------------------------------------------------------
+    // is_star on the owner's own list
+    // -----------------------------------------------------------------------
+
+    public function test_marks_is_star_on_approved_plugins_only_for_my_plugins(): void
+    {
+        $user = Mockery::mock(User::class);
+        $user->shouldReceive('getAuthIdentifier')->andReturn('user-uuid');
+
+        $approved = (new Plugin)->forceFill([
+            'id' => '11111111-1111-1111-1111-111111111111',
+            'status' => PluginStatus::Approved,
+        ]);
+        $pending = (new Plugin)->forceFill([
+            'id' => '22222222-2222-2222-2222-222222222222',
+            'status' => PluginStatus::Pending,
+        ]);
+
+        $this->pluginRepositoryMock->shouldReceive('getPaginatedPluginsByUser')
+            ->with('user-uuid', null, 10)
+            ->once()
+            ->andReturn(new LengthAwarePaginator([$approved, $pending], 2, 10));
+
+        // Only the approved id is sent: the pending one cannot carry a star, so
+        // asking about it would be a question with a foregone answer.
+        $this->starRepositoryMock->shouldReceive('starredPluginIds')
+            ->with([$approved->id], 'user-uuid')
+            ->once()
+            ->andReturn([$approved->id]);
+
+        $result = $this->pluginService->getPaginatedPluginsByUser($user, null, 10);
+
+        $this->assertTrue($result->items()[0]->is_star);
+        $this->assertNull($result->items()[1]->is_star);
+    }
+
+    public function test_does_not_query_stars_when_the_page_holds_no_approved_plugin(): void
+    {
+        $user = Mockery::mock(User::class);
+        $user->shouldReceive('getAuthIdentifier')->andReturn('user-uuid');
+
+        $pending = (new Plugin)->forceFill([
+            'id' => '11111111-1111-1111-1111-111111111111',
+            'status' => PluginStatus::Pending,
+        ]);
+
+        $this->pluginRepositoryMock->shouldReceive('getPaginatedPluginsByUser')
+            ->with('user-uuid', PluginStatus::Pending, 10)
+            ->once()
+            ->andReturn(new LengthAwarePaginator([$pending], 1, 10));
+
+        $this->starRepositoryMock->shouldNotReceive('starredPluginIds');
+
+        $result = $this->pluginService->getPaginatedPluginsByUser($user, PluginStatus::Pending, 10);
 
         $this->assertNull($result->items()[0]->is_star);
     }

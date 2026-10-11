@@ -1,48 +1,36 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getPlugin } from '@/api/generated/endpoints'
+import { usePluginsStore } from '@/stores'
 import type { PluginResource } from '@/api/generated/model'
 import PluginCard from '@/components/pages/plugin/PluginCard.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, LoaderCircle, PackageOpen } from 'lucide-vue-next'
-import { pluginConfig } from '@/config/plugins'
 
-const NUMBER_PLUGIN_PER_PAGE = pluginConfig.numberPluginPerPage
-const { pluginIndex } = getPlugin()
+const store = usePluginsStore()
 
-const allPlugins = ref<PluginResource[]>([])
-const allPluginsMeta = ref<any>(null)
-const currentPage = ref(1)
-const isFetchingPlugins = ref(true)
+// UI state, not server state: this filters the page already in hand, so it
+// belongs here rather than in the store.
 const searchQuery = ref('')
-const perPage = ref(NUMBER_PLUGIN_PER_PAGE)
 
-async function fetchAllPlugins(page = 1) {
-  isFetchingPlugins.value = true
-  try {
-    const res = await pluginIndex({ params: { page, per_page: perPage.value } })
-    allPlugins.value = res.data
-    allPluginsMeta.value = res.meta
-    currentPage.value = page
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  } catch (e) {
-    console.error('Failed to fetch paginated plugins', e)
-  } finally {
-    isFetchingPlugins.value = false
-  }
-}
+const filteredPlugins = computed<PluginResource[]>(() => {
+  const plugins = store.listPlugins
 
-const filteredPlugins = computed(() => {
-  if (!searchQuery.value.trim()) return allPlugins.value
+  if (!searchQuery.value.trim()) return plugins
+
   const q = searchQuery.value.toLowerCase().trim()
-  return allPlugins.value.filter(
+  return plugins.filter(
     (p) =>
       p.name?.toLowerCase().includes(q) ||
       p.title?.toLowerCase().includes(q) ||
       p.license?.toLowerCase().includes(q)
   )
 })
+
+async function fetchAllPlugins(page = 1) {
+  await store.fetchList(page)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 onMounted(() => {
   fetchAllPlugins(1)
@@ -77,23 +65,23 @@ onMounted(() => {
     </div>
 
     <!-- Stats summary -->
-    <div v-if="allPluginsMeta" class="flex items-center justify-between text-sm text-muted-foreground">
+    <div class="flex items-center justify-between text-sm text-muted-foreground">
       <span>
         Showing <span class="font-medium text-foreground">{{ filteredPlugins.length }}</span>
         <template v-if="searchQuery">
           matching "<span class="font-medium text-foreground">{{ searchQuery }}</span>"
         </template>
         <template v-else>
-          of <span class="font-medium text-foreground">{{ allPluginsMeta.total ?? allPlugins.length }}</span> total plugins
+          of <span class="font-medium text-foreground">{{ store.list.total }}</span> total plugins
         </template>
       </span>
-      <span v-if="allPluginsMeta.last_page > 1">
-        Page {{ currentPage }} of {{ allPluginsMeta.last_page }}
+      <span v-if="store.list.lastPage > 1">
+        Page {{ store.list.page }} of {{ store.list.lastPage }}
       </span>
     </div>
 
     <!-- Loading State -->
-    <div v-if="isFetchingPlugins" class="flex flex-col items-center justify-center py-20">
+    <div v-if="store.isFetchingList" class="flex flex-col items-center justify-center py-20">
       <LoaderCircle class="size-10 animate-spin text-primary mb-4" />
       <p class="text-muted-foreground text-sm">Loading plugins catalogue...</p>
     </div>
@@ -124,23 +112,23 @@ onMounted(() => {
 
     <!-- Pagination Controls -->
     <div
-      v-if="!searchQuery && allPluginsMeta && allPluginsMeta.last_page > 1"
+      v-if="!searchQuery && store.list.lastPage > 1"
       class="pt-6 flex items-center justify-center gap-4 border-t"
     >
       <Button
         variant="outline"
-        :disabled="currentPage === 1 || isFetchingPlugins"
-        @click="fetchAllPlugins(currentPage - 1)"
+        :disabled="store.list.page === 1 || store.isFetchingList"
+        @click="fetchAllPlugins(store.list.page - 1)"
       >
         Previous
       </Button>
       <span class="text-sm font-medium text-muted-foreground">
-        Page {{ currentPage }} of {{ allPluginsMeta.last_page }}
+        Page {{ store.list.page }} of {{ store.list.lastPage }}
       </span>
       <Button
         variant="outline"
-        :disabled="currentPage === allPluginsMeta.last_page || isFetchingPlugins"
-        @click="fetchAllPlugins(currentPage + 1)"
+        :disabled="store.list.page === store.list.lastPage || store.isFetchingList"
+        @click="fetchAllPlugins(store.list.page + 1)"
       >
         Next
       </Button>

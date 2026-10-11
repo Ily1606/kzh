@@ -1,6 +1,6 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import CommentItem from '@/components/CommentItem.vue'
+import CommentItem from '@/components/pages/comment/CommentItem.vue'
 import { ref } from 'vue'
 
 const mockCommentReplies = vi.fn()
@@ -39,10 +39,24 @@ const mockComment = {
   }
 }
 
+/**
+ * The reply toggle and the reply submit button both read "Reply", and the
+ * submit one only comes into existence once the form is open — so it is the
+ * last match, and it is enabled only when the textarea has content.
+ */
+function replySubmitButton(wrapper: ReturnType<typeof mount>) {
+  const buttons = wrapper.findAll('button').filter((button) => button.text() === 'Reply')
+
+  expect(buttons.length).toBeGreaterThan(0)
+
+  return buttons[buttons.length - 1]
+}
+
 describe('CommentItem.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubGlobal('alert', vi.fn())
+    mockIsAuthenticated.value = true
   })
 
   it('renders author and content correctly', () => {
@@ -79,16 +93,21 @@ describe('CommentItem.vue', () => {
     const textarea = wrapper.find('textarea')
     expect(textarea.exists()).toBe(true)
     await textarea.setValue('My reply')
+    await wrapper.vm.$nextTick()
 
-    // Find the Send Reply button
-    const submitBtn = wrapper.findAll('button').find(b => b.text().includes('Send Reply'))
-    await submitBtn!.trigger('click')
+    // Both the toggle and the submit button read "Reply"; the submit is the
+    // second one, and it only enables once the box has content.
+    const submitBtn = replySubmitButton(wrapper)
+    await submitBtn.trigger('click')
 
     expect(mockCommentStore).toHaveBeenCalledWith('1', { content: 'My reply', parent_comment_id: 'c1' })
     await flushPromises()
 
     // The comment replies_count should have incremented
     expect(wrapper.props('comment').replies_count).toBe('2')
+    // And the new reply is shown in place, without a refetch.
+    expect(mockCommentReplies).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Reply content')
   })
 
   it('shows alert when reply submission fails', async () => {
@@ -102,10 +121,13 @@ describe('CommentItem.vue', () => {
 
     await wrapper.findAll('button').find(b => b.text().includes('Reply'))!.trigger('click')
     await wrapper.find('textarea').setValue('My reply')
-    await wrapper.findAll('button').find(b => b.text().includes('Send Reply'))!.trigger('click')
+    await wrapper.vm.$nextTick()
+    await replySubmitButton(wrapper).trigger('click')
     await flushPromises()
 
     expect(window.alert).toHaveBeenCalledWith('Reply error')
+    // The count is untouched by a reply that never landed.
+    expect(wrapper.props('comment').replies_count).toBe('1')
   })
 
   it('loads replies when clicking view replies', async () => {
@@ -121,7 +143,8 @@ describe('CommentItem.vue', () => {
 
     await flushPromises()
 
-    expect(mockCommentReplies).toHaveBeenCalledWith('1', 'c1')
+    // Replies are paginated like top-level comments.
+    expect(mockCommentReplies).toHaveBeenCalledWith('1', 'c1', { page: 1, per_page: 10 })
     expect(wrapper.text()).toContain('Loaded reply')
   })
 
@@ -166,8 +189,10 @@ describe('CommentItem.vue', () => {
     await wrapper.findAll('button').find(b => b.text().includes('Reply'))!.trigger('click')
     await flushPromises()
     
-    expect(wrapper.text()).toContain('Please sign in to reply to this comment')
+    expect(wrapper.text()).toContain('Please sign in to reply')
     expect(wrapper.find('textarea').exists()).toBe(false)
+    // The form area is a prompt, not an input: nothing to type into.
+    expect(mockCommentStore).not.toHaveBeenCalled()
   })
 
   it('hides replies when clicking view replies again', async () => {
