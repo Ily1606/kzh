@@ -38,6 +38,8 @@ return [
             'status' => 'Filter by status',
         ],
         'actions' => [
+            'group_label' => 'Actions',
+            'group_tooltip' => 'Review actions',
             'reject' => 'Reject',
             'reject_reason_label' => 'Rejection Reason',
             'reject_reason_placeholder' => 'Explain what the author needs to change...',

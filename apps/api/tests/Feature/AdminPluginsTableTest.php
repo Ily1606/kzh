@@ -159,4 +159,63 @@ class AdminPluginsTableTest extends TestCase
             ->sortTable('view_count', 'desc')
             ->assertCanSeeTableRecords([$popular, $quiet], inOrder: true);
     }
+
+    /**
+     * The three review actions used to render as three labelled links spanning
+     * the row. They now hang off one vertical-ellipsis trigger, so the only
+     * thing occupying the cell is that icon. The icon's name does not survive
+     * rendering — Filament inlines the SVG — so what is asserted is the shape
+     * that proves the grouping happened: a single icon-button trigger carrying
+     * an accessible name, with the three actions demoted to dropdown items
+     * behind it.
+     */
+    public function test_the_review_actions_render_behind_a_vertical_ellipsis_trigger(): void
+    {
+        $this->pluginWith(['status' => PluginStatus::Pending, 'approved_at' => null]);
+
+        $html = Livewire::test(ListPlugins::class)->html();
+
+        $this->assertStringContainsString('fi-ac-icon-btn-group', $html);
+        $this->assertStringContainsString('aria-label="Actions"', $html);
+
+        foreach (['Reject', 'Approve', 'Request changes'] as $label) {
+            $this->assertStringContainsString(
+                "<span class=\"fi-dropdown-list-item-label\">{$label}</span>",
+                $html,
+                "The [{$label}] action is no longer inside the group dropdown.",
+            );
+        }
+    }
+
+    /**
+     * Grouping must not resurrect the actions on a row that has already been
+     * decided. An `ActionGroup` hides itself once every action inside it is
+     * hidden, so a reviewed plugin gets no trigger cell at all rather than an
+     * ellipsis that opens onto an empty menu.
+     */
+    public function test_the_review_action_group_is_absent_once_the_plugin_is_reviewed(): void
+    {
+        $this->pluginWith();
+
+        $html = Livewire::test(ListPlugins::class)->html();
+
+        $this->assertStringNotContainsString('fi-ac-icon-btn-group', $html);
+        $this->assertStringNotContainsString('aria-label="Actions"', $html);
+    }
+
+    /**
+     * The actions live inside the group's dropdown now, but the table still has
+     * to find them by name: `pushRecordActions()` flattens a group into the
+     * table's action cache, which is what every review test drives. Without this
+     * a refactor to a group would look like it worked until someone clicked.
+     */
+    public function test_the_grouped_actions_are_still_reachable_by_name(): void
+    {
+        $pending = $this->pluginWith(['status' => PluginStatus::Pending, 'approved_at' => null]);
+
+        Livewire::test(ListPlugins::class)
+            ->assertTableActionVisible('approve', $pending)
+            ->assertTableActionVisible('reject', $pending)
+            ->assertTableActionVisible('requestChanges', $pending);
+    }
 }
