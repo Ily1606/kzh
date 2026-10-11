@@ -35,7 +35,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'events' => [
-        'default_per_page' => env('PLUGIN_EVENTS_DEFAULT_PER_PAGE', 20),
+        'default_per_page' => env('PLUGIN_EVENTS_DEFAULT_PER_PAGE', 10),
         'max_per_page' => env('PLUGIN_EVENTS_MAX_PER_PAGE', 100),
     ],
 
