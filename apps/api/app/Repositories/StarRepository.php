@@ -4,6 +4,8 @@ namespace App\Repositories;
 
 use App\Contracts\StarRepositoryInterface;
 use App\Models\Star;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @extends BaseRepository<Star>
@@ -37,6 +39,8 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
             ->insertOrIgnore([
                 'plugin_id' => $pluginId,
                 'user_id' => $userId,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]) === 1;
     }
 
@@ -64,7 +68,16 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
 
         return $query->selectRaw("{$dateFormat} as date, count(*) as count")
             ->groupBy('date')
-            ->orderBy('date', 'asc')
+            ->orderBy('date', 'asc');
+    }
+
+    public function getDailyStarCounts(int $daysLimit): Collection
+    {
+        return $this->newQuery()
+            ->select('plugin_id', DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
+            ->whereNotNull('created_at')
+            ->where('created_at', '>=', now()->subDays($daysLimit))
+            ->groupBy('plugin_id', DB::raw('DATE(created_at)'))
             ->get();
     }
 }

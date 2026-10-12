@@ -357,6 +357,11 @@ class CreateCommentTest extends TestCase
             {
                 return $this->real->depthOf($id, $stopAt);
             }
+
+            public function getDailyCommentCounts(int $daysLimit): \Illuminate\Support\Collection
+            {
+                return $this->real->getDailyCommentCounts($daysLimit);
+            }
         };
 
         $this->app->instance(CommentRepositoryInterface::class, $failing);

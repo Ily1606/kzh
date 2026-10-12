@@ -7,10 +7,12 @@ use App\Enums\PluginStatus;
 use App\Models\Category;
 use App\Models\Plugin;
 use App\Models\Tag;
+use App\Models\PluginDailyView;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @extends BaseRepository<Plugin>
@@ -38,6 +40,41 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->findOrFail($id);
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     * @return Collection<int, Plugin>
+     */
+    public function findApprovedByIds(array $ids): Collection
+    {
+        if (empty($ids)) {
+            return $this->model->newCollection();
+        }
+
+        $plugins = $this->baseQuery()
+            ->where('status', PluginStatus::Approved)
+            ->whereNotNull('approved_at')
+            ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
+            ->whereIn('id', $ids)
+            ->get();
+
+        $order = array_flip($ids);
+
+        return $plugins->sortBy(fn (Plugin $plugin) => $order[$plugin->id] ?? 9999)->values();
+    }
+
+    public function incrementViewCount(string $id, int $count): void
+    {
+        $this->model->newQuery()->where('id', $id)->increment('view_count', $count);
+
+        PluginDailyView::upsert(
+            [
+                ['plugin_id' => $id, 'date' => now()->format('Y-m-d'), 'views_count' => $count],
+            ],
+            ['plugin_id', 'date'],
+            ['views_count' => DB::raw("plugin_daily_views.views_count + {$count}")]
+        );
     }
 
     public function findById(string $id): Plugin

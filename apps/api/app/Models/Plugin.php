@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 #[Fillable([
     'name',
@@ -50,6 +51,12 @@ class Plugin extends Model
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query->where('status', PluginStatus::Approved)
+            ->whereNotNull('approved_at');
     }
 
     public function user(): BelongsTo

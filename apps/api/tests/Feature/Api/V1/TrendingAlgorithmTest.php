@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
 class TrendingAlgorithmTest extends TestCase
@@ -20,6 +21,7 @@ class TrendingAlgorithmTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        Redis::flushdb();
     }
 
     /**

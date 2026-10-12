@@ -18,6 +18,7 @@ return new class extends Migration
             // A second `starred: true` for the same pair violates this constraint,
             // which `insertOrIgnore` turns into "no rows affected" rather than a
             // 500. See StarRepository::insertIgnore().
+            $table->timestamps();
             $table->primary(['plugin_id', 'user_id']);
             $table->timestamps();
         });
