@@ -11,6 +11,7 @@ const mockPluginTrending = vi.fn();
 const mockPluginMyPlugins = vi.fn();
 const mockPluginShow = vi.fn();
 const mockPluginUpdate = vi.fn();
+const mockPluginTrackView = vi.fn();
 const mockStarStore = vi.fn();
 const mockNotifyError = vi.fn();
 
@@ -21,6 +22,7 @@ vi.mock('@/api/generated/endpoints', () => ({
     pluginMyPlugins: mockPluginMyPlugins,
     pluginShow: mockPluginShow,
     pluginUpdate: mockPluginUpdate,
+    pluginTrackView: mockPluginTrackView,
   }),
   getStar: () => ({ starStore: mockStarStore }),
 }));
@@ -492,6 +494,54 @@ describe('Plugins Store', () => {
 
       expect(ok).toBe(false);
       expect(store.findById('plugin-1')?.title).toBe('My awesome plugin');
+    });
+  });
+
+  describe('trackView()', () => {
+    it('calls pluginTrackView and updates the stored view count on success', async () => {
+      const store = usePluginsStore();
+      store.put([makePlugin({ id: 'plugin-1', view_count: 10 })]);
+
+      mockPluginTrackView.mockResolvedValue({
+        data: { status: 'success', message: 'View counted successfully.', view_count: 11 },
+      });
+
+      await store.trackView('plugin-1');
+
+      expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-1');
+      expect(store.findById('plugin-1')?.view_count).toBe(11);
+    });
+
+    it('updates view_count even when status is ignored', async () => {
+      const store = usePluginsStore();
+      store.put([makePlugin({ id: 'plugin-1', view_count: 10 })]);
+
+      mockPluginTrackView.mockResolvedValue({
+        data: { status: 'ignored', message: 'Already counted.', view_count: 10 },
+      });
+
+      await store.trackView('plugin-1');
+
+      expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-1');
+      expect(store.findById('plugin-1')?.view_count).toBe(10);
+    });
+
+    it('silently absorbs network or server failure without throwing', async () => {
+      const store = usePluginsStore();
+      store.put([makePlugin({ id: 'plugin-1', view_count: 10 })]);
+
+      mockPluginTrackView.mockRejectedValue(new Error('Network error'));
+
+      await expect(store.trackView('plugin-1')).resolves.toBeUndefined();
+      expect(store.findById('plugin-1')?.view_count).toBe(10);
+    });
+
+    it('does nothing when id is empty', async () => {
+      const store = usePluginsStore();
+
+      await store.trackView('');
+
+      expect(mockPluginTrackView).not.toHaveBeenCalled();
     });
   });
 
