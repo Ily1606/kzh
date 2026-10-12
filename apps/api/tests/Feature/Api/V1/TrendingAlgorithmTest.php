@@ -208,6 +208,8 @@ class TrendingAlgorithmTest extends TestCase
         ]);
         Comment::factory()->count(100)->hidden()->create(['plugin_id' => $moderated->id]);
 
+        Redis::flushdb();
+
         $response = $this->getJson('/api/v1/plugins/trending');
 
         $response->assertOk()

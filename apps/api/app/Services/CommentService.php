@@ -108,8 +108,6 @@ final class CommentService
             requestContext: $requestContext,
         );
 
-        TrendingTracker::trackComment($comment->plugin_id);
-
         return $comment;
     }
 

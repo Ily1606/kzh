@@ -1,0 +1,244 @@
+<?php
+
+namespace Tests\Feature\Api\V1;
+
+use App\Enums\PluginStatus;
+use App\Models\Comment;
+use App\Models\Plugin;
+use App\Models\Star;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
+use Tests\TestCase;
+
+class UserObserverTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Cache::flush();
+        Redis::flushdb();
+    }
+
+    protected function tearDown(): void
+    {
+        Redis::flushdb();
+        parent::tearDown();
+    }
+
+    public function test_soft_deleting_user_cascades_tokens_plugins_comments_and_stars(): void
+    {
+        $user = User::factory()->create();
+        $token = $user->createToken('test-token')->plainTextToken;
+        $this->assertCount(1, $user->tokens);
+
+        // User's own plugin
+        $plugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        // Another plugin created by someone else
+        $otherUser = User::factory()->create();
+        $otherPlugin = Plugin::factory()->create([
+            'user_id' => $otherUser->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        // User comments on otherPlugin
+        $comment = Comment::factory()->create([
+            'plugin_id' => $otherPlugin->id,
+            'author_id' => $user->id,
+        ]);
+
+        // User stars otherPlugin
+        $star = Star::create([
+            'plugin_id' => $otherPlugin->id,
+            'user_id' => $user->id,
+        ]);
+
+        $date = now()->format('Y-m-d');
+        $commentStatKey = "trending:stats:comments:{$date}:{$otherPlugin->id}";
+        $starStatKey = "trending:stats:stars:{$date}:{$otherPlugin->id}";
+        $zsetKey = config('plugins.trending.keys.zset');
+        $hashKey = config('plugins.trending.keys.objects');
+        $bufferKey = config('plugins.views_buffer_key');
+        $todayKey = "trending:active_plugins:{$date}";
+
+        // Setup Redis trending state
+        Redis::zadd($zsetKey, 50, $plugin->id);
+        Redis::hset($hashKey, $plugin->id, serialize($plugin));
+        Redis::hset($bufferKey, $plugin->id, 10);
+        Redis::sadd($todayKey, $plugin->id);
+
+        Redis::set($commentStatKey, 1);
+        Redis::set($starStatKey, 1);
+
+        $otherPlugin->comment_count = 1;
+        $otherPlugin->star_count = 1;
+        Redis::zadd($zsetKey, 80, $otherPlugin->id);
+        Redis::hset($hashKey, $otherPlugin->id, serialize($otherPlugin));
+
+        // Act: soft delete user
+        $user->delete();
+
+        // 1. Tokens revoked
+        $this->assertCount(0, $user->fresh()->tokens);
+
+        // 2. User's plugins soft-deleted and removed from Redis trending
+        $this->assertTrue($plugin->fresh()->trashed());
+        $this->assertFalse((bool) Redis::zscore($zsetKey, $plugin->id));
+        $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
+        $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
+        $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+
+        // 3. User's comments soft-deleted and trending stats decremented
+        $this->assertTrue($comment->fresh()->trashed());
+        $this->assertEquals(0, (int) Redis::get($commentStatKey));
+
+        // 4. User's stars soft-deleted and trending stats decremented
+        $this->assertTrue($star->fresh()->trashed());
+        $this->assertEquals(0, (int) Redis::get($starStatKey));
+
+        // Target plugin's cached star and comment count updated in Redis
+        $cachedRaw = Redis::hget($hashKey, $otherPlugin->id);
+        $this->assertNotEmpty($cachedRaw);
+        $cachedOtherPlugin = unserialize($cachedRaw);
+        $this->assertEquals(0, $cachedOtherPlugin->star_count);
+        $this->assertEquals(0, $cachedOtherPlugin->comment_count);
+    }
+
+    public function test_restoring_user_cascades_plugins_comments_and_stars(): void
+    {
+        $user = User::factory()->create();
+
+        $plugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $otherUser = User::factory()->create();
+        $otherPlugin = Plugin::factory()->create([
+            'user_id' => $otherUser->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $comment = Comment::factory()->create([
+            'plugin_id' => $otherPlugin->id,
+            'author_id' => $user->id,
+        ]);
+
+        $star = Star::create([
+            'plugin_id' => $otherPlugin->id,
+            'user_id' => $user->id,
+        ]);
+
+        $date = now()->format('Y-m-d');
+        $commentStatKey = "trending:stats:comments:{$date}:{$otherPlugin->id}";
+        $starStatKey = "trending:stats:stars:{$date}:{$otherPlugin->id}";
+        $zsetKey = config('plugins.trending.keys.zset');
+        $hashKey = config('plugins.trending.keys.objects');
+
+        Redis::set($commentStatKey, 1);
+        Redis::set($starStatKey, 1);
+        $otherPlugin->comment_count = 1;
+        $otherPlugin->star_count = 1;
+        Redis::zadd($zsetKey, 80, $otherPlugin->id);
+        Redis::hset($hashKey, $otherPlugin->id, serialize($otherPlugin));
+
+        // Soft delete user
+        $user->delete();
+        $this->assertTrue($plugin->fresh()->trashed());
+        $this->assertTrue($comment->fresh()->trashed());
+        $this->assertTrue($star->fresh()->trashed());
+        $this->assertEquals(0, (int) Redis::get($commentStatKey));
+        $this->assertEquals(0, (int) Redis::get($starStatKey));
+
+        // Act: restore user
+        $user->restore();
+
+        // 1. User's plugins restored
+        $this->assertFalse($plugin->fresh()->trashed());
+
+        // 2. User's comments restored and stats re-incremented
+        $this->assertFalse($comment->fresh()->trashed());
+        $this->assertEquals(1, (int) Redis::get($commentStatKey));
+
+        // 3. User's stars restored and stats re-incremented
+        $this->assertFalse($star->fresh()->trashed());
+        $this->assertEquals(1, (int) Redis::get($starStatKey));
+
+        // Target plugin's cached star and comment count restored in Redis
+        $cachedRaw = Redis::hget($hashKey, $otherPlugin->id);
+        $this->assertNotEmpty($cachedRaw);
+        $cachedOtherPlugin = unserialize($cachedRaw);
+        $this->assertEquals(1, $cachedOtherPlugin->star_count);
+        $this->assertEquals(1, $cachedOtherPlugin->comment_count);
+    }
+
+    public function test_locking_user_revokes_tokens_and_removes_plugins_from_trending_cache(): void
+    {
+        $user = User::factory()->create();
+        $user->createToken('test-token');
+        $this->assertCount(1, $user->tokens);
+
+        $plugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $date = now()->format('Y-m-d');
+        $zsetKey = config('plugins.trending.keys.zset');
+        $hashKey = config('plugins.trending.keys.objects');
+        $bufferKey = config('plugins.views_buffer_key');
+        $todayKey = "trending:active_plugins:{$date}";
+
+        Redis::zadd($zsetKey, 50, $plugin->id);
+        Redis::hset($hashKey, $plugin->id, serialize($plugin));
+        Redis::hset($bufferKey, $plugin->id, 10);
+        Redis::sadd($todayKey, $plugin->id);
+
+        // Act: lock user
+        $user->update(['locked_at' => now()]);
+
+        // 1. Tokens revoked
+        $this->assertCount(0, $user->fresh()->tokens);
+
+        // 2. Plugins removed from Redis trending caches
+        $this->assertFalse((bool) Redis::zscore($zsetKey, $plugin->id));
+        $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
+        $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
+        $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+    }
+
+    public function test_unlocking_user_restores_active_plugin_in_trending(): void
+    {
+        $user = User::factory()->create([
+            'locked_at' => now(),
+        ]);
+
+        $plugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $date = now()->format('Y-m-d');
+        $todayKey = "trending:active_plugins:{$date}";
+        $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+
+        // Act: unlock user
+        $user->update(['locked_at' => null]);
+
+        // Plugin marked active in today's trending set
+        $this->assertTrue((bool) Redis::sismember($todayKey, $plugin->id));
+    }
+}

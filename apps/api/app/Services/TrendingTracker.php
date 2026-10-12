@@ -33,8 +33,11 @@ final class TrendingTracker
         if ($increment > 0) {
             Redis::incrby($statKey, $increment);
             Redis::sadd($activeKey, $pluginId);
-        } else {
-            Redis::incrby($statKey, $increment);
+        } elseif ($increment < 0) {
+            $newVal = (int) Redis::incrby($statKey, $increment);
+            if ($newVal < 0) {
+                Redis::set($statKey, 0);
+            }
         }
 
         Redis::expire($statKey, self::TTL);

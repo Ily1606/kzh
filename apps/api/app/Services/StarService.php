@@ -44,12 +44,30 @@ final class StarService
             $this->dispatchStarEvent($starred, $plugin->id, $user, $requestContext);
             Cache::forget($this->timelineCacheKey($plugin->id));
             TrendingTracker::trackStar($plugin->id, $starred ? 1 : -1);
+            $this->refreshCachedPluginStarCount($plugin->id);
         }
 
         return [
             'starred' => $starred,
             'star_count' => (int) $plugin->stars()->count(),
         ];
+    }
+
+    /**
+     * If the plugin is cached in Redis trending objects, update its cached star count.
+     */
+    private function refreshCachedPluginStarCount(string $pluginId): void
+    {
+        $hashKey = config('plugins.trending.keys.objects');
+        if ($hashKey && \Illuminate\Support\Facades\Redis::hexists($hashKey, $pluginId)) {
+            $fresh = $this->pluginRepository
+                ->findApprovedByIds([$pluginId])
+                ->first();
+
+            if ($fresh) {
+                \Illuminate\Support\Facades\Redis::hset($hashKey, $pluginId, serialize($fresh));
+            }
+        }
     }
 
     /**

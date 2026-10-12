@@ -50,7 +50,7 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
         return $this->newQuery()
             ->where('plugin_id', $pluginId)
             ->where('user_id', $userId)
-            ->delete() === 1;
+            ->forceDelete() === 1;
     }
 
     public function getTimeline(string $pluginId, bool $byMonth = false)

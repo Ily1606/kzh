@@ -202,7 +202,9 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     {
         $prefix = $this->model->getConnection()->getTablePrefix();
 
-        return "(select count(*) from {$prefix}stars where {$prefix}stars.plugin_id = {$prefix}plugins.id)";
+        return "(select count(*) from {$prefix}stars
+            where {$prefix}stars.plugin_id = {$prefix}plugins.id
+            and {$prefix}stars.deleted_at is null)";
     }
 
     private function commentCountSql(): string
