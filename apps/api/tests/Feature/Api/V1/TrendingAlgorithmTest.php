@@ -407,9 +407,10 @@ class TrendingAlgorithmTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.plugins.0.is_star', true);
 
-        $this->assertArrayNotHasKey(
-            'is_star',
-            Cache::get('plugins:trending:15')[0],
+        $hashKey = config('plugins.trending.keys.objects');
+        $cachedPlugin = unserialize(Redis::hget($hashKey, $plugin->id));
+        $this->assertNull(
+            $cachedPlugin->is_star,
             'The cached payload must stay viewer-independent.',
         );
 
