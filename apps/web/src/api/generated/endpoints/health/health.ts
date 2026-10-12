@@ -15,6 +15,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
   export const getHealth = () => {
+/**
+ * @summary Health check
+ */
 const v1Health = (
 
  options?: SecondParameter<typeof customInstance<V1Health200>>,) => {

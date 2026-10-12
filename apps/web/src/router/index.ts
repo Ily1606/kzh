@@ -1,11 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "@/views/HomeView.vue";
-import LoginView from "@/views/LoginView.vue";
-import RegisterView from "@/views/RegisterView.vue";
-import ProfileView from "@/views/ProfileView.vue";
 import { useAuth } from "@/composables/useAuth";
-
-import PublishPluginView from "@/views/PublishPluginView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -34,19 +29,25 @@ export const router = createRouter({
     {
       path: "/publish",
       name: "publish",
-      component: PublishPluginView,
+      component: () => import("@/views/PublishPluginView.vue"),
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
+      path: "/resources",
+      name: "my-plugins",
+      component: () => import("@/views/MyPluginsView.vue"),
       meta: { layout: 'default', requiresAuth: true }
     },
     {
       path: "/login",
       name: "login",
-      component: LoginView,
+      component: () => import("@/views/LoginView.vue"),
       meta: { layout: 'auth', title: 'Sign in to publish plugins', guestOnly: true }
     },
     {
       path: "/register",
       name: "register",
-      component: RegisterView,
+      component: () => import("@/views/RegisterView.vue"),
       meta: { layout: 'auth', title: 'Create a publisher account', guestOnly: true }
     },
     {
@@ -68,9 +69,21 @@ export const router = createRouter({
       meta: { layout: 'default' }
     },
     {
+      path: "/resources/:id/edit",
+      name: "plugin-edit",
+      component: () => import("@/views/EditPluginView.vue"),
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
+      path: "/plugins/:id/history",
+      name: "plugin-history",
+      component: () => import("@/views/PluginHistoryView.vue"),
+      meta: { layout: 'default', requiresAuth: true }
+    },
+    {
       path: "/profile",
       name: "profile",
-      component: ProfileView,
+      component: () => import("@/views/ProfileView.vue"),
       meta: { layout: 'default', requiresAuth: true }
     },
     {

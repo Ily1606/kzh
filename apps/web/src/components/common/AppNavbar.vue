@@ -24,7 +24,7 @@ async function handleLogout() {
         </RouterLink>
         <div class="hidden items-center gap-6 md:flex">
           <RouterLink to="/plugins" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Plugins</RouterLink>
-          <RouterLink to="/publish" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Publish</RouterLink>
+          <RouterLink v-if="auth.isAuthenticated" to="/resources" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Resources</RouterLink>
         </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">

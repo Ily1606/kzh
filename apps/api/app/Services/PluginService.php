@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Enums\PluginEventType;
+use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginUpdated;
 use App\Events\Plugin\PluginViewed;
@@ -12,11 +14,13 @@ use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +29,7 @@ final class PluginService
     public function __construct(
         private readonly PluginRepositoryInterface $pluginRepository,
         private readonly StarRepositoryInterface $starRepository,
+        private readonly PluginEventService $pluginEventService,
     ) {}
 
     /**
@@ -35,13 +40,23 @@ final class PluginService
     public function submit(User $user, array $attributes, RequestContext $requestContext): Plugin
     {
         try {
-            $plugin = $this->pluginRepository->create([
-                'name' => $attributes['name'],
-                'title' => $attributes['title'],
-                'license' => $attributes['license'],
-                'source_link' => $attributes['source_link'],
-                'user_id' => $user->getAuthIdentifier(),
-            ]);
+            $plugin = DB::transaction(function () use ($user, $attributes): Plugin {
+
+                $created = $this->pluginRepository->create([
+                    'name' => $attributes['name'],
+                    'title' => $attributes['title'],
+                    'license' => $attributes['license'],
+                    'source_link' => $attributes['source_link'],
+                    'user_id' => $user->getAuthIdentifier(),
+                ]);
+
+                $this->pluginEventService->recordOwnerAction(
+                    $created,
+                    PluginEventType::Created,
+                );
+
+                return $created;
+            });
 
             $plugin->refresh();
         } catch (UniqueConstraintViolationException) {
@@ -84,7 +99,16 @@ final class PluginService
         $before = $this->editableValuesOf($plugin);
 
         try {
-            $updated = $this->pluginRepository->update($plugin, $attributes);
+            $updated = DB::transaction(function () use ($plugin, $attributes): Plugin {
+                $saved = $this->pluginRepository->update($plugin, $attributes);
+
+                $this->pluginEventService->recordOwnerAction(
+                    $saved,
+                    PluginEventType::Resubmitted,
+                );
+
+                return $saved;
+            });
         } catch (UniqueConstraintViolationException) {
             // Same shape as submit(): a name already held by this user comes
             // back as a field-level validation error, not a 500. Two requests
@@ -123,10 +147,6 @@ final class PluginService
     /**
      * Which fields actually changed value, and from what to what.
      *
-     * Only fields whose value really moved. Re-sending a field with the value
-     * it already holds is not an edit worth an audit line, and logging one would
-     * claim the plugin changed when it did not.
-     *
      * @param  array<string, mixed>  $before  Editable values before the write.
      * @param  array<string, mixed>  $after  Editable values after the write.
      * @return array<string, array{from: mixed, to: mixed}>
@@ -149,8 +169,34 @@ final class PluginService
     }
 
     /**
-     * @param  User  $user  Signed-in viewer, or null for a guest. Drives whether
-     *                      each plugin carries the viewer-specific `is_star` flag.
+     * The caller's own plugins for the Resources page.
+     *
+     * `is_star` is resolved for the approved plugins on the page only. A star
+     * row cannot exist on a plugin that is not approved
+     *
+     * @param  PluginStatus|null  $status  Restrict to one status, or null for all of them.
+     */
+    public function getPaginatedPluginsByUser(User $user, ?PluginStatus $status, int $perPage): LengthAwarePaginator
+    {
+        $paginator = $this->pluginRepository->getPaginatedPluginsByUser(
+            $user->getAuthIdentifier(),
+            $status,
+            $perPage,
+        );
+
+        $approved = array_values(array_filter(
+            $paginator->items(),
+            static fn (Plugin $plugin): bool => $plugin->status === PluginStatus::Approved,
+        ));
+
+        $this->markStarredFlag($approved, (string) $user->getAuthIdentifier());
+
+        return $paginator;
+    }
+
+    /**
+     * @param  User|null  $user  Signed-in viewer, or null for a guest. Drives whether
+     *                           each plugin carries the viewer-specific `is_star` flag.
      */
     public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
     {
@@ -163,27 +209,41 @@ final class PluginService
             return $paginator;
         }
 
-        $plugins = $paginator->items();
-
-        // One query for the whole page instead of one per plugin. Only the ids
-        // on this page are sent, so the result set stays the size of the page.
-        $starredIds = $this->starRepository->starredPluginIds(
-            array_map(static fn (Plugin $plugin): string => $plugin->id, $plugins),
-            (string) $user->getAuthIdentifier(),
-        );
-
-        // `is_star` is a transient attribute, not a column: PluginResource reads
-        // it when present and omits the field otherwise (see PluginResource).
-        foreach ($plugins as $plugin) {
-            $plugin->is_star = in_array($plugin->id, $starredIds, true);
-        }
+        $this->markStarredFlag($paginator->items(), (string) $user->getAuthIdentifier());
 
         return $paginator;
     }
 
-    public function getPlugin(string $id): Plugin
+    /**
+     * @param  User|null  $user  Signed-in viewer, or null for a guest.
+     */
+    public function getPlugin(string $id, ?User $user = null): Plugin
     {
-        return $this->pluginRepository->findApprovedById($id);
+        $plugin = $this->resolveVisiblePlugin($id, $user);
+
+        if ($user !== null) {
+            $this->markStarredFlag([$plugin], (string) $user->getAuthIdentifier());
+        }
+
+        return $plugin;
+    }
+
+    /**
+     * The plugin behind the id, or a 404 for a caller who may not open it.
+     */
+    private function resolveVisiblePlugin(string $id, ?User $user): Plugin
+    {
+        $plugin = $this->pluginRepository->findById($id);
+
+        if ($plugin->status === PluginStatus::Approved) {
+            return $plugin;
+        }
+
+        if ($user === null || $plugin->user_id !== $user->getAuthIdentifier()) {
+            throw (new ModelNotFoundException)->setModel(Plugin::class, [$id]);
+        }
+
+        return $plugin;
     }
 
     /**
@@ -241,8 +301,16 @@ final class PluginService
      * - 2 (Age Offset): Prevents division by zero for brand new items.
      *
      * @see https://medium.com/hacking-and-gonzo/how-hacker-news-ranking-algorithm-works-1d9b0cf2c08d
+     *
+     * The ranking and the cached payload are viewer-independent: one cache
+     * entry per limit serves every user. The viewer-specific `is_star` flag is
+     * therefore resolved after the cache read and injected into the returned
+     * copy only — writing it into the cached value would hand one user's stars
+     * to the next caller.
+     *
+     * @param  User|null  $user  Signed-in viewer, or null for a guest.
      */
-    public function getTrendingPlugins(int $limit): array
+    public function getTrendingPlugins(int $limit, ?User $user = null): array
     {
         $cacheTtl = config('plugins.trending.cache_ttl');
         $daysLimit = config('plugins.trending.days_limit');
@@ -280,6 +348,47 @@ final class PluginService
             Cache::put($cacheKey, $result, $cacheTtl);
         }
 
+        if ($user !== null && $result !== []) {
+            // `$result` is already a copy of the cached array, so writing the
+            // flag into it touches nothing the next caller will read.
+            $starredIds = $this->starRepository->starredPluginIds(
+                array_map(static fn (array $plugin): string => $plugin['id'], $result),
+                (string) $user->getAuthIdentifier(),
+            );
+
+            foreach ($result as &$plugin) {
+                $plugin['is_star'] = in_array($plugin['id'], $starredIds, true);
+            }
+            unset($plugin);
+        }
+
         return $result;
+    }
+
+    /**
+     * Set the transient `is_star` flag on each plugin, from one query for the
+     * whole page instead of one per plugin. Only the ids passed in are sent, so
+     * the result set stays the size of the set.
+     *
+     * `is_star` is not a column: PluginResource reads it when present and omits
+     * the field otherwise (see PluginResource). Anything left unflagged is
+     * therefore absent from the response rather than reported as `false`.
+     *
+     * @param  list<Plugin>  $plugins
+     */
+    private function markStarredFlag(array $plugins, string $userId): void
+    {
+        if ($plugins === []) {
+            return;
+        }
+
+        $starredIds = $this->starRepository->starredPluginIds(
+            array_map(static fn (Plugin $plugin): string => $plugin->id, $plugins),
+            $userId,
+        );
+
+        foreach ($plugins as $plugin) {
+            $plugin->is_star = in_array($plugin->id, $starredIds, true);
+        }
     }
 }

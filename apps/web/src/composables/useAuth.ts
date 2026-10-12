@@ -1,10 +1,11 @@
 import { computed, reactive } from 'vue';
-import { useAuthStore } from '@/stores';
+import { useAuthStore, usePluginsStore } from '@/stores';
 import { getAuth, getProfile } from '@/api/generated/endpoints';
 import type { LoginRequest, RegisterRequest } from '@/api/generated/model';
 
 export function useAuth() {
   const store = useAuthStore();
+  const pluginsStore = usePluginsStore();
   const { authLogin, authRegister, authLogout } = getAuth();
   const { profileShow } = getProfile();
 
@@ -35,6 +36,10 @@ export function useAuth() {
       await authLogout();
     } finally {
       store.clearAuth();
+      // The plugin cache holds `is_star`, which belongs to whoever is signed in.
+      // Clearing the session has to clear it too, or the next user on this
+      // browser inherits the previous user's stars.
+      pluginsStore.reset();
     }
   }
 

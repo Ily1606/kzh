@@ -20,9 +20,6 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
   export const getPasswordReset = () => {
 /**
  * The request is rate limited per IP, together with the rest of the auth
- * endpoint group, because this is an unauthenticated endpoint that triggers
- * an outbound email. Declared for the same reason as in AuthController: the
- * `throttle:auth` middleware is invisible to Scramble.
  * @summary Send a password reset link
  */
 const passwordResetSendResetLinkEmail = (

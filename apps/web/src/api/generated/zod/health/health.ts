@@ -7,6 +7,9 @@
 import * as zod from 'zod';
 
 
+/**
+ * @summary Health check
+ */
 export const V1HealthResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Health check successful."),

@@ -1,25 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
-import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import * as z from 'zod'
 import { getPlugin } from '@/api/generated/endpoints'
-import { SubmitPluginRequestLicense } from '@/api/generated/model'
 import type { SubmitPluginRequest } from '@/api/generated/model'
+import type { PluginFields } from '@/schemas/plugin.schema'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import PluginFieldsForm from '@/components/pages/plugin/PluginFieldsForm.vue'
 import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  ArrowRight,
   PackageCheck,
   ShieldCheck,
   Terminal,
   Sparkles
 } from 'lucide-vue-next'
+import { emptyPluginFields, submitPluginSchema } from '@/schemas/plugin.schema'
 
 const router = useRouter()
 const { pluginStore } = getPlugin()
@@ -27,50 +23,7 @@ const { pluginStore } = getPlugin()
 const error = ref('')
 const isSuccess = ref(false)
 
-// Zod validation schema matching backend rules
-const licenseValues = Object.values(SubmitPluginRequestLicense) as [string, ...string[]]
-
-const submitPluginSchema = toTypedSchema(
-  z.object({
-    name: z
-      .string({ required_error: 'Plugin name is required' })
-      .trim()
-      .min(1, 'Plugin name is required')
-      .max(255, 'Plugin name must not exceed 255 characters'),
-    title: z
-      .string({ required_error: 'Display title is required' })
-      .trim()
-      .min(1, 'Display title is required')
-      .max(255, 'Display title must not exceed 255 characters'),
-    license: z.enum(licenseValues, {
-      errorMap: () => ({ message: 'Please select a valid license' }),
-    }),
-    source_link: z
-      .string({ required_error: 'Source link is required' })
-      .trim()
-      .min(1, 'Source link is required')
-      .max(2048, 'Source link must not exceed 2048 characters')
-      .url('Source link must be a valid URL')
-      .refine((url) => url.startsWith('https://'), {
-        message: 'Source link must start with https://',
-      }),
-  })
-)
-
-const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
-  validationSchema: submitPluginSchema,
-  initialValues: {
-    name: '',
-    title: '',
-    license: SubmitPluginRequestLicense.MIT,
-    source_link: '',
-  },
-})
-
-const [name, nameAttrs] = defineField('name')
-const [title, titleAttrs] = defineField('title')
-const [license, licenseAttrs] = defineField('license')
-const [source_link, sourceLinkAttrs] = defineField('source_link')
+const form = ref<InstanceType<typeof PluginFieldsForm> | null>(null)
 
 // Carousel slides for the right-hand showcase card
 const activeSlide = ref(0)
@@ -103,29 +56,31 @@ function prevSlide() {
   activeSlide.value = (activeSlide.value - 1 + slides.length) % slides.length
 }
 
-const onSubmit = handleSubmit(async (values) => {
+async function submitPlugin(values: PluginFields) {
   error.value = ''
-  isSuccess.value = false
 
   try {
     await pluginStore(values as SubmitPluginRequest)
-    isSuccess.value = true
-    setTimeout(() => {
-      router.push('/plugins')
-    }, 2400)
-  } catch (err: any) {
-    if (err?.response?.status === 422 && err?.response?.data?.errors) {
-      const serverErrors: Record<string, string> = {}
-      for (const [key, msgs] of Object.entries(err.response.data.errors as Record<string, string[]>)) {
-        if (msgs && msgs[0]) {
-          serverErrors[key] = msgs[0]
-        }
-      }
-      setErrors(serverErrors)
+  } catch (err: unknown) {
+    const response = (err as { response?: { status?: number; data?: { message?: string; errors?: Record<string, string[]> } } }).response
+
+    if (response?.status === 422 && response.data?.errors) {
+      form.value?.showServerErrors(response.data.errors)
     }
-    error.value = err?.response?.data?.message || 'An error occurred while submitting the plugin.'
+
+    error.value = response?.data?.message || 'An error occurred while submitting the plugin.'
+
+    throw err
   }
-})
+}
+
+function onSubmitted() {
+  isSuccess.value = true
+
+  setTimeout(() => {
+    router.push({ name: 'my-plugins', query: { status: 'pending' } })
+  }, 2400)
+}
 </script>
 
 <template>
@@ -156,111 +111,30 @@ const onSubmit = handleSubmit(async (values) => {
             </div>
             <h3 class="text-2xl font-bold">Plugin Submitted Successfully!</h3>
             <p class="text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">
-              Your plugin has been submitted to the registry queue and will be reviewed by an administrator shortly. Redirecting to plugins list...
+              Your plugin has been submitted to the registry queue and will be reviewed by an administrator shortly. Redirecting to your resources...
             </p>
             <div class="pt-2">
               <Button as-child variant="outline" class="rounded-full px-6">
-                <RouterLink to="/plugins">View all plugins</RouterLink>
+                <RouterLink to="/resources">View your resources</RouterLink>
               </Button>
             </div>
           </div>
 
           <!-- Form Fields with VeeValidate & Zod Schema Validation -->
-          <form v-else @submit="onSubmit" novalidate class="space-y-6">
-            <!-- Plugin Name -->
-            <div class="space-y-2">
-              <Label for="name" class="text-sm font-medium">
-                Plugin name <span class="text-primary">*</span>
-              </Label>
-              <Input
-                id="name"
-                v-model="name"
-                v-bind="nameAttrs"
-                placeholder="e.g. @dsh/guardrails"
-                class="h-11 rounded-xl bg-muted/40 border-border/60 focus-visible:bg-background transition-colors"
-                :class="{ 'border-destructive focus-visible:ring-destructive': errors.name }"
-              />
-              <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
-              <p v-else class="text-xs text-muted-foreground">The unique npm or scoped package identifier.</p>
-            </div>
+          <PluginFieldsForm
+            v-else
+            ref="form"
+            :schema="submitPluginSchema"
+            :initial-values="emptyPluginFields"
+            submit-label="Publish plugin"
+            :submit="submitPlugin"
+            @submitted="onSubmitted"
+          />
 
-            <!-- Display Title -->
-            <div class="space-y-2">
-              <Label for="title" class="text-sm font-medium">
-                Display title <span class="text-primary">*</span>
-              </Label>
-              <Input
-                id="title"
-                v-model="title"
-                v-bind="titleAttrs"
-                placeholder="e.g. Opinionated safety checks and policy hooks"
-                class="h-11 rounded-xl bg-muted/40 border-border/60 focus-visible:bg-background transition-colors"
-                :class="{ 'border-destructive focus-visible:ring-destructive': errors.title }"
-              />
-              <p v-if="errors.title" class="text-xs text-destructive">{{ errors.title }}</p>
-            </div>
-
-            <!-- License & Source Link Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <!-- License -->
-              <div class="space-y-2">
-                <Label for="license" class="text-sm font-medium">
-                  License <span class="text-primary">*</span>
-                </Label>
-                <select
-                  id="license"
-                  v-model="license"
-                  v-bind="licenseAttrs"
-                  class="flex h-11 w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground outline-none transition-colors focus-visible:bg-background focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
-                  :class="{ 'border-destructive focus-visible:ring-destructive': errors.license }"
-                >
-                  <option
-                    v-for="lic in Object.values(SubmitPluginRequestLicense)"
-                    :key="lic"
-                    :value="lic"
-                  >
-                    {{ lic }}
-                  </option>
-                </select>
-                <p v-if="errors.license" class="text-xs text-destructive">{{ errors.license }}</p>
-              </div>
-
-              <!-- Source Link -->
-              <div class="space-y-2">
-                <Label for="source" class="text-sm font-medium">
-                  Source link <span class="text-primary">*</span>
-                </Label>
-                <Input
-                  id="source"
-                  type="url"
-                  v-model="source_link"
-                  v-bind="sourceLinkAttrs"
-                  placeholder="https://github.com/org/repo"
-                  class="h-11 rounded-xl bg-muted/40 border-border/60 focus-visible:bg-background transition-colors"
-                  :class="{ 'border-destructive focus-visible:ring-destructive': errors.source_link }"
-                />
-                <p v-if="errors.source_link" class="text-xs text-destructive">{{ errors.source_link }}</p>
-              </div>
-            </div>
-
-            <!-- Error Banner -->
-            <div v-if="error" class="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-sm">
-              {{ error }}
-            </div>
-
-            <!-- Submit Button (Pill style matching reference image) -->
-            <div class="pt-2">
-              <Button
-                type="submit"
-                size="lg"
-                class="rounded-full px-8 py-3 h-12 text-sm font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all cursor-pointer inline-flex items-center gap-2"
-                :disabled="isSubmitting"
-              >
-                <span>{{ isSubmitting ? 'Submitting plugin...' : 'Publish plugin' }}</span>
-                <ArrowRight class="size-4" />
-              </Button>
-            </div>
-          </form>
+          <!-- Error Banner -->
+          <div v-if="error" class="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-sm">
+            {{ error }}
+          </div>
         </div>
 
         <!-- Right Column: Stylized Floating Glassmorphism Showcase Card (5 cols) -->
@@ -327,7 +201,7 @@ const onSubmit = handleSubmit(async (values) => {
                   v-for="(_, idx) in slides"
                   :key="idx"
                   class="size-1.5 rounded-full transition-all duration-300"
-                  :class="activeSlide === idx ? 'w-5 bg-primary' : 'bg-muted-foreground/30'"
+                  :class="idx === activeSlide ? 'w-5 bg-primary' : 'bg-muted-foreground/30'"
                 />
               </div>
             </div>
@@ -357,12 +231,10 @@ const onSubmit = handleSubmit(async (values) => {
 .fade-leave-active {
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
-
 .fade-enter-from {
   opacity: 0;
   transform: translateY(6px);
 }
-
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-6px);

@@ -2,8 +2,12 @@
 
 namespace App\Filament\Resources\Plugins\Tables;
 
+use App\Enums\PluginEventType;
 use App\Enums\PluginStatus;
+use App\Models\Plugin;
+use App\Services\PluginEventService;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -11,6 +15,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class PluginsTable
 {
@@ -118,36 +123,79 @@ class PluginsTable
             ->deferFilters()
             ->defaultSort('created_at', 'desc')
             ->recordActions([
-                Action::make('reject')
-                    ->label(__('plugin.table.actions.reject'))
-                    ->icon('heroicon-m-x-circle')
-                    ->color('danger')
-                    ->visible(fn($record) => $record->status === PluginStatus::Pending)
-                    ->form([
-                        Textarea::make('rejected_reason')
-                            ->label(__('plugin.table.actions.reject_reason_label'))
-                            ->placeholder(__('plugin.table.actions.reject_reason_placeholder'))
-                            ->required()
-                            ->maxLength(500),
-                    ])
-                    ->action(function ($record, array $data) {
-                        $record->update([
-                            'status' => PluginStatus::Rejected,
-                        ]);
-                    })
-                    ->modalHeading(__('plugin.table.actions.reject_modal_heading'))
-                    ->modalDescription(__('plugin.table.actions.reject_modal_description'))
-                    ->modalSubmitActionLabel(__('plugin.table.actions.reject_modal_submit')),
-                Action::make('approve')
-                    ->label(__('plugin.table.actions.approve'))
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn($record) => $record->status === PluginStatus::Pending)
-                    ->action(function ($record, array $data) {
-                        $record->update([
-                            'status' => PluginStatus::Approved,
-                        ]);
-                    })
+                ActionGroup::make([
+                    Action::make('reject')
+                        ->label(__('plugin.table.actions.reject'))
+                        ->icon('heroicon-m-x-circle')
+                        ->color('danger')
+                        ->visible(fn($record) => $record->status === PluginStatus::Pending)
+                        ->form([
+                            Textarea::make('rejected_reason')
+                                ->label(__('plugin.table.actions.reject_reason_label'))
+                                ->placeholder(__('plugin.table.actions.reject_reason_placeholder'))
+                                ->required()
+                                ->maxLength(500),
+                        ])
+                        ->action(function (Plugin $record, array $data) {
+                            app(PluginEventService::class)->review(
+                                $record,
+                                PluginEventType::Rejected,
+                                Auth::user(),
+                                $data['rejected_reason'],
+                                fn(Plugin $plugin) => $plugin->forceFill([
+                                    'status' => PluginStatus::Rejected,
+                                    'approved_at' => null,
+                                ])->save(),
+                            );
+                        })
+                        ->modalHeading(__('plugin.table.actions.reject_modal_heading'))
+                        ->modalDescription(__('plugin.table.actions.reject_modal_description'))
+                        ->modalSubmitActionLabel(__('plugin.table.actions.reject_modal_submit')),
+                    Action::make('approve')
+                        ->label(__('plugin.table.actions.approve'))
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn($record) => $record->status === PluginStatus::Pending)
+                        ->action(function (Plugin $record) {
+                            app(PluginEventService::class)->review(
+                                $record,
+                                PluginEventType::Approved,
+                                Auth::user(),
+                                message: null,
+                                write: fn(Plugin $plugin) => $plugin->forceFill([
+                                    'status' => PluginStatus::Approved,
+                                    'approved_at' => now(),
+                                ])->save(),
+                            );
+                        }),
+                    Action::make('requestChanges')
+                        ->label(__('plugin.table.actions.request_changes'))
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('warning')
+                        ->visible(fn($record) => $record->status === PluginStatus::Pending)
+                        ->form([
+                            Textarea::make('message')
+                                ->label(__('plugin.table.actions.request_changes_message_label'))
+                                ->placeholder(__('plugin.table.actions.request_changes_message_placeholder'))
+                                ->required()
+                                ->maxLength(500),
+                        ])
+                        ->action(function (Plugin $record, array $data) {
+                            app(PluginEventService::class)->review(
+                                $record,
+                                PluginEventType::UpdateRequested,
+                                Auth::user(),
+                                $data['message'],
+                            );
+                        })
+                        ->modalHeading(__('plugin.table.actions.request_changes_modal_heading'))
+                        ->modalDescription(__('plugin.table.actions.request_changes_modal_description'))
+                        ->modalSubmitActionLabel(__('plugin.table.actions.request_changes_modal_submit')),
+                ])
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->label(__('plugin.table.actions.group_label'))
+                    ->tooltip(__('plugin.table.actions.group_tooltip'))
+                    ->color('gray'),
             ]);
     }
 }

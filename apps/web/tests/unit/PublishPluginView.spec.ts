@@ -94,7 +94,10 @@ describe('PublishPluginView.vue', () => {
     // Wait for the redirect timer to complete (2400ms)
     expect(mockPush).not.toHaveBeenCalled()
     await new Promise(r => setTimeout(r, 2500))
-    expect(mockPush).toHaveBeenCalledWith('/plugins')
+    // Not `/plugins`: that list only carries approved plugins, so a submission
+    // still under review would land on a page without it. Resources is where
+    // the author actually sees the new plugin, and the Pending tab is selected.
+    expect(mockPush).toHaveBeenCalledWith({ name: 'my-plugins', query: { status: 'pending' } })
   }, 10000)
 
   it('maps server 422 validation errors to fields', async () => {

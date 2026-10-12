@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class TrendingAlgorithmTest extends TestCase
@@ -322,5 +323,95 @@ class TrendingAlgorithmTest extends TestCase
         // Verify it is an array
         $this->assertIsArray($cachedData);
         $this->assertIsArray($cachedData[0]);
+    }
+
+    // -----------------------------------------------------------------------
+    // is_star
+    // -----------------------------------------------------------------------
+
+    private function givenStarred(Plugin $plugin, User $user): void
+    {
+        DB::table('stars')->insert([
+            'plugin_id' => $plugin->id,
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_trend_21_marks_is_star_for_a_signed_in_user(): void
+    {
+        $user = User::factory()->create();
+
+        $starred = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $notStarred = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subMinute(),
+        ]);
+
+        $this->givenStarred($starred, $user);
+
+        Sanctum::actingAs($user, [], 'api');
+
+        $response = $this->getJson('/api/v1/plugins/trending');
+
+        $response->assertOk()
+            ->assertJsonPath('data.plugins.0.id', $starred->id)
+            ->assertJsonPath('data.plugins.0.is_star', true)
+            ->assertJsonPath('data.plugins.1.id', $notStarred->id)
+            ->assertJsonPath('data.plugins.1.is_star', false);
+    }
+
+    public function test_trend_22_guest_response_has_no_is_star(): void
+    {
+        Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+
+        $this->getJson('/api/v1/plugins/trending')
+            ->assertOk()
+            ->assertJsonMissingPath('data.plugins.0.is_star');
+    }
+
+    public function test_trend_23_is_star_does_not_leak_through_the_shared_cache(): void
+    {
+        $user = User::factory()->create();
+
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $this->givenStarred($plugin, $user);
+
+        // Warm the cache as a signed-in user. The flag is resolved for this
+        // request only and must never be written into the cached value.
+        Sanctum::actingAs($user, [], 'api');
+
+        $this->getJson('/api/v1/plugins/trending')
+            ->assertOk()
+            ->assertJsonPath('data.plugins.0.is_star', true);
+
+        $this->assertArrayNotHasKey(
+            'is_star',
+            Cache::get('plugins:trending:15')[0],
+            'The cached payload must stay viewer-independent.',
+        );
+
+        // The same cache entry now serves a guest. One entry serves every user,
+        // so storing the flag inside it would hand this user's stars to the next.
+        $this->app['auth']->forgetGuards();
+
+        $this->getJson('/api/v1/plugins/trending')
+            ->assertOk()
+            ->assertJsonPath('data.plugins.0.id', $plugin->id)
+            ->assertJsonMissingPath('data.plugins.0.is_star');
+    }
+
+    public function test_trend_24_is_star_is_scoped_to_the_current_user(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $this->givenStarred($plugin, $owner);
+
+        Sanctum::actingAs($other, [], 'api');
+
+        $this->getJson('/api/v1/plugins/trending')
+            ->assertOk()
+            ->assertJsonPath('data.plugins.0.is_star', false);
     }
 }

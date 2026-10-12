@@ -21,6 +21,9 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
   export const getProfile = () => {
+/**
+ * @summary Get user's profile
+ */
 const profileShow = (
 
  options?: SecondParameter<typeof customInstance<ProfileShow200>>,) => {
@@ -29,7 +32,10 @@ const profileShow = (
     },
       options);
     }
-  const profileUpdateProfile = (
+  /**
+ * @summary Update user's profile
+ */
+const profileUpdateProfile = (
     updateProfileRequest?: UpdateProfileRequest,
  options?: SecondParameter<typeof customInstance<ProfileUpdateProfile200>>,) => {
       return customInstance<ProfileUpdateProfile200>(
@@ -39,7 +45,10 @@ const profileShow = (
     },
       options);
     }
-  const profileUpdateAvatar = (
+  /**
+ * @summary Update user's avatar
+ */
+const profileUpdateAvatar = (
     updateAvatarRequest?: UpdateAvatarRequest,
  options?: SecondParameter<typeof customInstance<ProfileUpdateAvatar200>>,) => {const formData = new FormData();
 if(updateAvatarRequest?.avatar !== undefined && updateAvatarRequest.avatar !== null) {
@@ -53,7 +62,10 @@ if(updateAvatarRequest?.avatar !== undefined && updateAvatarRequest.avatar !== n
     },
       options);
     }
-  const profileUpdatePassword = (
+  /**
+ * @summary Update user's password
+ */
+const profileUpdatePassword = (
     updatePasswordRequest: UpdatePasswordRequest,
  options?: SecondParameter<typeof customInstance<ProfileUpdatePassword200>>,) => {
       return customInstance<ProfileUpdatePassword200>(
