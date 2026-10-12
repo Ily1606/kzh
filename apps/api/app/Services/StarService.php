@@ -43,6 +43,7 @@ final class StarService
         if ($changed) {
             $this->dispatchStarEvent($starred, $plugin->id, $user, $requestContext);
             Cache::forget($this->timelineCacheKey($plugin->id));
+            TrendingTracker::trackStar($plugin->id, $starred ? 1 : -1);
         }
 
         return [

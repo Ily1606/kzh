@@ -19,6 +19,10 @@ interface PluginRepositoryInterface
 
     public function findApprovedById(string $id): Plugin;
 
+    public function findApprovedByIds(array $ids): Collection;
+
+    public function incrementViewCount(string $id, int $count): void;
+
     /**
      * Find any plugin by ID, whatever its review status, or fail with a 404.
      */
