@@ -60,6 +60,6 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return (bool) $this->is_admin;
+        return (bool) $this->is_admin && $this->locked_at === null && $this->deleted_at === null;
     }
 }

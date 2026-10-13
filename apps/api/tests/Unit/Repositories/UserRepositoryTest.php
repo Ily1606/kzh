@@ -65,6 +65,72 @@ class UserRepositoryTest extends TestCase
         $this->assertNull($repository->findByEmail('missing@example.com'));
     }
 
+    public function test_locking_a_user_stamps_locked_at_and_revokes_every_token(): void
+    {
+        $user = User::factory()->create();
+        $user->createToken('api-token');
+
+        $repository = app(UserRepositoryInterface::class);
+
+        $locked = $repository->lock($user);
+
+        $this->assertNotNull($locked->locked_at);
+        $this->assertNotNull($user->fresh()->locked_at);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_locking_an_already_locked_user_keeps_the_original_timestamp(): void
+    {
+        $original = now()->subWeek();
+
+        $user = User::factory()->create(['locked_at' => $original]);
+
+        $repository = app(UserRepositoryInterface::class);
+
+        // Idempotent: a second lock must not rewrite history, so an admin can
+        // still tell when the account was first locked.
+        $this->assertSame(
+            $original->format('Y-m-d H:i:s'),
+            $repository->lock($user)->locked_at?->format('Y-m-d H:i:s'),
+        );
+    }
+
+    public function test_unlocking_a_user_clears_locked_at_without_restoring_tokens(): void
+    {
+        $user = User::factory()->create();
+        $repository = app(UserRepositoryInterface::class);
+
+        $repository->lock($user);
+        $user->createToken('api-token');
+
+        $unlocked = $repository->unlock($user);
+
+        $this->assertNull($unlocked->locked_at);
+        $this->assertNull($user->fresh()->locked_at);
+
+        // Unlock only lifts the block; it must not resurrect the tokens the
+        // lock revoked, or a lock would be reversible by simply unlocking.
+        $this->assertDatabaseCount('personal_access_tokens', 1);
+    }
+
+    public function test_locking_leaves_the_account_unusable_for_credential_lookup(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'target@example.com',
+            'password' => 'secret-password',
+        ]);
+
+        $repository = app(UserRepositoryInterface::class);
+
+        $this->assertNotNull($repository->findValidCredentials('target@example.com', 'secret-password'));
+
+        $repository->lock($user);
+
+        // The repository rule that guards the API login already keys off
+        // `locked_at`; the admin action is what makes that state reachable.
+        $this->assertNull($repository->findValidCredentials('target@example.com', 'secret-password'));
+    }
+
     public function test_credential_rule_is_enforced_in_the_child_not_the_base(): void
     {
         User::factory()->create([

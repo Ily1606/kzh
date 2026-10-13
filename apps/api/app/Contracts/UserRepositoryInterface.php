@@ -33,4 +33,17 @@ interface UserRepositoryInterface
      * Update user's password.
      */
     public function updatePassword(User $user, string $newPassword): User;
+
+    /**
+     * Lock the account: stamp `locked_at` and revoke every API token the user
+     * holds, so a lock takes effect on sessions that are already open rather
+     * than only on the next sign-in attempt.
+     */
+    public function lock(User $user): User;
+
+    /**
+     * Unlock the account by clearing `locked_at`. Tokens stay revoked; the user
+     * has to sign in again.
+     */
+    public function unlock(User $user): User;
 }
