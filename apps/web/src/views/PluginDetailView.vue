@@ -4,10 +4,8 @@ import PluginDetailHeader from '@/components/pages/plugin-detail/PluginDetailHea
 import PluginReadme from '@/components/pages/plugin-detail/PluginReadme.vue'
 import PluginStatusNotice from '@/components/pages/plugin-detail/PluginStatusNotice.vue'
 import StarTimeline from '@/components/pages/plugin/StarTimeline.vue'
-import { Button } from '@/components/ui/button'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
 import { usePluginsStore } from '@/stores'
-import { FileText } from 'lucide-vue-next'
 import { computed, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
