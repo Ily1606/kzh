@@ -28,9 +28,9 @@ class PluginTimelineRecordingTest extends TestCase
     {
         parent::setUp();
 
-        // The taxonomy tables are empty under RefreshDatabase, and the service
-        // refuses a category it cannot find. Mirroring the config is what a
-        // deployed environment does at seed time.
+        // The taxonomy tables are empty under RefreshDatabase, and requests
+        // validate `category` and `tags.*` against them. Seeding is what a
+        // deployed environment does at setup time.
         $this->seed(CategoryAndTagSeeder::class);
     }
 

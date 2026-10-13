@@ -18,7 +18,7 @@ class ListPluginsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category' => ['nullable', 'string', Rule::in(config('plugins.categories', []))],
+            'category' => ['nullable', 'string', Rule::exists('categories', 'name')],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1'],
         ];

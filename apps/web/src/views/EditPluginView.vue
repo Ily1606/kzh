@@ -9,7 +9,6 @@ import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
 import { usePluginsStore } from '@/stores'
 import { notifySuccess } from '@/utils/toast'
 import type { PluginFields } from '@/schemas/plugin.schema'
-import { updatePluginSchema } from '@/schemas/plugin.schema'
 
 const error = ref('')
 const route = useRoute()
@@ -105,7 +104,6 @@ onMounted(async () => {
       </p>
 
       <PluginFieldsForm
-        :schema="updatePluginSchema"
         :initial-values="initialValues"
         submit-label="Save changes"
         :submit="save"

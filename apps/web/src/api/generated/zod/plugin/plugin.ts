@@ -94,8 +94,8 @@ export const PluginStoreBody = zod.object({
   "name": zod.string().max(pluginStoreBodyNameMax),
   "title": zod.string().max(pluginStoreBodyTitleMax),
   "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']),
-  "category": zod.enum(['UI & workspace', 'Vision', 'Multi-agent', 'Developer tools', 'Integrations', 'Security & diagnostics']),
-  "tags": zod.array(zod.enum(['Manifest checked', 'May read files', 'May write files', 'May run commands', 'May access network', 'Version not locked', 'Needs credentials'])).max(pluginStoreBodyTagsMax).nullish(),
+  "category": zod.string(),
+  "tags": zod.array(zod.string()).max(pluginStoreBodyTagsMax).nullish(),
   "source_link": zod.string().url().max(pluginStoreBodySourceLinkMax)
 })
 
@@ -139,7 +139,7 @@ export const PluginStoreResponse = zod.object({
 
 
 export const PluginIndexQueryParams = zod.object({
-  "category": zod.union([zod.literal('UI & workspace'),zod.literal('Vision'),zod.literal('Multi-agent'),zod.literal('Developer tools'),zod.literal('Integrations'),zod.literal('Security & diagnostics'),zod.literal(null)]).nullish(),
+  "category": zod.string().nullish(),
   "page": zod.number().int().min(1).nullish(),
   "per_page": zod.number().int().min(1).nullish()
 })
@@ -221,8 +221,8 @@ export const PluginUpdateBody = zod.object({
   "name": zod.string().max(pluginUpdateBodyNameMax).optional(),
   "title": zod.string().max(pluginUpdateBodyTitleMax).optional(),
   "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']).optional(),
-  "category": zod.enum(['UI & workspace', 'Vision', 'Multi-agent', 'Developer tools', 'Integrations', 'Security & diagnostics']).optional(),
-  "tags": zod.array(zod.enum(['Manifest checked', 'May read files', 'May write files', 'May run commands', 'May access network', 'Version not locked', 'Needs credentials'])).max(pluginUpdateBodyTagsMax).nullish(),
+  "category": zod.string().optional(),
+  "tags": zod.array(zod.string()).max(pluginUpdateBodyTagsMax).nullish(),
   "source_link": zod.string().url().max(pluginUpdateBodySourceLinkMax).optional()
 })
 

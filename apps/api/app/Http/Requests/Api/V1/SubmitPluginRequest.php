@@ -21,9 +21,9 @@ class SubmitPluginRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'title' => ['required', 'string', 'max:255'],
             'license' => ['required', 'string', Rule::in(config('plugins.licenses', []))],
-            'category' => ['required', 'string', Rule::in(config('plugins.categories', []))],
+            'category' => ['required', 'string', Rule::exists('categories', 'name')],
             'tags' => ['nullable', 'array', 'max:'.config('plugins.tags_per_plugin_limit', 5)],
-            'tags.*' => ['required', 'string', Rule::in(config('plugins.tags', []))],
+            'tags.*' => ['required', 'string', Rule::exists('tags', 'name')],
             'source_link' => ['required', 'string', 'url:https', 'max:2048'],
         ];
     }

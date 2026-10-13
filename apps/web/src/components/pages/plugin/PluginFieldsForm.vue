@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import { useForm } from 'vee-validate'
-import type { TypedSchema } from 'vee-validate'
-import { SubmitPluginRequestCategory, SubmitPluginRequestLicense } from '@/api/generated/model'
+import { SubmitPluginRequestLicense } from '@/api/generated/model'
+import { toTypedSchema } from '@vee-validate/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import TagPicker from '@/components/pages/plugin/TagPicker.vue'
+import { useTaxonomyStore } from '@/stores'
 import type { PluginFields } from '@/schemas/plugin.schema'
+import { createPluginFieldsSchema } from '@/schemas/plugin.schema'
 
 const props = defineProps<{
-  schema: TypedSchema<Partial<PluginFields>, PluginFields>
   initialValues: PluginFields
   submitLabel: string
   /** Resolves on success. A rejection is handled by the page and leaves the form as it is. */
@@ -18,10 +20,17 @@ const props = defineProps<{
 }>()
 
 const licenses = Object.values(SubmitPluginRequestLicense)
-const categories = Object.values(SubmitPluginRequestCategory)
+
+// The category and tag lists come from the API, so the schema that checks the
+// choices cannot be built until they arrive.
+const taxonomy = useTaxonomyStore()
+onMounted(() => taxonomy.ensureLoaded())
+
+const categories = computed(() => taxonomy.categories)
+const schema = computed(() => toTypedSchema(createPluginFieldsSchema(taxonomy.categories, taxonomy.tags)))
 
 const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
-  validationSchema: props.schema,
+  validationSchema: schema,
   initialValues: props.initialValues,
 })
 
@@ -173,7 +182,7 @@ defineExpose({ showServerErrors })
         <Label class="text-sm font-medium">
           Tags
         </Label>
-        <TagPicker v-model="tags" v-bind="tagsAttrs" :error="errors.tags" />
+        <TagPicker v-model="tags" v-bind="tagsAttrs" :tags="taxonomy.tags" :error="errors.tags" />
         <p v-if="errors.tags" class="text-xs text-destructive">{{ errors.tags }}</p>
         <p v-else class="text-xs text-muted-foreground">What your plugin is allowed to do</p>
       </div>

@@ -4,11 +4,17 @@ import PublishPluginView from '@/views/PublishPluginView.vue'
 import { chooseOption, openSelect } from '../helpers/select'
 
 const mockPluginStore = vi.fn()
-vi.mock('@/api/generated/endpoints', () => ({
-  getPlugin: () => ({
-    pluginStore: mockPluginStore
-  })
-}))
+vi.mock('@/api/generated/endpoints', async () => {
+  const { getCategory, getTag } = await import('../helpers/taxonomy')
+
+  return {
+    getPlugin: () => ({
+      pluginStore: mockPluginStore
+    }),
+    getCategory,
+    getTag,
+  }
+})
 
 vi.mock('vue-router', () => ({
   RouterLink: { template: '<a><slot></slot></a>' }

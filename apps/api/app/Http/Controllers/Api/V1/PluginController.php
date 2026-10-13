@@ -29,7 +29,7 @@ class PluginController extends Controller
      *
      * @unauthenticated
      */
-    #[Response(status: 422, description: 'The `category` query parameter is not one of the configured categories.')]
+    #[Response(status: 422, description: 'The `category` query parameter is not a known category.')]
     public function index(ListPluginsRequest $request): AnonymousResourceCollection
     {
         $defaultPerPage = config('plugins.pagination.default_per_page');

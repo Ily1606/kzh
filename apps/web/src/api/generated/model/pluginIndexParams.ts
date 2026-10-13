@@ -4,13 +4,12 @@
  * DSH
  * OpenAPI spec version: 0.0.1
  */
-import type { PluginIndexCategory } from './pluginIndexCategory';
 
 export type PluginIndexParams = {
 /**
  * @nullable
  */
-category?: PluginIndexCategory;
+category?: string | null;
 /**
  * @minimum 1
  * @nullable

@@ -21,9 +21,9 @@ class UpdatePluginTest extends TestCase
     {
         parent::setUp();
 
-        // The taxonomy tables are empty under RefreshDatabase, and the service
-        // refuses a category it cannot find. Mirroring the config is what a
-        // deployed environment does at seed time.
+        // The taxonomy tables are empty under RefreshDatabase, and requests
+        // validate `category` and `tags.*` against them. Seeding is what a
+        // deployed environment does at setup time.
         $this->seed(CategoryAndTagSeeder::class);
     }
 
@@ -511,7 +511,7 @@ class UpdatePluginTest extends TestCase
         $this->assertDatabaseCount('category_plugin', 1);
     }
 
-    public function test_a_category_outside_the_configured_list_is_rejected(): void
+    public function test_a_category_outside_the_known_list_is_rejected(): void
     {
         $user = User::factory()->create();
         $plugin = $this->pluginFor($user, category: 'Integrations');
@@ -527,7 +527,7 @@ class UpdatePluginTest extends TestCase
         ]);
     }
 
-    public function test_a_tag_outside_the_configured_list_is_rejected(): void
+    public function test_a_tag_outside_the_known_list_is_rejected(): void
     {
         $user = User::factory()->create();
         $plugin = $this->pluginFor($user);

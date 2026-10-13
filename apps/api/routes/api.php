@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CommentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\V1\PluginController;
 use App\Http\Controllers\Api\V1\PluginEventController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\StarController;
+use App\Http\Controllers\Api\V1\TagController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -59,6 +61,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/plugins/{id}', [PluginController::class, 'show'])->whereUuid('id');
         Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
             ->whereUuid('id');
+
+        // ================ Taxonomy ====================
+        Route::get('/categories', [CategoryController::class, 'index']);
+        Route::get('/tags', [TagController::class, 'index']);
 
         // ================ Comment ====================
         Route::get('/plugins/{pluginId}/comments', [CommentController::class, 'index'])

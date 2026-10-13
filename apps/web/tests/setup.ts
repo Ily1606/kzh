@@ -1,5 +1,10 @@
 // tests/setup.ts
 import { vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+
+// Views and forms reach for a store during setup, so every test needs an active
+// pinia. Specs that care about their own store state build their own.
+setActivePinia(createPinia());
 
 // Mock matchMedia for jsdom if needed for some UI components
 Object.defineProperty(window, 'matchMedia', {

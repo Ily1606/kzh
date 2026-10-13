@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { getPlugin, getStar } from '@/api/generated/endpoints';
-import type { PluginIndexCategory, PluginResource, PluginStatus, UpdatePluginRequest } from '@/api/generated/model';
+import type { PluginResource, PluginStatus, UpdatePluginRequest } from '@/api/generated/model';
 import { pluginConfig } from '@/config/plugins';
 import { notifyError } from '@/utils/toast';
 import { useAuthStore } from './auth.store';
@@ -130,7 +130,7 @@ export const usePluginsStore = defineStore('plugins', () => {
   }
 
   /** Always fetches: this list is paginated, and a search or page change must see fresh counts. */
-  async function fetchList(page = 1, category?: PluginIndexCategory): Promise<void> {
+  async function fetchList(page = 1, category?: string | null): Promise<void> {
     isFetchingList.value = true;
     fetchError.value = null;
 

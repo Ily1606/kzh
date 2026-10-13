@@ -15,7 +15,7 @@ import {
   Terminal,
   Sparkles
 } from '@lucide/vue'
-import { emptyPluginFields, submitPluginSchema } from '@/schemas/plugin.schema'
+import { emptyPluginFields } from '@/schemas/plugin.schema'
 
 const { pluginStore } = getPlugin()
 
@@ -116,7 +116,6 @@ async function submitPlugin(values: PluginFields) {
           <PluginFieldsForm
             v-else
             ref="form"
-            :schema="submitPluginSchema"
             :initial-values="emptyPluginFields"
             submit-label="Publish plugin"
             :submit="submitPlugin"

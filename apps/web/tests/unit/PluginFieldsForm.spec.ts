@@ -1,9 +1,16 @@
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import PluginFieldsForm from '@/components/pages/plugin/PluginFieldsForm.vue'
-import { emptyPluginFields, submitPluginSchema, updatePluginSchema } from '@/schemas/plugin.schema'
+import { emptyPluginFields } from '@/schemas/plugin.schema'
 import type { PluginFields } from '@/schemas/plugin.schema'
 import { chooseOption, openSelect, selectItems } from '../helpers/select'
+
+vi.mock('@/api/generated/endpoints', async () => {
+  const { getCategory, getTag } = await import('../helpers/taxonomy')
+
+  return { getCategory, getTag }
+})
 
 const waitForValidation = async () => {
   await flushPromises()
@@ -22,14 +29,22 @@ const valid: PluginFields = {
 
 const wrappers: VueWrapper[] = []
 
+/** The taxonomy store reaches for the API on mount; tests only need a pinia. */
+function setupPinia() {
+  const pinia = createPinia()
+
+  setActivePinia(pinia)
+
+  return pinia
+}
+
 /** Same tracking as `mountForm`, for the tests that bring their own props. */
 function mountFormWith(props: {
-  schema: typeof submitPluginSchema
   initialValues: PluginFields
   submitLabel: string
   submit: (values: PluginFields) => Promise<unknown>
 }) {
-  const wrapper = mount(PluginFieldsForm, { props })
+  const wrapper = mount(PluginFieldsForm, { props, global: { plugins: [setupPinia()] } })
 
   wrappers.push(wrapper)
 
@@ -39,11 +54,11 @@ function mountFormWith(props: {
 function mountForm(overrides: Partial<{ submit: (values: PluginFields) => Promise<unknown> }> = {}) {
   const wrapper = mount(PluginFieldsForm, {
     props: {
-      schema: submitPluginSchema,
       initialValues: emptyPluginFields,
       submitLabel: 'Publish plugin',
       submit: overrides.submit ?? vi.fn().mockResolvedValue(undefined),
     },
+    global: { plugins: [setupPinia()] },
   })
 
   wrappers.push(wrapper)
@@ -164,7 +179,6 @@ describe('PluginFieldsForm.vue', () => {
       // dropped them would silently clear them on the server.
       const submit = vi.fn().mockResolvedValue(undefined)
       const wrapper = mountFormWith({
-        schema: updatePluginSchema,
         initialValues: { ...valid, tags: ['May read files', 'Version not locked'] },
         submitLabel: 'Save changes',
         submit,
@@ -331,7 +345,6 @@ describe('PluginFieldsForm.vue', () => {
       // have to pass the same gate a submission does.
       const submit = vi.fn().mockResolvedValue(undefined)
       const wrapper = mountFormWith({
-        schema: updatePluginSchema,
         initialValues: valid,
         submitLabel: 'Save changes',
         submit,
@@ -348,7 +361,6 @@ describe('PluginFieldsForm.vue', () => {
       // step, and the update endpoint enforces what submit does.
       const submit = vi.fn()
       const wrapper = mountFormWith({
-        schema: updatePluginSchema,
         initialValues: valid,
         submitLabel: 'Save changes',
         submit,

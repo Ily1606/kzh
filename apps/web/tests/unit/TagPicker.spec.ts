@@ -16,9 +16,20 @@ async function settle() {
   await new Promise((resolve) => setTimeout(resolve, 30))
 }
 
+/** What the taxonomy endpoint hands the form, which it passes straight down. */
+const TAGS = [
+  'Manifest checked',
+  'May read files',
+  'May write files',
+  'May run commands',
+  'May access network',
+  'Version not locked',
+  'Needs credentials',
+]
+
 function mountPicker(modelValue: string[] = []) {
   return mount(TagPicker, {
-    props: { modelValue },
+    props: { modelValue, tags: TAGS },
     attachTo: document.body,
   })
 }

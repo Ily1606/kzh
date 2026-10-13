@@ -7,12 +7,18 @@ import PluginsView from '@/views/PluginsView.vue'
 
 const mockPluginIndex = vi.fn()
 
-vi.mock('@/api/generated/endpoints', () => ({
-  getPlugin: () => ({
-    pluginIndex: mockPluginIndex
-  }),
-  getStar: () => ({ starStore: vi.fn() })
-}))
+vi.mock('@/api/generated/endpoints', async () => {
+  const { getCategory, getTag } = await import('../helpers/taxonomy')
+
+  return {
+    getPlugin: () => ({
+      pluginIndex: mockPluginIndex
+    }),
+    getStar: () => ({ starStore: vi.fn() }),
+    getCategory,
+    getTag,
+  }
+})
 
 const mockReplace = vi.fn()
 const mockRoute = ref<{ query: Record<string, unknown> }>({ query: {} })

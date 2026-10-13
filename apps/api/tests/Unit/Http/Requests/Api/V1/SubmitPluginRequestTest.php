@@ -3,6 +3,8 @@
 namespace Tests\Unit\Http\Requests\Api\V1;
 
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
+use Database\Seeders\CategoryAndTagSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -14,9 +16,21 @@ use Tests\TestCase;
  * reaches a FormRequest, so a feature test cannot tell whether the hand-written
  * `prepareForValidation()` works. Building the request here keeps these tests
  * pinned to the class's own logic.
+ *
+ * `category` and `tags.*` are validated against the `categories` and `tags`
+ * tables, so the taxonomy has to exist before `validateResolved()` runs.
  */
 class SubmitPluginRequestTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(CategoryAndTagSeeder::class);
+    }
+
     /**
      * Builds the request without the HTTP kernel, merges a valid base payload
      * so a single-field override is still a complete submission, and returns

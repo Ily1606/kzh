@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { usePluginsStore } from '@/stores'
-import type { PluginIndexCategory, PluginResource } from '@/api/generated/model'
-import { SubmitPluginRequestCategory } from '@/api/generated/model'
+import { usePluginsStore, useTaxonomyStore } from '@/stores'
+import type { PluginResource } from '@/api/generated/model'
 import PluginCard from '@/components/pages/plugin/PluginCard.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,14 +13,15 @@ const store = usePluginsStore()
 const route = useRoute()
 const router = useRouter()
 
-const categories = Object.values(SubmitPluginRequestCategory)
+const taxonomy = useTaxonomyStore()
+const categories = computed(() => taxonomy.categories)
 
 /** A hand-edited URL can hold anything, and the endpoint answers an unknown name with 422. */
-function isCategory(value: unknown): value is PluginIndexCategory {
-  return typeof value === 'string' && (categories as string[]).includes(value)
+function isCategory(value: unknown): value is string {
+  return typeof value === 'string' && taxonomy.categories.includes(value)
 }
 
-const selectedCategory = ref<PluginIndexCategory>(isCategory(route.query.category) ? route.query.category : null)
+const selectedCategory = ref<string | null>(isCategory(route.query.category) ? route.query.category : null)
 
 // UI state, not server state: this filters the page already in hand, so it
 // belongs here rather than in the store.
@@ -47,13 +47,19 @@ async function fetchAllPlugins(page = 1) {
 }
 
 /** The category lives in the URL so the filtered view can be shared and reloaded. */
-async function chooseCategory(category: PluginIndexCategory) {
+async function chooseCategory(category: string | null) {
   selectedCategory.value = category
   await router.replace({ query: category ? { category } : {} })
   await fetchAllPlugins(1)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // The URL can name a category before the list arrives, so the check has to
+  // wait for it. Fetching first would send no category and quietly drop it.
+  await taxonomy.ensureLoaded()
+
+  selectedCategory.value = isCategory(route.query.category) ? route.query.category : null
+
   fetchAllPlugins(1)
 })
 </script>

@@ -12,6 +12,7 @@ export default defineConfig({
       target: 'src/api/generated/endpoints',
       schemas: 'src/api/generated/model',
       client: 'axios',
+      clean: true,
       override: {
         mutator: {
           path: 'src/services/api-mutator.ts',
@@ -26,6 +27,7 @@ export default defineConfig({
       mode: 'tags-split',
       client: 'zod',
       target: 'src/api/generated/zod',
+      clean: true,
     },
   },
 });

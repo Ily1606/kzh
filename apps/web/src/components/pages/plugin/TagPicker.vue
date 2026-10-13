@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Check, ChevronDown } from '@lucide/vue'
-import { SubmitPluginRequestTagsItem } from '@/api/generated/model'
 import { pluginStoreBodyTagsMax } from '@/api/generated/zod'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const props = withDefaults(defineProps<{
   modelValue?: string[]
+  tags?: string[]
   error?: string
-}>(), { modelValue: () => [] })
+}>(), { modelValue: () => [], tags: () => [] })
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string[]): void
 }>()
 
-const allTags = Object.values(SubmitPluginRequestTagsItem)
+const allTags = computed(() => props.tags)
 
 // The API caps the list, so the last slot is closed here instead of sending a
 // sixth tag and letting the server reject the whole submission.

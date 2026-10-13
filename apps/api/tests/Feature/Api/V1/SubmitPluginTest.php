@@ -6,6 +6,7 @@ use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
 use App\Models\Category;
 use App\Models\Plugin;
+use App\Models\Tag;
 use App\Models\User;
 use Database\Seeders\CategoryAndTagSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,9 +24,9 @@ class SubmitPluginTest extends TestCase
     {
         parent::setUp();
 
-        // The taxonomy tables are empty under RefreshDatabase, and the service
-        // refuses a category it cannot find. Mirroring the config is what a
-        // deployed environment does at seed time.
+        // The taxonomy tables are empty under RefreshDatabase, and requests
+        // validate `category` and `tags.*` against them. Seeding is what a
+        // deployed environment does at setup time.
         $this->seed(CategoryAndTagSeeder::class);
 
         Event::fake([PluginSubmitted::class]);
@@ -477,7 +478,7 @@ class SubmitPluginTest extends TestCase
         );
     }
 
-    public function test_submission_rejects_a_category_outside_the_configured_list(): void
+    public function test_submission_rejects_a_category_outside_the_known_list(): void
     {
         Sanctum::actingAs(User::factory()->create());
 
@@ -489,7 +490,7 @@ class SubmitPluginTest extends TestCase
         $this->assertDatabaseCount('plugins', 0);
     }
 
-    public function test_submission_rejects_a_tag_outside_the_configured_list(): void
+    public function test_submission_rejects_a_tag_outside_the_known_list(): void
     {
         Sanctum::actingAs(User::factory()->create());
 
@@ -572,17 +573,18 @@ class SubmitPluginTest extends TestCase
         $this->assertDatabaseCount('plugins', 0);
     }
 
-    public function test_submission_uses_the_configured_tag_list(): void
+    public function test_submission_accepts_a_tag_added_after_seeding(): void
     {
-        config()->set('plugins.tags', ['Custom Tag']);
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/v1/plugins', $this->payload([
             'tags' => ['Custom Tag'],
         ]))->assertUnprocessable()
-            ->assertJsonValidationErrors('tags');
+            ->assertJsonValidationErrors('tags.0');
 
-        $this->seed(CategoryAndTagSeeder::class);
+        // The `tags` table is the source of truth, so a row added after the
+        // seed is usable straight away — no code change and no re-deploy.
+        Tag::query()->create(['name' => 'Custom Tag']);
 
         $this->postJson('/api/v1/plugins', $this->payload([
             'tags' => ['Custom Tag'],
@@ -595,22 +597,26 @@ class SubmitPluginTest extends TestCase
      * field-level error. The service deliberately does not create the row:
      * creating whatever arrives would let any client invent a category.
      */
-    public function test_submission_is_refused_when_the_configured_category_has_no_row(): void
+    public function test_submission_accepts_a_category_added_after_seeding(): void
     {
         Sanctum::actingAs(User::factory()->create());
 
-        // The config still names the category, but the row the seeder would have
-        // created is gone — the shape of a deploy that migrated without
-        // seeding.
         Category::query()->where('name', 'Integrations')->delete();
 
         $this->postJson('/api/v1/plugins', $this->payload([
             'category' => 'Integrations',
         ]))->assertUnprocessable()
-            ->assertJsonPath('errors.category.0', __('api.plugin_unknown_category'));
+            ->assertJsonValidationErrors('category');
 
         $this->assertDatabaseCount('plugins', 0);
         $this->assertDatabaseCount('category_plugin', 0);
+
+        Category::query()->create(['name' => 'Integrations']);
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'category' => 'Integrations',
+        ]))->assertCreated()
+            ->assertJsonPath('data.plugin.category', 'Integrations');
     }
 
     public function test_a_refused_taxonomy_leaves_no_plugin_and_no_event(): void

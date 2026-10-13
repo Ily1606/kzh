@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Models\Category;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -377,7 +378,7 @@ class ListPluginsTest extends TestCase
             ->assertJsonPath('data.0.category', 'UI & workspace');
     }
 
-    public function test_a_category_outside_the_configured_list_is_rejected(): void
+    public function test_a_category_outside_the_known_list_is_rejected(): void
     {
         $this->approvedPluginIn('Integrations');
 
@@ -389,6 +390,10 @@ class ListPluginsTest extends TestCase
     public function test_a_category_with_no_plugins_returns_an_empty_page(): void
     {
         $this->approvedPluginIn('Integrations');
+
+        // The filter is checked against the `categories` table, so the row has
+        // to exist for the query to run at all.
+        Category::query()->create(['name' => 'Vision']);
 
         $this->getJson('/api/v1/plugins?category=Vision')
             ->assertOk()
@@ -441,7 +446,7 @@ class ListPluginsTest extends TestCase
     }
 
     /**
-     * An approved plugin filed under a configured category.
+     * An approved plugin filed under a known category.
      *
      * @param  mixed  $approvedAt  When it was approved; ordering assertions
      *                             need something to sort by.

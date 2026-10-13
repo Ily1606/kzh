@@ -14,15 +14,21 @@ const mockPluginUpdate = vi.fn()
 const mockNotifyError = vi.fn()
 const mockNotifySuccess = vi.fn()
 
-vi.mock('@/api/generated/endpoints', () => ({
-  getPlugin: () => ({
-    pluginShow: mockPluginShow,
-    pluginUpdate: mockPluginUpdate,
-  }),
-  getStar: () => ({ starStore: vi.fn() }),
-  getAuth: () => ({ authLogout: vi.fn() }),
-  getProfile: () => ({ profileShow: vi.fn() }),
-}))
+vi.mock('@/api/generated/endpoints', async () => {
+  const { getCategory, getTag } = await import('../helpers/taxonomy')
+
+  return {
+    getPlugin: () => ({
+      pluginShow: mockPluginShow,
+      pluginUpdate: mockPluginUpdate,
+    }),
+    getStar: () => ({ starStore: vi.fn() }),
+    getAuth: () => ({ authLogout: vi.fn() }),
+    getProfile: () => ({ profileShow: vi.fn() }),
+    getCategory,
+    getTag,
+  }
+})
 
 vi.mock('@/utils/toast', () => ({
   notifyError: (message: string) => mockNotifyError(message),
