@@ -3,16 +3,20 @@
 namespace App\Providers;
 
 use App\Contracts\AuthRepositoryInterface;
+use App\Contracts\CategoryRepositoryInterface;
 use App\Contracts\CommentRepositoryInterface;
 use App\Contracts\PluginEventRepositoryInterface;
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Contracts\TagRepositoryInterface;
 use App\Contracts\UserRepositoryInterface;
 use App\Repositories\AuthRepository;
+use App\Repositories\CategoryRepository;
 use App\Repositories\CommentRepository;
 use App\Repositories\PluginEventRepository;
 use App\Repositories\PluginRepository;
 use App\Repositories\StarRepository;
+use App\Repositories\TagRepository;
 use App\Repositories\UserRepository;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
@@ -37,6 +41,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PluginEventRepositoryInterface::class, PluginEventRepository::class);
         $this->app->bind(CommentRepositoryInterface::class, CommentRepository::class);
         $this->app->bind(StarRepositoryInterface::class, StarRepository::class);
+        $this->app->bind(CategoryRepositoryInterface::class, CategoryRepository::class);
+        $this->app->bind(TagRepositoryInterface::class, TagRepository::class);
     }
 
     /**

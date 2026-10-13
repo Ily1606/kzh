@@ -2,8 +2,10 @@
 
 namespace Tests\Unit\Services;
 
+use App\Contracts\CategoryRepositoryInterface;
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Contracts\TagRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
@@ -34,10 +36,14 @@ class PluginServicePaginateTest extends TestCase
         // part in pagination, which is all this file exercises. Resolved from
         // the container rather than mocked because it is final, and the
         // constructor binds its repository lazily — nothing here calls it.
+        // The taxonomy repositories take no part in paginating either, so they
+        // are resolved the same way.
         $this->pluginService = new PluginService(
             $this->pluginRepositoryMock,
             $this->starRepositoryMock,
             app(PluginEventService::class),
+            app(CategoryRepositoryInterface::class),
+            app(TagRepositoryInterface::class),
         );
     }
 
@@ -55,7 +61,7 @@ class PluginServicePaginateTest extends TestCase
             $expectedPaginator = new LengthAwarePaginator([], 0, $perPage);
 
             $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-                ->with($perPage)
+                ->with($perPage, null)
                 ->once()
                 ->andReturn($expectedPaginator);
 
@@ -70,7 +76,7 @@ class PluginServicePaginateTest extends TestCase
         $emptyPaginator = new LengthAwarePaginator([], 0, 10);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10)
+            ->with(10, null)
             ->once()
             ->andReturn($emptyPaginator);
 
@@ -86,7 +92,7 @@ class PluginServicePaginateTest extends TestCase
         $paginator = new LengthAwarePaginator($items, 100, 10);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10)
+            ->with(10, null)
             ->once()
             ->andReturn($paginator);
 
@@ -102,7 +108,7 @@ class PluginServicePaginateTest extends TestCase
 
         // Verify the repository is called EXACTLY once with 20
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with($expectedPerPage)
+            ->with($expectedPerPage, null)
             ->once()
             ->andReturn(new LengthAwarePaginator([], 0, $expectedPerPage));
 
@@ -116,7 +122,7 @@ class PluginServicePaginateTest extends TestCase
     public function test_pag_07_propagates_repository_exception(): void
     {
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10)
+            ->with(10, null)
             ->once()
             ->andThrow(new Exception('Database connection failed'));
 
@@ -139,7 +145,7 @@ class PluginServicePaginateTest extends TestCase
         ]);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with($perPage)
+            ->with($perPage, null)
             ->once()
             ->andReturn($paginator);
 
@@ -150,6 +156,52 @@ class PluginServicePaginateTest extends TestCase
         $this->assertEquals(10, $result->perPage());
         $this->assertEquals(3, $result->currentPage());
         $this->assertEquals('/api/v1/plugins', $result->path());
+    }
+
+    // -----------------------------------------------------------------------
+    // category filter
+    // -----------------------------------------------------------------------
+
+    /**
+     * The category reaches the repository verbatim: it is the repository that
+     * decides what "narrowed to one category" means in SQL.
+     */
+    public function test_forwards_the_category_filter_to_the_repository(): void
+    {
+        $paginator = new LengthAwarePaginator([], 0, 10);
+
+        $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
+            ->with(10, 'Vision')
+            ->once()
+            ->andReturn($paginator);
+
+        $this->assertSame($paginator, $this->pluginService->getPaginatedApprovedPlugins(10, null, 'Vision'));
+    }
+
+    /**
+     * The taxonomy must not cost the star lookup an extra query — `is_star` is
+     * still resolved for a signed-in viewer browsing a filtered list.
+     */
+    public function test_a_filtered_list_still_resolves_is_star(): void
+    {
+        $user = Mockery::mock(User::class);
+        $user->shouldReceive('getAuthIdentifier')->andReturn('user-uuid');
+
+        $plugin = (new Plugin)->forceFill(['id' => '11111111-1111-1111-1111-111111111111']);
+
+        $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
+            ->with(10, 'Vision')
+            ->once()
+            ->andReturn(new LengthAwarePaginator([$plugin], 1, 10));
+
+        $this->starRepositoryMock->shouldReceive('starredPluginIds')
+            ->with([$plugin->id], 'user-uuid')
+            ->once()
+            ->andReturn([$plugin->id]);
+
+        $result = $this->pluginService->getPaginatedApprovedPlugins(10, $user, 'Vision');
+
+        $this->assertTrue($result->items()[0]->is_star);
     }
 
     // -----------------------------------------------------------------------
@@ -167,7 +219,7 @@ class PluginServicePaginateTest extends TestCase
         $other = (new Plugin)->forceFill(['id' => '22222222-2222-2222-2222-222222222222']);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10)
+            ->with(10, null)
             ->once()
             ->andReturn(new LengthAwarePaginator([$starred, $other], 2, 10));
 
@@ -187,7 +239,7 @@ class PluginServicePaginateTest extends TestCase
         $plugin = (new Plugin)->forceFill(['id' => '11111111-1111-1111-1111-111111111111']);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10)
+            ->with(10, null)
             ->once()
             ->andReturn(new LengthAwarePaginator([$plugin], 1, 10));
 

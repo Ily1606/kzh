@@ -4,7 +4,9 @@ namespace App\Repositories;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
+use App\Models\Category;
 use App\Models\Plugin;
+use App\Models\Tag;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -56,11 +58,34 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $updated;
     }
 
-    public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator
+    public function replaceCategory(Plugin $plugin, Category $category): void
+    {
+        $plugin->categoryLinks()->delete();
+        $plugin->categoryLinks()->create(['category_id' => $category->id]);
+    }
+
+    /**
+     * @param  array<int, Tag>  $tags
+     */
+    public function replaceTags(Plugin $plugin, array $tags): void
+    {
+        $plugin->tagLinks()->delete();
+
+        $plugin->tagLinks()->createMany(
+            array_map(fn (Tag $tag): array => ['tag_id' => $tag->id], $tags),
+        );
+    }
+
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null): LengthAwarePaginator
     {
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            // Keep only the plugins filed under this category, when given.
+            ->when($category !== null, fn (Builder $query) => $query->whereHas(
+                'categories',
+                fn (Builder $categories) => $categories->where('name', $category),
+            ))
             ->withCount([
                 'stars as star_count',
                 'comments as comment_count' => fn (Builder $comments) => $comments->visible(),
@@ -117,7 +142,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
      */
     private function baseQuery(): Builder
     {
-        return $this->newQuery()->with('user.profile');
+        return $this->newQuery()->with(['user.profile', 'categories', 'tags']);
     }
 
     private function getAgeInSecondsSql(): string

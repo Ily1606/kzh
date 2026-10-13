@@ -4,7 +4,9 @@
  * DSH
  * OpenAPI spec version: 0.0.1
  */
+import type { UpdatePluginRequestCategory } from './updatePluginRequestCategory';
 import type { UpdatePluginRequestLicense } from './updatePluginRequestLicense';
+import type { UpdatePluginRequestTagsItem } from './updatePluginRequestTagsItem';
 
 export interface UpdatePluginRequest {
   /** @maxLength 255 */
@@ -12,6 +14,12 @@ export interface UpdatePluginRequest {
   /** @maxLength 255 */
   title?: string;
   license?: UpdatePluginRequestLicense;
+  category?: UpdatePluginRequestCategory;
+  /**
+     * @maxItems 5
+     * @nullable
+     */
+  tags?: UpdatePluginRequestTagsItem[] | null;
   /** @maxLength 2048 */
   source_link?: string;
 }

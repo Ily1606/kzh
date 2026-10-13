@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Contracts\CategoryRepositoryInterface;
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Contracts\TagRepositoryInterface;
 use App\Enums\PluginEventType;
 use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
@@ -30,11 +32,13 @@ final class PluginService
         private readonly PluginRepositoryInterface $pluginRepository,
         private readonly StarRepositoryInterface $starRepository,
         private readonly PluginEventService $pluginEventService,
+        private readonly CategoryRepositoryInterface $categoryRepository,
+        private readonly TagRepositoryInterface $tagRepository,
     ) {}
 
     /**
      * @param  User  $user  Submitter the plugin belongs to.
-     * @param  array{name: string, title: string, license: string, source_link: string}  $attributes  Validated submission payload.
+     * @param  array{name: string, title: string, license: string, source_link: string, category: string, tags?: array<int, string>}  $attributes  Validated submission payload.
      * @param  RequestContext  $requestContext  Metadata of the originating request.
      */
     public function submit(User $user, array $attributes, RequestContext $requestContext): Plugin
@@ -49,6 +53,8 @@ final class PluginService
                     'source_link' => $attributes['source_link'],
                     'user_id' => $user->getAuthIdentifier(),
                 ]);
+
+                $this->syncCategoryAndTags($created, $attributes);
 
                 $this->pluginEventService->recordOwnerAction(
                     $created,
@@ -102,6 +108,8 @@ final class PluginService
             $updated = DB::transaction(function () use ($plugin, $attributes): Plugin {
                 $saved = $this->pluginRepository->update($plugin, $attributes);
 
+                $this->syncCategoryAndTags($saved, $attributes);
+
                 $this->pluginEventService->recordOwnerAction(
                     $saved,
                     PluginEventType::Resubmitted,
@@ -119,6 +127,9 @@ final class PluginService
             ]);
         }
 
+        // The sync rewrote the pivots after they were loaded — read them again.
+        $updated->load(['categories', 'tags']);
+
         PluginUpdated::dispatch(
             plugin: $updated,
             user: $user,
@@ -127,6 +138,65 @@ final class PluginService
         );
 
         return $updated;
+    }
+
+    /**
+     * Write whichever of the two the payload carries.
+     *
+     * A key that is absent is left alone, so an edit that sends just `category`
+     * keeps the existing tags.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function syncCategoryAndTags(Plugin $plugin, array $attributes): void
+    {
+        if (array_key_exists('category', $attributes)) {
+            $this->updateCategory($plugin, $attributes['category']);
+        }
+
+        if (array_key_exists('tags', $attributes)) {
+            $this->updateTags($plugin, (array) $attributes['tags']);
+        }
+    }
+
+    /**
+     * A name with no row behind it means the seeder never ran. Reported as a
+     * field error rather than creating the row, which would let any client
+     * invent a category.
+     */
+    private function updateCategory(Plugin $plugin, string $name): void
+    {
+        $category = $this->categoryRepository->findByName($name);
+
+        if ($category === null) {
+            throw ValidationException::withMessages([
+                'category' => [__('api.plugin_unknown_category')],
+            ]);
+        }
+
+        $this->pluginRepository->replaceCategory($plugin, $category);
+    }
+
+    /**
+     * An empty list clears them all — how an owner removes every tag.
+     *
+     * @param  array<int, string>  $names
+     */
+    private function updateTags(Plugin $plugin, array $names): void
+    {
+        // Dedupe first: plugin_tag is unique on (plugin_id, tag_id), so a repeated
+        // tag would fail the constraint and turn into a 500.
+        $names = array_values(array_unique(array_map('trim', $names)));
+
+        $tags = $this->tagRepository->findManyByName($names);
+
+        if (count($tags) !== count($names)) {
+            throw ValidationException::withMessages([
+                'tags' => [__('api.plugin_unknown_tags')],
+            ]);
+        }
+
+        $this->pluginRepository->replaceTags($plugin, $tags);
     }
 
     /**
@@ -141,6 +211,9 @@ final class PluginService
             'title' => $plugin->title,
             'license' => $plugin->license,
             'source_link' => $plugin->source_link,
+            'category' => $plugin->category?->name,
+            // Sorted so the same set in another order is not logged as a change.
+            'tags' => $plugin->tags->pluck('name')->sort()->values()->all(),
         ];
     }
 
@@ -195,12 +268,14 @@ final class PluginService
     }
 
     /**
+     * @param  int  $perPage  Page size to paginate with.
      * @param  User|null  $user  Signed-in viewer, or null for a guest. Drives whether
      *                           each plugin carries the viewer-specific `is_star` flag.
+     * @param  string|null  $category  Restrict to one category, or null for all of them.
      */
-    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
+    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null, ?string $category = null): LengthAwarePaginator
     {
-        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage);
+        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage, $category);
 
         // A guest has no stars, so there is nothing to resolve and no flag to
         // set. Skipping here is also what keeps the public list query count at

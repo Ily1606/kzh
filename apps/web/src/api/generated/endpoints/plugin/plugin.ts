@@ -6,6 +6,7 @@
  */
 import type {
   PluginIndex200,
+  PluginIndexParams,
   PluginMyPlugins200,
   PluginMyPluginsParams,
   PluginShow200,
@@ -54,10 +55,11 @@ const pluginStore = (
  * @summary Get plugin list
  */
 const pluginIndex = (
-
+    params?: PluginIndexParams,
  options?: SecondParameter<typeof customInstance<PluginIndex200>>,) => {
       return customInstance<PluginIndex200>(
-      {url: `/v1/plugins`, method: 'GET'
+      {url: `/v1/plugins`, method: 'GET',
+        params
     },
       options);
     }

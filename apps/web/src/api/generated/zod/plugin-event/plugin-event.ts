@@ -8,9 +8,6 @@ import * as zod from 'zod';
 
 
 /**
- * Owner-only. Not a moderator-facing feed and not public — it is a private
- * channel between one publisher and the reviewers handling their
- * submission.
  * @summary The review timeline of one plugin: who submitted it, what the admin
 decided, and every revision the owner sent back
  */
@@ -23,8 +20,8 @@ export const PluginEventIndexParams = zod.object({
 
 
 export const PluginEventIndexQueryParams = zod.object({
-  "page": zod.number().int().min(1).nullish().describe('Declared so Scramble documents it and the generated client types\nit. Laravel\'s paginator reads `page` from the query itself, so\nnothing here consumes it — ListMyPluginsRequest declares it for\nthe same reason.'),
-  "per_page": zod.number().int().min(1).optional().describe('Clamped in perPage() rather than rejected with a `max` rule, the\nsame way ListCommentsRequest and PluginController handle it: an\noversized page size is corrected, not treated as a bad request.'),
+  "page": zod.number().int().min(1).nullish(),
+  "per_page": zod.number().int().min(1).optional(),
   "sort": zod.enum(['newest', 'oldest']).optional()
 })
 

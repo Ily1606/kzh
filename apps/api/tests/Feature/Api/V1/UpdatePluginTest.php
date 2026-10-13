@@ -3,9 +3,11 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\User;
+use Database\Seeders\CategoryAndTagSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -15,12 +17,28 @@ class UpdatePluginTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The taxonomy tables are empty under RefreshDatabase, and the service
+        // refuses a category it cannot find. Mirroring the config is what a
+        // deployed environment does at seed time.
+        $this->seed(CategoryAndTagSeeder::class);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
-    private function pluginFor(User $user, array $overrides = []): Plugin
+    private function pluginFor(User $user, array $overrides = [], ?string $category = null, array $tags = []): Plugin
     {
-        return Plugin::factory()->create(array_merge([
+        $factory = Plugin::factory()->withTags($tags);
+
+        if ($category !== null) {
+            $factory = $factory->withCategory($category);
+        }
+
+        return $factory->create(array_merge([
             'user_id' => $user->id,
             'name' => 'Laravel Debugbar',
             'title' => 'Debugbar for Laravel',
@@ -411,5 +429,167 @@ class UpdatePluginTest extends TestCase
         ]);
 
         $response->assertJsonMissingPath('data.plugin.deleted_at');
+    }
+
+    // -----------------------------------------------------------------------
+    // category & tags
+    // -----------------------------------------------------------------------
+
+    public function test_the_category_alone_is_a_valid_edit(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user, category: 'Integrations');
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['category' => 'Vision'])
+            ->assertOk()
+            ->assertJsonPath('data.plugin.category', 'Vision');
+
+        $this->assertDatabaseHas('category_plugin', [
+            'plugin_id' => $plugin->id,
+            'category_id' => Category::query()->where('name', 'Vision')->value('id'),
+        ]);
+    }
+
+    public function test_the_tags_alone_are_a_valid_edit(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['tags' => ['May read files']])
+            ->assertOk()
+            ->assertJsonPath('data.plugin.tags', ['May read files']);
+
+        $this->assertDatabaseCount('plugin_tag', 1);
+    }
+
+    /**
+     * An edit that leaves one field out must not touch it: the pivots are
+     * synced only when their key is present in the body.
+     */
+    public function test_editing_the_category_leaves_the_tags_alone(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user, category: 'Integrations', tags: ['May read files']);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['category' => 'Vision'])
+            ->assertOk()
+            ->assertJsonPath('data.plugin.category', 'Vision')
+            ->assertJsonPath('data.plugin.tags', ['May read files']);
+    }
+
+    public function test_editing_the_tags_leaves_the_category_alone(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user, category: 'Integrations');
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['tags' => ['May run commands']])
+            ->assertOk()
+            ->assertJsonPath('data.plugin.category', 'Integrations')
+            ->assertJsonPath('data.plugin.tags', ['May run commands']);
+    }
+
+    /**
+     * An empty array is how an owner clears the tags they no longer want. It
+     * has to be distinguishable from an absent key, or "clear" and "leave as
+     * is" would be the same request.
+     */
+    public function test_an_empty_tag_list_clears_the_tags(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user, category: 'Integrations', tags: ['May read files', 'May run commands']);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['tags' => []])
+            ->assertOk()
+            ->assertJsonPath('data.plugin.tags', []);
+
+        $this->assertDatabaseCount('plugin_tag', 0);
+        $this->assertDatabaseCount('category_plugin', 1);
+    }
+
+    public function test_a_category_outside_the_configured_list_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user, category: 'Integrations');
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['category' => 'Cryptocurrency'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('category');
+
+        $this->assertDatabaseHas('category_plugin', [
+            'plugin_id' => $plugin->id,
+            'category_id' => Category::query()->where('name', 'Integrations')->value('id'),
+        ]);
+    }
+
+    public function test_a_tag_outside_the_configured_list_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['tags' => ['Runs arbitrary shell']])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['tags.0']);
+    }
+
+    /**
+     * Padded tags must not fail the configured-list rule. The global
+     * `TrimStrings` middleware is what strips them, and it runs on every method.
+     */
+    public function test_padded_tags_are_accepted(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", [
+            'tags' => ['  May read files  ', "\tMay run commands\n"],
+        ])->assertOk()
+            ->assertJsonPath('data.plugin.tags', ['May read files', 'May run commands']);
+    }
+
+    public function test_a_whitespace_only_tag_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['tags' => ['May read files', '  ']])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['tags.1']);
+    }
+
+    public function test_tags_sent_as_a_string_rather_than_an_array_is_rejected(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['tags' => 'May read files'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('tags');
+    }
+
+    public function test_a_refused_edit_leaves_the_plugin_untouched(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user, category: 'Integrations');
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", [
+            'title' => 'A Title That Should Not Stick',
+            'tags' => ['Runs arbitrary shell'],
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('plugins', [
+            'id' => $plugin->id,
+            'title' => 'Debugbar for Laravel',
+        ]);
     }
 }

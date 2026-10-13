@@ -1,6 +1,6 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createApp } from 'vue'
+import { createApp, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import PluginsView from '@/views/PluginsView.vue'
@@ -12,6 +12,14 @@ vi.mock('@/api/generated/endpoints', () => ({
     pluginIndex: mockPluginIndex
   }),
   getStar: () => ({ starStore: vi.fn() })
+}))
+
+const mockReplace = vi.fn()
+const mockRoute = ref<{ query: Record<string, unknown> }>({ query: {} })
+
+vi.mock('vue-router', () => ({
+  useRoute: () => mockRoute.value,
+  useRouter: () => ({ push: vi.fn(), replace: mockReplace }),
 }))
 
 // Mock window.scrollTo
@@ -43,6 +51,11 @@ describe('PluginsView.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
+    mockRoute.value = { query: {} }
+
+    // The category list is portalled, so each test starts from an empty body.
+    document.body.innerHTML = ''
+
     const pinia = createPinia()
     pinia.use(piniaPluginPersistedstate)
     createApp({}).use(pinia)
@@ -66,7 +79,7 @@ describe('PluginsView.vue', () => {
 
     await flushPromises()
 
-    expect(mockPluginIndex).toHaveBeenCalledWith({ params: { page: 1, per_page: 9 } })
+    expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null })
 
     // Check if stats summary is rendered
     expect(wrapper.text()).toContain('Showing 2')
@@ -143,7 +156,8 @@ describe('PluginsView.vue', () => {
     expect(wrapper.text()).toContain('We couldn\'t find any plugin matching "non-existent-plugin"')
 
     // Test clear search button
-    await wrapper.find('button').trigger('click')
+    const clear = wrapper.findAll('button').find((b) => b.text() === 'Clear search')
+    await clear!.trigger('click')
     await flushPromises()
     expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(2)
   })
@@ -172,7 +186,7 @@ describe('PluginsView.vue', () => {
     await nextBtn!.trigger('click')
     await flushPromises()
 
-    expect(mockPluginIndex).toHaveBeenCalledWith({ params: { page: 2, per_page: 9 } })
+    expect(mockPluginIndex).toHaveBeenCalledWith({ page: 2, per_page: 9, category: null })
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
   })
 
@@ -196,5 +210,112 @@ describe('PluginsView.vue', () => {
     expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(0)
     expect(wrapper.text()).toContain('No plugins found')
     expect(wrapper.text()).not.toContain('Loading plugins catalogue...')
+  })
+
+  describe('the category filter', () => {
+    const option = (name: string) =>
+      document.querySelector<HTMLElement>(`[data-test="${name}"]`)
+
+    async function openFilter(wrapper: ReturnType<typeof mountView>) {
+      await wrapper.find('[data-test="category-trigger"]').trigger('click')
+      await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve, 30))
+      await flushPromises()
+    }
+
+    it('asks for the whole catalogue until a category is picked', async () => {
+      mountView()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null })
+    })
+
+    it('sends the picked category and puts it in the URL', async () => {
+      const wrapper = mountView()
+      await flushPromises()
+
+      await openFilter(wrapper)
+      option('category-option-Vision')!.click()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: 'Vision' })
+      expect(mockReplace).toHaveBeenCalledWith({ query: { category: 'Vision' } })
+      expect(wrapper.text()).toContain('Vision')
+    })
+
+    it('goes back to page 1, because the filtered set is a different set', async () => {
+      mockPluginsResponse.meta.last_page = 3
+      const wrapper = mountView()
+      await flushPromises()
+
+      const next = wrapper.findAll('button').find((b) => b.text().includes('Next'))
+      await next!.trigger('click')
+      await flushPromises()
+
+      await openFilter(wrapper)
+      option('category-option-Integrations')!.click()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: 'Integrations' })
+    })
+
+    it('starts from the category in the URL', async () => {
+      mockRoute.value = { query: { category: 'Integrations' } }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: 'Integrations' })
+      expect(wrapper.find('[data-test="category-trigger"]').text()).toContain('Integrations')
+    })
+
+    it('ignores a category the API does not accept', async () => {
+      // The endpoint answers an unknown name with 422, so a hand-edited URL must
+      // fall back to the whole catalogue rather than fail the page.
+      mockRoute.value = { query: { category: 'not-a-category' } }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null })
+      expect(wrapper.find('[data-test="category-trigger"]').text()).toContain('All categories')
+    })
+
+    it('clears the category and the URL when all is picked again', async () => {
+      const wrapper = mountView()
+      await flushPromises()
+
+      await openFilter(wrapper)
+      option('category-option-Vision')!.click()
+      await flushPromises()
+
+      // The list stays open after a pick, so it is closed the way a reader would.
+      await wrapper.find('[data-test="category-trigger"]').trigger('click')
+      await flushPromises()
+      await openFilter(wrapper)
+      option('category-option-all')!.click()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: null })
+      expect(mockReplace).toHaveBeenLastCalledWith({ query: {} })
+    })
+
+    it('offers a way out when the category has no plugins', async () => {
+      mockPluginIndex.mockResolvedValue({ data: [], meta: { total: 0, last_page: 1 } })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await openFilter(wrapper)
+      option('category-option-Integrations')!.click()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('There are no plugins in Integrations yet.')
+
+      await wrapper.findAll('button').find((b) => b.text().includes('Show all categories'))!.trigger('click')
+      await flushPromises()
+
+      expect(mockReplace).toHaveBeenLastCalledWith({ query: {} })
+    })
   })
 })

@@ -45,6 +45,8 @@ function makePlugin(overrides: Record<string, unknown> = {}) {
     author: null,
     title: 'Webhook notifier',
     license: 'MIT',
+    category: 'Integrations',
+    tags: [],
     approved_at: '2026-10-01T00:00:00Z',
     status: 'approved',
     source_link: 'https://github.com/owner/repo',

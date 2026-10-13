@@ -27,6 +27,8 @@ const initialValues = computed<PluginFields | null>(() =>
         name: plugin.value.name,
         title: plugin.value.title,
         license: plugin.value.license as PluginFields['license'],
+        category: plugin.value.category ?? '',
+        tags: plugin.value.tags,
         source_link: plugin.value.source_link,
       }
     : null,

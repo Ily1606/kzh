@@ -313,8 +313,8 @@ class ListMyPluginsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.star_count', 3);
 
-        // Page + count + users + user_profiles, all batched.
-        $this->assertLessThanOrEqual(5, $queries);
+        // Page + count + users + user_profiles + categories + tags, all batched.
+        $this->assertLessThanOrEqual(7, $queries);
     }
 
     public function test_marks_is_star_only_on_approved_plugins(): void

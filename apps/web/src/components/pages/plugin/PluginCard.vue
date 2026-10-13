@@ -84,12 +84,15 @@ function goToDetail(id: string | undefined) {
       #3
     </div>
 
-    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+    <div v-if="plugin.category || plugin.tags.length" class="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
       <span class="flex items-center gap-x-1 rounded-full bg-accent text-accent-foreground px-2 py-0.5 text-xs font-medium border border-primary/20">
         <ShieldCheck class="size-3" />
         Manifest checked
       </span>
-      <span class="rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium border border-border">UI & workspace</span>
+      <span
+        v-if="plugin.category"
+        class="rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-xs font-medium border border-border"
+      >{{ plugin.category }}</span>
     </div>
 
     <h3 class="text-base sm:text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors" :title="plugin.name">{{ plugin.name }}</h3>
@@ -102,10 +105,12 @@ function goToDetail(id: string | undefined) {
       {{ plugin.title }}
     </p>
 
-    <div class="mt-2.5 flex flex-wrap gap-1">
-      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">May read files</span>
-      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">May write files</span>
-      <span class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">May run commands</span>
+    <div v-if="plugin.tags.length" class="mt-2.5 flex flex-wrap gap-1">
+      <span
+        v-for="tag in plugin.tags"
+        :key="tag"
+        class="rounded-full bg-muted border border-border/50 px-2 py-0.5 text-xs font-medium text-muted-foreground"
+      >{{ tag }}</span>
     </div>
 
     <div class="mt-2.5 text-xs text-muted-foreground">

@@ -9,6 +9,7 @@ use App\Models\Plugin;
 use App\Models\User;
 use App\Services\PluginService;
 use App\Support\RequestContext;
+use Database\Seeders\CategoryAndTagSeeder;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -22,6 +23,16 @@ class PluginEventTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The taxonomy tables are empty under RefreshDatabase, and the service
+        // refuses a category it cannot find. Mirroring the config is what a
+        // deployed environment does at seed time.
+        $this->seed(CategoryAndTagSeeder::class);
+    }
+
     /**
      * @return array<string, string>
      */
@@ -31,6 +42,7 @@ class PluginEventTest extends TestCase
             'name' => 'Event Plugin',
             'title' => 'Event Plugin Title',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/event-plugin',
         ], $overrides);
     }

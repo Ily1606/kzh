@@ -31,6 +31,7 @@ class SubmitPluginRequestTest extends TestCase
             'name' => 'Laravel Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/plugin',
         ], $overrides));
 
@@ -51,6 +52,7 @@ class SubmitPluginRequestTest extends TestCase
             'name' => [['name' => '  Laravel Debugbar  ']],
             'title' => [['title' => "\t Debugbar for Laravel \n"]],
             'license' => [['license' => '  MIT  ']],
+            'category' => [['category' => '  Developer tools  ']],
             'source_link' => [['source_link' => '  https://example.com/plugin  ']],
         ];
     }
@@ -63,6 +65,25 @@ class SubmitPluginRequestTest extends TestCase
         foreach ($overrides as $field => $value) {
             $this->assertSame(trim($value), $input[$field]);
         }
+    }
+
+    /**
+     * An entry that is nothing but whitespace trims down to an empty string.
+     * Laravel skips every non-implicit rule on an empty string — `Rule::in`
+     * included — so the list only rejects it because `tags.*` is also required.
+     */
+    public function test_a_whitespace_only_tag_is_rejected(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->validatedInput(['tags' => ['May read files', '   ']]);
+    }
+
+    public function test_a_non_string_tag_is_rejected(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->validatedInput(['tags' => [['nested' => 'array']]]);
     }
 
     /**
@@ -116,6 +137,7 @@ class SubmitPluginRequestTest extends TestCase
             'name' => 'Laravel Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/plugin',
         ], $overrides));
 

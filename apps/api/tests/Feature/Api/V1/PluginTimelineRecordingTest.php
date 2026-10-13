@@ -7,6 +7,7 @@ use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\PluginEvent;
 use App\Models\User;
+use Database\Seeders\CategoryAndTagSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -22,6 +23,16 @@ use Tests\TestCase;
 class PluginTimelineRecordingTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The taxonomy tables are empty under RefreshDatabase, and the service
+        // refuses a category it cannot find. Mirroring the config is what a
+        // deployed environment does at seed time.
+        $this->seed(CategoryAndTagSeeder::class);
+    }
 
     private function owner(): User
     {
@@ -48,6 +59,7 @@ class PluginTimelineRecordingTest extends TestCase
             'name' => '@dsh/brand-new',
             'title' => 'Brand New',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/brand-new',
         ])->assertCreated()->json('data.plugin.id');
 
@@ -70,6 +82,7 @@ class PluginTimelineRecordingTest extends TestCase
             'name' => '@dsh/no-actor',
             'title' => 'No Actor',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/no-actor',
         ])->assertCreated()->json('data.plugin.id');
 
@@ -95,6 +108,7 @@ class PluginTimelineRecordingTest extends TestCase
             'name' => '@dsh/taken',
             'title' => 'Duplicate',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://example.com/duplicate',
         ])->assertStatus(422)->assertJsonValidationErrors('name');
 

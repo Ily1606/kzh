@@ -20,6 +20,9 @@ class UpdatePluginRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'title' => ['sometimes', 'string', 'max:255'],
             'license' => ['sometimes', 'string', Rule::in(config('plugins.licenses', []))],
+            'category' => ['sometimes', 'string', Rule::in(config('plugins.categories', []))],
+            'tags' => ['sometimes', 'nullable', 'array', 'max:'.config('plugins.tags_per_plugin_limit', 5)],
+            'tags.*' => ['required', 'string', Rule::in(config('plugins.tags', []))],
             'source_link' => ['sometimes', 'string', 'url:https', 'max:2048'],
         ];
     }
@@ -53,6 +56,8 @@ class UpdatePluginRequest extends FormRequest
                 'name',
                 'title',
                 'license',
+                'category',
+                'tags',
                 'source_link',
             ]));
 
@@ -66,7 +71,7 @@ class UpdatePluginRequest extends FormRequest
     {
         $trimmed = [];
 
-        foreach (['name', 'title', 'license', 'source_link'] as $field) {
+        foreach (['name', 'title', 'license', 'category', 'source_link'] as $field) {
             if (is_string($this->input($field))) {
                 $trimmed[$field] = trim($this->input($field));
             }

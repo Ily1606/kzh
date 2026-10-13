@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Enums\PluginStatus;
 use App\Http\Requests\Api\V1\ListMyPluginsRequest;
+use App\Http\Requests\Api\V1\ListPluginsRequest;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
 use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
@@ -28,7 +29,8 @@ class PluginController extends Controller
      *
      * @unauthenticated
      */
-    public function index(Request $request): AnonymousResourceCollection
+    #[Response(status: 422, description: 'The `category` query parameter is not one of the configured categories.')]
+    public function index(ListPluginsRequest $request): AnonymousResourceCollection
     {
         $defaultPerPage = config('plugins.pagination.default_per_page');
         $maxPerPage = config('plugins.pagination.max_per_page');
@@ -38,7 +40,8 @@ class PluginController extends Controller
 
         $paginator = $this->pluginService->getPaginatedApprovedPlugins(
             $perPage,
-            Auth::user()
+            Auth::user(),
+            $request->validated('category'),
         );
 
         return PluginResource::collection($paginator);

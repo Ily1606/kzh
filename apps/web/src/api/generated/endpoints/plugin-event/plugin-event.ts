@@ -17,9 +17,6 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
   export const getPluginEvent = () => {
 /**
- * Owner-only. Not a moderator-facing feed and not public — it is a private
- * channel between one publisher and the reviewers handling their
- * submission.
  * @summary The review timeline of one plugin: who submitted it, what the admin
 decided, and every revision the owner sent back
  */

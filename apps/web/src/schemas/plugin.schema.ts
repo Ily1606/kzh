@@ -1,9 +1,28 @@
-import { SubmitPluginRequestLicense } from "@/api/generated/model"
-import { pluginStoreBodyNameMax, pluginStoreBodySourceLinkMax, pluginStoreBodyTitleMax } from "@/api/generated/zod"
+import {
+  SubmitPluginRequestCategory,
+  SubmitPluginRequestLicense,
+  SubmitPluginRequestTagsItem,
+} from "@/api/generated/model"
+import {
+  pluginStoreBodyNameMax,
+  pluginStoreBodySourceLinkMax,
+  pluginStoreBodyTagsMax,
+  pluginStoreBodyTitleMax,
+} from "@/api/generated/zod"
 import { toTypedSchema } from "@vee-validate/zod"
 import * as z from 'zod'
 
 const licenseValues = Object.values(SubmitPluginRequestLicense) as [string, ...string[]]
+const categoryValues = Object.values(SubmitPluginRequestCategory) as [string, ...string[]]
+const tagValues = Object.values(SubmitPluginRequestTagsItem) as [string, ...string[]]
+
+/**
+ * The empty string stands for "nothing chosen yet", so an untouched category is
+ * reported as a missing choice rather than as a value the API would reject.
+ */
+const categoryChoice = z
+  .union([z.literal(''), z.enum(categoryValues)])
+  .refine((value) => value !== '', 'Please choose a category')
 
 const pluginFields = z.object({
   name: z
@@ -19,6 +38,10 @@ const pluginFields = z.object({
   license: z.enum(licenseValues, {
     errorMap: () => ({ message: 'Please select a valid license' }),
   }),
+  category: categoryChoice,
+  tags: z
+    .array(z.enum(tagValues, { errorMap: () => ({ message: 'Please select valid tags' }) }))
+    .max(pluginStoreBodyTagsMax, `You can pick at most ${pluginStoreBodyTagsMax} tags`),
   source_link: z
     .string({ required_error: 'Source link is required' })
     .trim()
@@ -43,5 +66,7 @@ export const emptyPluginFields: PluginFields = {
   name: '',
   title: '',
   license: SubmitPluginRequestLicense.MIT,
+  category: '',
+  tags: [],
   source_link: '',
 }

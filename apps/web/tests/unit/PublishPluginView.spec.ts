@@ -1,6 +1,7 @@
 import { mount, flushPromises } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import PublishPluginView from '@/views/PublishPluginView.vue'
+import { chooseOption, openSelect } from '../helpers/select'
 
 const mockPluginStore = vi.fn()
 vi.mock('@/api/generated/endpoints', () => ({
@@ -9,9 +10,7 @@ vi.mock('@/api/generated/endpoints', () => ({
   })
 }))
 
-const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mockPush }),
   RouterLink: { template: '<a><slot></slot></a>' }
 }))
 
@@ -30,7 +29,7 @@ describe('PublishPluginView.vue', () => {
     const wrapper = mount(PublishPluginView)
     expect(wrapper.find('input#name').exists()).toBe(true)
     expect(wrapper.find('input#title').exists()).toBe(true)
-    expect(wrapper.find('select#license').exists()).toBe(true)
+    expect(wrapper.find('button#license').exists()).toBe(true)
     expect(wrapper.find('input#source').exists()).toBe(true)
     expect(wrapper.text()).toContain('Publish plugin')
   })
@@ -52,7 +51,8 @@ describe('PublishPluginView.vue', () => {
 
     await wrapper.find('input#name').setValue('my-plugin')
     await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
+    await openSelect(wrapper.find('button#category').element)
+    await chooseOption('Integrations')
 
     // Invalid URL (not a URL)
     await wrapper.find('input#source').setValue('not-a-url')
@@ -69,13 +69,14 @@ describe('PublishPluginView.vue', () => {
     expect(mockPluginStore).not.toHaveBeenCalled()
   })
 
-  it('submits successfully, shows success state, and redirects', async () => {
+  it('submits successfully and shows the success state', async () => {
     mockPluginStore.mockResolvedValueOnce({})
     const wrapper = mount(PublishPluginView)
 
     await wrapper.find('input#name').setValue('my-plugin')
     await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
+    await openSelect(wrapper.find('button#category').element)
+    await chooseOption('Integrations')
     await wrapper.find('input#source').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')
@@ -85,19 +86,19 @@ describe('PublishPluginView.vue', () => {
       name: 'my-plugin',
       title: 'My Plugin',
       license: 'MIT',
+      category: 'Integrations',
+      tags: [],
       source_link: 'https://github.com/test/repo'
     })
 
-    // Check if success UI is rendered
     expect(wrapper.text()).toContain('Plugin Submitted Successfully!')
 
-    // Wait for the redirect timer to complete (2400ms)
-    expect(mockPush).not.toHaveBeenCalled()
+    // The author decides when to leave. Waiting out the window the old redirect
+    // timer used is how this proves the panel is still there and the form has
+    // not come back.
     await new Promise(r => setTimeout(r, 2500))
-    // Not `/plugins`: that list only carries approved plugins, so a submission
-    // still under review would land on a page without it. Resources is where
-    // the author actually sees the new plugin, and the Pending tab is selected.
-    expect(mockPush).toHaveBeenCalledWith({ name: 'my-plugins', query: { status: 'pending' } })
+    expect(wrapper.text()).toContain('Plugin Submitted Successfully!')
+    expect(wrapper.find('form').exists()).toBe(false)
   }, 10000)
 
   it('maps server 422 validation errors to fields', async () => {
@@ -117,7 +118,8 @@ describe('PublishPluginView.vue', () => {
 
     await wrapper.find('input#name').setValue('my-plugin')
     await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
+    await openSelect(wrapper.find('button#category').element)
+    await chooseOption('Integrations')
     await wrapper.find('input#source').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')
@@ -141,7 +143,8 @@ describe('PublishPluginView.vue', () => {
 
     await wrapper.find('input#name').setValue('my-plugin')
     await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
+    await openSelect(wrapper.find('button#category').element)
+    await chooseOption('Integrations')
     await wrapper.find('input#source').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')
@@ -157,7 +160,8 @@ describe('PublishPluginView.vue', () => {
 
     await wrapper.find('input#name').setValue('my-plugin')
     await wrapper.find('input#title').setValue('My Plugin')
-    await wrapper.find('select#license').setValue('MIT')
+    await openSelect(wrapper.find('button#category').element)
+    await chooseOption('Integrations')
     await wrapper.find('input#source').setValue('https://github.com/test/repo')
 
     await wrapper.find('form').trigger('submit')

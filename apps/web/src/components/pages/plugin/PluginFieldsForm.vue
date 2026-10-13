@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useForm } from 'vee-validate'
 import type { TypedSchema } from 'vee-validate'
-import { SubmitPluginRequestLicense } from '@/api/generated/model'
+import { SubmitPluginRequestCategory, SubmitPluginRequestLicense } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import TagPicker from '@/components/pages/plugin/TagPicker.vue'
 import type { PluginFields } from '@/schemas/plugin.schema'
 
 const props = defineProps<{
@@ -15,9 +17,8 @@ const props = defineProps<{
   submit: (values: PluginFields) => Promise<unknown>
 }>()
 
-const emit = defineEmits<{
-  (e: 'submitted', values: PluginFields): void
-}>()
+const licenses = Object.values(SubmitPluginRequestLicense)
+const categories = Object.values(SubmitPluginRequestCategory)
 
 const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
   validationSchema: props.schema,
@@ -27,12 +28,14 @@ const { defineField, handleSubmit, errors, setErrors, isSubmitting } = useForm({
 const [name, nameAttrs] = defineField('name')
 const [title, titleAttrs] = defineField('title')
 const [license, licenseAttrs] = defineField('license')
+const [category, categoryAttrs] = defineField('category')
+const [tags, tagsAttrs] = defineField('tags')
+
 const [source_link, sourceLinkAttrs] = defineField('source_link')
 
 const onSubmit = handleSubmit(async (values) => {
   try {
     await props.submit(values)
-    emit('submitted', values)
   } catch {
     // The page owns the failure: it showed the message, and the form stays
     // exactly as the author left it.
@@ -49,11 +52,7 @@ function showServerErrors(fieldErrors: Record<string, string[]>): void {
     return acc;
   }, {});
 
-  // `setErrors` merges rather than replaces, so the fields the server did not
-  // reject this time are blanked here. Otherwise a field that was rejected on
-  // the previous attempt keeps a message the server has since stopped sending.
-  const cleared = { name: '', title: '', license: '', source_link: '' };
-
+  const cleared = { name: '', title: '', license: '', category: '', tags: '', source_link: '' };
   setErrors({ ...cleared, ...messages });
 }
 
@@ -99,24 +98,27 @@ defineExpose({ showServerErrors })
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
       <!-- License -->
       <div class="space-y-2">
-        <Label for="license" class="text-sm font-medium">
+        <Label class="text-sm font-medium">
           License <span class="text-primary">*</span>
         </Label>
-        <select
-          id="license"
-          v-model="license"
-          v-bind="licenseAttrs"
-          class="flex h-11 w-full rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-sm text-foreground outline-none transition-colors focus-visible:bg-background focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
-          :class="{ 'border-destructive focus-visible:ring-destructive': errors.license }"
-        >
-          <option
-            v-for="lic in Object.values(SubmitPluginRequestLicense)"
-            :key="lic"
-            :value="lic"
+        <Select v-model="license" v-bind="licenseAttrs">
+          <SelectTrigger
+            id="license"
+            class="h-11 rounded-xl border-border/60 bg-muted/40 transition-colors focus-visible:bg-background"
+            :class="{ 'border-destructive focus-visible:ring-destructive': errors.license }"
           >
-            {{ lic }}
-          </option>
-        </select>
+            <SelectValue placeholder="Select a license..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="license in licenses"
+              :key="license"
+              :value="license"
+            >
+              {{ license }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
         <p v-if="errors.license" class="text-xs text-destructive">{{ errors.license }}</p>
       </div>
 
@@ -135,6 +137,45 @@ defineExpose({ showServerErrors })
           :class="{ 'border-destructive focus-visible:ring-destructive': errors.source_link }"
         />
         <p v-if="errors.source_link" class="text-xs text-destructive">{{ errors.source_link }}</p>
+      </div>
+
+      <!-- Category -->
+      <div class="space-y-2">
+        <Label class="text-sm font-medium">
+          Category <span class="text-primary">*</span>
+        </Label>
+        <Select v-model="category" v-bind="categoryAttrs">
+          <SelectTrigger
+            id="category"
+            :class="[
+              'h-11 rounded-xl border-border/60 bg-muted/40 transition-colors focus-visible:bg-background',
+              errors.category ? 'border-destructive focus-visible:ring-destructive' : '',
+            ]"
+          >
+            <SelectValue placeholder="Select a category..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              v-for="category in categories"
+              :key="category"
+              :value="category"
+            >
+              {{ category }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p v-if="errors.category" class="text-xs text-destructive">{{ errors.category }}</p>
+        <p v-else class="text-xs text-muted-foreground">The single area this plugin belongs to.</p>
+      </div>
+
+      <!-- Tags -->
+      <div class="space-y-2">
+        <Label class="text-sm font-medium">
+          Tags
+        </Label>
+        <TagPicker v-model="tags" v-bind="tagsAttrs" :error="errors.tags" />
+        <p v-if="errors.tags" class="text-xs text-destructive">{{ errors.tags }}</p>
+        <p v-else class="text-xs text-muted-foreground">What your plugin is allowed to do</p>
       </div>
     </div>
 

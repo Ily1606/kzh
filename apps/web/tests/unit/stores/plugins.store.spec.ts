@@ -37,6 +37,8 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     author: null,
     title: 'My awesome plugin',
     license: 'MIT',
+    category: 'Integrations',
+    tags: [],
     approved_at: '2026-10-06T00:00:00Z',
     status: 'approved',
     source_link: 'https://github.com/owner/repo',
@@ -176,7 +178,7 @@ describe('Plugins Store', () => {
 
       await store.fetchList(2);
 
-      expect(mockPluginIndex).toHaveBeenCalledWith({ params: { page: 2, per_page: 9 } });
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 2, per_page: 9, category: undefined });
       expect(store.list).toMatchObject({ page: 2, lastPage: 5, total: 42 });
       expect(store.list.ids).toEqual(['plugin-1', 'plugin-2']);
       expect(store.listPlugins).toHaveLength(2);

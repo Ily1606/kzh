@@ -51,6 +51,8 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     author: { id: 'user-456', name: 'Jane Dev', avatar_url: null },
     title: 'My awesome plugin',
     license: 'MIT',
+    category: 'Integrations',
+    tags: ['May read files'],
     approved_at: null,
     status: 'pending',
     source_link: 'https://github.com/owner/repo',
@@ -110,7 +112,24 @@ describe('EditPluginView.vue', () => {
         name: '@dsh/my-plugin',
         title: 'My awesome plugin',
         license: 'MIT',
+        category: 'Integrations',
+        tags: ['May read files'],
         source_link: 'https://github.com/owner/repo',
+      })
+    })
+
+    it('leaves the taxonomy empty for a plugin published before it existed', async () => {
+      signIn()
+      seedStore(makePlugin({ category: null, tags: [] }))
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      // Nothing to carry over: the form must not claim a category the plugin
+      // never chose, and the author has to pick one before saving.
+      expect(wrapper.findComponent(PluginFieldsForm).props('initialValues')).toMatchObject({
+        category: '',
+        tags: [],
       })
     })
 
@@ -221,10 +240,12 @@ describe('EditPluginView.vue', () => {
       name: '@dsh/my-plugin',
       title: 'Renamed',
       license: 'MIT',
+      category: 'Vision',
+      tags: ['May read files'],
       source_link: 'https://github.com/owner/repo',
     }
 
-    it('sends the four editable fields and returns to the detail page', async () => {
+    it('sends the six editable fields and returns to the detail page', async () => {
       signIn()
       seedStore()
 

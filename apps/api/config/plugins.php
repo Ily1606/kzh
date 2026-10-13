@@ -76,4 +76,27 @@ return [
         'age_offset' => env('PLUGIN_TRENDING_AGE_OFFSET', 2),
     ],
     'licenses' => array_column(PluginLicense::cases(), 'value'),
+    'categories' => [
+        'UI & workspace',
+        'Vision',
+        'Multi-agent',
+        'Developer tools',
+        'Integrations',
+        'Security & diagnostics',
+    ],
+
+    'tags' => [
+        'Manifest checked',
+        'May read files',
+        'May write files',
+        'May run commands',
+        'May access network',
+        'Version not locked',
+        'Needs credentials',
+    ],
+
+    /*
+    | How many tags one plugin may carry
+    */
+    'tags_per_plugin_limit' => 5,
 ];
