@@ -47,6 +47,10 @@ export function useAuth() {
   }
 
   async function fetchUser() {
+    if (!store.token) {
+      store.setLoading(false);
+      return;
+    }
     store.setLoading(true);
     try {
       const response = await profileShow();
