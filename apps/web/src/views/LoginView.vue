@@ -7,20 +7,23 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { loginSchema } from "@/schemas/auth.schema";
 
-const { handleSubmit, defineField, errors } = useForm({
+const { handleSubmit } = useForm({
   validationSchema: loginSchema,
   initialValues: {
     email: "",
     password: "",
   },
 });
-
-const [email, emailProps] = defineField("email");
-const [password, passwordProps] = defineField("password");
 
 const errorMsg = ref("");
 const loading = ref(false);
@@ -54,19 +57,27 @@ const onSubmit = handleSubmit(async (values) => {
       <Alert v-if="errorMsg" variant="destructive">
         <AlertDescription>{{ errorMsg }}</AlertDescription>
       </Alert>
-      <div class="space-y-1.5">
-        <Label for="email">Email</Label>
-        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(errors.email)" />
-        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
-      </div>
-      <div class="space-y-1.5">
-        <div class="flex items-center justify-between">
-          <Label for="password">Password</Label>
-          <RouterLink to="/forgot-password" class="text-sm font-medium text-primary hover:underline">Forgot password?</RouterLink>
-        </div>
-        <Input id="password" v-model="password" v-bind="passwordProps" type="password" autocomplete="current-password" :aria-invalid="Boolean(errors.password)" />
-        <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="email">
+        <FormItem>
+          <FormLabel>Email</FormLabel>
+          <FormControl>
+            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+      <FormField v-slot="{ componentField }" name="password">
+        <FormItem>
+          <div class="flex items-center justify-between">
+            <FormLabel>Password</FormLabel>
+            <RouterLink to="/forgot-password" class="text-sm font-medium text-primary hover:underline">Forgot password?</RouterLink>
+          </div>
+          <FormControl>
+            <Input id="password" type="password" autocomplete="current-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Signing in" : "Sign in" }}</Button>
     </form>
     <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">New to the registry? <RouterLink to="/register" class="font-medium text-primary hover:underline">Create a publisher account</RouterLink></p>

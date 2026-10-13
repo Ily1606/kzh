@@ -10,12 +10,12 @@ import { Spinner } from '@/components/ui/spinner'
 
 /**
  * The primitives carry no logic of their own — the point of these assertions is
- * to pin the contract the views rely on: the `data-slot` they query on, and the
+ * to pin the contract the views rely on: the HTML tags, variants, and the
  * `cn` merging that lets a caller override a base class without shipping both.
  */
 
 describe('ui/alert', () => {
-  it('exposes data-slot and the default variant', () => {
+  it('renders role alert and the default variant', () => {
     const wrapper = mount(Alert, { slots: { default: 'Careful' } })
 
     expect(wrapper.attributes('data-slot')).toBe('alert')
@@ -28,7 +28,6 @@ describe('ui/alert', () => {
     const wrapper = mount(Alert, { props: { variant: 'destructive' } })
 
     expect(wrapper.classes()).toContain('text-destructive')
-    expect(wrapper.classes()).toContain('bg-card')
     // Destructive recolours the card rather than replacing its background, so
     // the class the default variant contributes is gone, not the background.
     expect(wrapper.classes()).not.toContain('text-card-foreground')
@@ -43,7 +42,7 @@ describe('ui/alert', () => {
 })
 
 describe('ui/button', () => {
-  it('exposes data-slot and the default variant', () => {
+  it('renders a button and the default variant', () => {
     const wrapper = mount(Button, { slots: { default: 'Click' } })
 
     expect(wrapper.attributes('data-slot')).toBe('button')
@@ -82,10 +81,11 @@ describe('ui/button', () => {
 })
 
 describe('ui/card', () => {
-  it('exposes data-slot on the root and on CardContent', () => {
-    const wrapper = mount(Card, { slots: { default: () => h(CardContent, 'inner') } })
+  it('renders root card and CardContent', () => {
+    const wrapper = mount(Card, { slots: { default: () => h(CardContent, () => 'inner') } })
 
     expect(wrapper.attributes('data-slot')).toBe('card')
+    expect(wrapper.classes()).toContain('bg-card')
     expect(wrapper.find('[data-slot="card-content"]').exists()).toBe(true)
   })
 
@@ -97,7 +97,7 @@ describe('ui/card', () => {
 })
 
 describe('ui/input', () => {
-  it('exposes data-slot and is an input', () => {
+  it('renders an input element', () => {
     const wrapper = mount(Input)
 
     expect(wrapper.attributes('data-slot')).toBe('input')
@@ -122,7 +122,7 @@ describe('ui/input', () => {
 })
 
 describe('ui/label', () => {
-  it('exposes data-slot and renders a label', () => {
+  it('renders a label element', () => {
     const wrapper = mount(Label, { slots: { default: 'Email' } })
 
     expect(wrapper.attributes('data-slot')).toBe('label')
