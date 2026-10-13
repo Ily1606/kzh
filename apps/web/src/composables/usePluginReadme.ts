@@ -50,13 +50,12 @@ export function toRawGithubUrls(url: string): string[] {
  * stays in a composable instead of the store. The page decides when to call
  * `load()`; this only knows how to get the markdown onto the screen.
  */
-export function usePluginReadme(sourceLink: Ref<string>) {
+export function usePluginReadme(sourceLink: Ref<string>, container: Ref<HTMLElement | null>) {
   const html = ref('')
   const isLoading = ref(false)
   const error = ref('')
   const isExpanded = ref(false)
   const isLong = ref(false)
-  const container = ref<HTMLElement | null>(null)
 
   async function load(): Promise<void> {
     isExpanded.value = false
@@ -117,7 +116,6 @@ export function usePluginReadme(sourceLink: Ref<string>) {
     error,
     isExpanded,
     isLong,
-    container,
     load,
     expand,
     collapse,
