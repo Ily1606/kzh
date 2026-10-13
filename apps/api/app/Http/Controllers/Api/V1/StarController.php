@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SetStarRequest;
-use App\Http\Requests\Api\V1\TimelineStarRequest;
 use App\Services\StarService;
 use App\Support\ApiResponse;
 use App\Support\RequestContext;
@@ -40,7 +39,7 @@ class StarController extends Controller
     /**
      * Get star timeline for a plugin
      */
-    public function timeline(TimelineStarRequest $request, string $pluginId): JsonResponse
+    public function timeline(string $pluginId): JsonResponse
     {
         $timeline = $this->starService->getTimeline($pluginId);
 
