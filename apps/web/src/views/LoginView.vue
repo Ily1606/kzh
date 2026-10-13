@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import type { AxiosError } from "axios";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,8 +44,14 @@ const onSubmit = handleSubmit(async (values) => {
     });
     const redirectPath = route.query.redirect as string;
     router.push(redirectPath || "/");
-  } catch (e: any) {
-    errorMsg.value = "Incorrect email or password.";
+  } catch (e) {
+    const status = (e as AxiosError).response?.status;
+    errorMsg.value =
+      status === 429
+        ? "Too many attempts. Please try again later."
+        : status === 401 || status === 422
+          ? "Incorrect email or password."
+          : "Something went wrong. Please try again.";
   } finally {
     loading.value = false;
   }

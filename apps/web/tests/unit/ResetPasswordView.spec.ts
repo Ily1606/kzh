@@ -130,4 +130,26 @@ describe('ResetPasswordView.vue', () => {
 
     expect(wrapper.text()).toContain('The reset token is invalid.');
   });
+
+  it('displays rate limit error when API returns 429', async () => {
+    const wrapper = mount(ResetPasswordView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockPasswordResetResetPassword.mockRejectedValueOnce({
+      response: {
+        status: 429
+      }
+    });
+
+    await wrapper.find('input[id="password"]').setValue('newPassword123');
+    await wrapper.find('input[id="password_confirmation"]').setValue('newPassword123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Too many attempts. Please try again later.');
+  });
 });

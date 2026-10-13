@@ -113,8 +113,9 @@ describe('useAuth composable', () => {
 
     mockAuthLogout.mockRejectedValueOnce(new Error('network down'));
 
-    await expect(auth.logout()).rejects.toThrow('network down');
+    await expect(auth.logout()).resolves.toBeUndefined();
 
+    expect(authStore.token).toBeNull();
     expect(pluginsStore.entities).toEqual({});
   });
 });
