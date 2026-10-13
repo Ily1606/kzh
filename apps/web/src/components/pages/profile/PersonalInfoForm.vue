@@ -58,6 +58,16 @@ const [name, nameProps] = defineField('name');
 const [githubName, githubNameProps] = defineField('githubName');
 const [githubLink, githubLinkProps] = defineField('githubLink');
 
+// Schema cho phép null, còn Input chỉ nhận string.
+const githubNameModel = computed({
+  get: () => githubName.value ?? '',
+  set: (value: string) => { githubName.value = value; },
+});
+const githubLinkModel = computed({
+  get: () => githubLink.value ?? '',
+  set: (value: string) => { githubLink.value = value; },
+});
+
 const onSubmit = handleSubmit(async (values) => {
   try {
     const response = await profileUpdateProfile({
@@ -110,13 +120,13 @@ onMounted(() => {
 
       <div class="space-y-1.5">
         <Label for="githubName">GitHub username</Label>
-        <Input id="githubName" v-model="githubName" v-bind="githubNameProps" type="text" placeholder="johndoe" :aria-invalid="Boolean(errors.githubName)" />
+        <Input id="githubName" v-model="githubNameModel" v-bind="githubNameProps" type="text" placeholder="johndoe" :aria-invalid="Boolean(errors.githubName)" />
         <p v-if="errors.githubName" class="text-xs text-destructive">{{ errors.githubName }}</p>
       </div>
 
       <div class="space-y-1.5">
         <Label for="githubLink">GitHub URL</Label>
-        <Input id="githubLink" v-model="githubLink" v-bind="githubLinkProps" type="url" placeholder="https://github.com/johndoe" :aria-invalid="Boolean(errors.githubLink)" />
+        <Input id="githubLink" v-model="githubLinkModel" v-bind="githubLinkProps" type="url" placeholder="https://github.com/johndoe" :aria-invalid="Boolean(errors.githubLink)" />
         <p v-if="errors.githubLink" class="text-xs text-destructive">{{ errors.githubLink }}</p>
       </div>
 

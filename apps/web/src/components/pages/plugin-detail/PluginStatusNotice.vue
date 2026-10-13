@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Clock, CircleAlert } from 'lucide-vue-next'
+import { Clock, CircleAlert } from '@lucide/vue'
 import { PluginStatus } from '@/api/generated/model'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'

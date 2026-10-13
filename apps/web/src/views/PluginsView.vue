@@ -8,7 +8,7 @@ import PluginCard from '@/components/pages/plugin/PluginCard.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Search, LoaderCircle, PackageOpen, ChevronDown, Check } from 'lucide-vue-next'
+import { Search, LoaderCircle, PackageOpen, ChevronDown, Check } from '@lucide/vue'
 
 const store = usePluginsStore()
 const route = useRoute()

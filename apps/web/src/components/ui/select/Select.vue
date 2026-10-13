@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import { SelectRoot, type SelectRootProps } from 'reka-ui'
+import type { SelectRootEmits, SelectRootProps } from "reka-ui"
+import { SelectRoot, useForwardPropsEmits } from "reka-ui"
 
-defineOptions({ inheritAttrs: false })
-defineProps<Omit<SelectRootProps, 'modelValue'>>()
-// Named, because reka-ui's prop is `modelValue` and a bare defineModel() would
-// bind `model`, which SelectRoot never sees.
-const model = defineModel<SelectRootProps['modelValue']>('modelValue')
+const props = defineProps<SelectRootProps>()
+const emits = defineEmits<SelectRootEmits>()
+
+const forwarded = useForwardPropsEmits(props, emits)
 </script>
 
 <template>
-  <SelectRoot v-slot="slotProps" v-model="model" data-slot="select" v-bind="$attrs">
+  <SelectRoot
+    v-slot="slotProps"
+    data-slot="select"
+    v-bind="forwarded"
+  >
     <slot v-bind="slotProps" />
   </SelectRoot>
 </template>

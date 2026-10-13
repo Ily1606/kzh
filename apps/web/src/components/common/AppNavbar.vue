@@ -2,7 +2,7 @@
 import { RouterLink } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
-import { LogOut, UserRound } from "lucide-vue-next"
+import { LogOut, UserRound } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 
 const auth = useAuth()

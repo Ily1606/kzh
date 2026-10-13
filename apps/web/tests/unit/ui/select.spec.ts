@@ -83,7 +83,8 @@ describe('ui/select', () => {
       expect(className).toContain('border-input')
       expect(className).toContain('data-[placeholder]:text-muted-foreground')
       expect(className).toContain('focus-visible:border-ring')
-      expect(className).toContain('w-full')
+      // shadcn ships w-fit: the trigger hugs its content, not the container.
+      expect(className).toContain('w-fit')
     })
   })
 
@@ -112,9 +113,9 @@ describe('ui/select', () => {
 
       expect(content?.getAttribute('data-state')).toBe('open')
       // Tailwind rewrites the arbitrary value to the spacing scale, so what
-      // ships is min-w-32 rather than min-w-[8rem].
+      // ships is min-w-[8rem] rather than min-w-32.
       expect(content?.className).toContain('bg-popover')
-      expect(content?.className).toContain('min-w-32')
+      expect(content?.className).toContain('min-w-[8rem]')
     })
   })
 

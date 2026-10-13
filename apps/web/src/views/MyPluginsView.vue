@@ -5,7 +5,7 @@ import { PluginStatus } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import MyPluginRow from '@/components/pages/plugin/MyPluginRow.vue'
 import { usePluginsStore } from '@/stores'
-import { AlertCircle, LoaderCircle, PackageOpen, Plus } from 'lucide-vue-next'
+import { AlertCircle, LoaderCircle, PackageOpen, Plus } from '@lucide/vue'
 
 const store = usePluginsStore()
 const route = useRoute()

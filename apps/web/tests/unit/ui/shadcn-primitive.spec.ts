@@ -28,7 +28,7 @@ describe('ui/alert', () => {
     const wrapper = mount(Alert, { props: { variant: 'destructive' } })
 
     expect(wrapper.classes()).toContain('text-destructive')
-    expect(wrapper.classes()).toContain('border-destructive/50')
+    expect(wrapper.classes()).toContain('bg-card')
     // Destructive recolours the card rather than replacing its background, so
     // the class the default variant contributes is gone, not the background.
     expect(wrapper.classes()).not.toContain('text-card-foreground')
@@ -132,11 +132,12 @@ describe('ui/label', () => {
 })
 
 describe('ui/spinner', () => {
-  it('is an aria-hidden svg', () => {
+  it('is an svg announced as loading', () => {
     const wrapper = mount(Spinner)
 
     expect(wrapper.element.tagName.toLowerCase()).toBe('svg')
-    expect(wrapper.attributes('aria-hidden')).toBe('true')
+    expect(wrapper.attributes('role')).toBe('status')
+    expect(wrapper.attributes('aria-label')).toBe('Loading')
     expect(wrapper.classes()).toContain('animate-spin')
   })
 })

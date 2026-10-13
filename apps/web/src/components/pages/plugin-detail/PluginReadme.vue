@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRef, watch } from 'vue'
-import { FileText } from 'lucide-vue-next'
+import { FileText } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { README_COLLAPSED_MAX_HEIGHT, usePluginReadme } from '@/composables/usePluginReadme'
 

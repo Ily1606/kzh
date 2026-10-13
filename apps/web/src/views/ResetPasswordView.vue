@@ -3,7 +3,7 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getPasswordReset } from "@/api/generated/endpoints";
 import { useForm } from "vee-validate";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -83,8 +83,12 @@ const onSubmit = handleSubmit(async (values) => {
       <p class="text-sm text-muted-foreground mt-1">Please enter your new password below.</p>
     </div>
     <form class="space-y-4 p-6 pt-2" @submit.prevent="onSubmit">
-      <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
-      <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">{{ successMsg }}</Alert>
+      <Alert v-if="errorMsg" variant="destructive">
+        <AlertDescription>{{ errorMsg }}</AlertDescription>
+      </Alert>
+      <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">
+        <AlertDescription>{{ successMsg }}</AlertDescription>
+      </Alert>
 
       <div class="space-y-1.5">
         <Label for="email">Email</Label>

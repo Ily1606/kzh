@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowUpRight, BookOpen, Calendar, Eye, History, Scale, Star } from 'lucide-vue-next'
+import { ArrowUpRight, BookOpen, Calendar, Eye, History, Scale, Star } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'

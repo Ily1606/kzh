@@ -4,7 +4,7 @@ import { getComment } from '@/api/generated/endpoints'
 import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/composables/useAuth'
-import { MessageSquare, Loader2, ChevronDown } from 'lucide-vue-next'
+import { MessageSquare, Loader2, ChevronDown } from '@lucide/vue'
 import CommentItem from '@/components/pages/comment/CommentItem.vue'
 import { commentConfig } from '@/config/comments'
 

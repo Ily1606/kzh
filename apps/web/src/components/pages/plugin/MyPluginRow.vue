@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import { Boxes, Eye, MessageSquare, Star } from 'lucide-vue-next'
+import { Boxes, Eye, MessageSquare, Star } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
 import PluginStatusBadge from './PluginStatusBadge.vue'

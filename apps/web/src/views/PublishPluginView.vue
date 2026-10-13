@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   Terminal,
   Sparkles
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import { emptyPluginFields, submitPluginSchema } from '@/schemas/plugin.schema'
 
 const { pluginStore } = getPlugin()

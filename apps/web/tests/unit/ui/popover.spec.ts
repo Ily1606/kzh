@@ -166,7 +166,7 @@ describe('ui/popover', () => {
       expect(className).toContain('fade-in-0')
       expect(className).toContain('zoom-in-95')
       expect(className).toContain('slide-in-from-top-2')
-      expect(className).toContain('origin-[var(--reka-popover-content-transform-origin)]')
+      expect(className).toContain('origin-(--reka-popover-content-transform-origin)')
       expect(className).toContain('bg-popover')
       expect(className).toContain('text-popover-foreground')
     })

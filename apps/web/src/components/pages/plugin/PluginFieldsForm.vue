@@ -104,7 +104,7 @@ defineExpose({ showServerErrors })
         <Select v-model="license" v-bind="licenseAttrs">
           <SelectTrigger
             id="license"
-            class="h-11 rounded-xl border-border/60 bg-muted/40 transition-colors focus-visible:bg-background"
+            class="w-full rounded-xl border-border/60 bg-muted/40 transition-colors focus-visible:bg-background data-[size=default]:h-11"
             :class="{ 'border-destructive focus-visible:ring-destructive': errors.license }"
           >
             <SelectValue placeholder="Select a license..." />
@@ -148,7 +148,7 @@ defineExpose({ showServerErrors })
           <SelectTrigger
             id="category"
             :class="[
-              'h-11 rounded-xl border-border/60 bg-muted/40 transition-colors focus-visible:bg-background',
+              'w-full rounded-xl border-border/60 bg-muted/40 transition-colors focus-visible:bg-background data-[size=default]:h-11',
               errors.category ? 'border-destructive focus-visible:ring-destructive' : '',
             ]"
           >

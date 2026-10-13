@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Check, ChevronDown } from 'lucide-vue-next'
+import { Check, ChevronDown } from '@lucide/vue'
 import { SubmitPluginRequestTagsItem } from '@/api/generated/model'
 import { pluginStoreBodyTagsMax } from '@/api/generated/zod'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'

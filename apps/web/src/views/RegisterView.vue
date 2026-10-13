@@ -5,7 +5,7 @@ import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
 import { toTypedSchema } from "@vee-validate/zod";
 import * as z from "zod";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,7 +68,9 @@ const onSubmit = handleSubmit(async (values) => {
 <template>
   <Card class="gap-0 overflow-hidden border-border/80 bg-card/90 py-0 shadow-xl shadow-primary/5">
     <form class="space-y-4 p-6" @submit.prevent="onSubmit">
-      <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
+      <Alert v-if="errorMsg" variant="destructive">
+        <AlertDescription>{{ errorMsg }}</AlertDescription>
+      </Alert>
       <div class="space-y-1.5">
         <Label for="fullName">Full name</Label>
         <Input id="fullName" v-model="name" v-bind="nameProps" type="text" autocomplete="name" placeholder="Jane Doe" :aria-invalid="Boolean(errors.name)" />

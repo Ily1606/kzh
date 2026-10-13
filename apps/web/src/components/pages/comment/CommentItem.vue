@@ -6,7 +6,7 @@ import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { formatRelativeDate } from '@/utils/date'
 import { useAuth } from '@/composables/useAuth'
-import { CornerDownRight, ChevronDown, ChevronUp, Flag, Loader2 } from 'lucide-vue-next'
+import { CornerDownRight, ChevronDown, ChevronUp, Flag, Loader2 } from '@lucide/vue'
 import { commentConfig } from '@/config/comments'
 
 const props = withDefaults(
