@@ -49,8 +49,9 @@ interface PluginRepositoryInterface
      * List the published catalogue.
      *
      * @param  string|null  $category  Restrict to one category by name, or null for all of them.
+     * @param  string|null  $search  Match against name and title, or null to skip the filter.
      */
-    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null): LengthAwarePaginator;
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null): LengthAwarePaginator;
 
     /**
      * List one owner's plugins, whatever their review status.

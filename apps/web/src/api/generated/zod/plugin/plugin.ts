@@ -134,12 +134,15 @@ export const PluginStoreResponse = zod.object({
 /**
  * @summary Get plugin list
  */
+export const pluginIndexQuerySearchMax = 100;
+
 
 
 
 
 export const PluginIndexQueryParams = zod.object({
   "category": zod.string().nullish(),
+  "search": zod.string().max(pluginIndexQuerySearchMax).nullish(),
   "page": zod.number().int().min(1).nullish(),
   "per_page": zod.number().int().min(1).nullish()
 })

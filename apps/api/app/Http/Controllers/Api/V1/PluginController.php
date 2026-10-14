@@ -42,6 +42,7 @@ class PluginController extends Controller
             $perPage,
             Auth::user(),
             $request->validated('category'),
+            $request->validated('search'),
         );
 
         return PluginResource::collection($paginator);

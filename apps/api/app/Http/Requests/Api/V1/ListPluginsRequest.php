@@ -19,6 +19,7 @@ class ListPluginsRequest extends FormRequest
     {
         return [
             'category' => ['nullable', 'string', Rule::exists('categories', 'name')],
+            'search' => ['nullable', 'string', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1'],
         ];

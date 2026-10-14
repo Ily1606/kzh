@@ -85,7 +85,7 @@ describe('PluginsView.vue', () => {
 
     await flushPromises()
 
-    expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null })
+    expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null, search: null })
 
     // Check if stats summary is rendered
     expect(wrapper.text()).toContain('Showing 2')
@@ -116,58 +116,6 @@ describe('PluginsView.vue', () => {
     expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(3)
   })
 
-  it('filters plugins based on search query', async () => {
-    const wrapper = mountView()
-
-    await flushPromises()
-
-    // Initial length is 2
-    expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(2)
-
-    // Search for 'first'
-    const searchInput = wrapper.find('input[type="text"]')
-    await searchInput.setValue('first')
-    await flushPromises()
-
-    // Should filter down to 1
-    const pluginCards = wrapper.findAllComponents({ name: 'PluginCard' })
-    expect(pluginCards.length).toBe(1)
-    expect(wrapper.text()).toContain('matching "first"')
-  })
-
-  it('does not call the API while typing in the search box', async () => {
-    const wrapper = mountView()
-
-    await flushPromises()
-    expect(mockPluginIndex).toHaveBeenCalledTimes(1)
-
-    await wrapper.find('input[type="text"]').setValue('first')
-    await flushPromises()
-
-    // Filtering happens over the page already in hand.
-    expect(mockPluginIndex).toHaveBeenCalledTimes(1)
-  })
-
-  it('displays empty state if search yields no results', async () => {
-    const wrapper = mountView()
-
-    await flushPromises()
-
-    const searchInput = wrapper.find('input[type="text"]')
-    await searchInput.setValue('non-existent-plugin')
-    await flushPromises()
-
-    expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(0)
-    expect(wrapper.text()).toContain('No plugins found')
-    expect(wrapper.text()).toContain('We couldn\'t find any plugin matching "non-existent-plugin"')
-
-    // Test clear search button
-    const clear = wrapper.findAll('button').find((b) => b.text() === 'Clear search')
-    await clear!.trigger('click')
-    await flushPromises()
-    expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(2)
-  })
-
   it('displays empty state if API returns empty list', async () => {
     mockPluginIndex.mockResolvedValue({ data: [], meta: { total: 0, last_page: 1 } })
     const wrapper = mountView()
@@ -192,7 +140,7 @@ describe('PluginsView.vue', () => {
     await nextBtn!.trigger('click')
     await flushPromises()
 
-    expect(mockPluginIndex).toHaveBeenCalledWith({ page: 2, per_page: 9, category: null })
+    expect(mockPluginIndex).toHaveBeenCalledWith({ page: 2, per_page: 9, category: null, search: null })
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
   })
 
@@ -218,6 +166,174 @@ describe('PluginsView.vue', () => {
     expect(wrapper.text()).not.toContain('Loading plugins catalogue...')
   })
 
+  describe('the search box', () => {
+    /** The view waits for the typing to settle before asking the API. */
+    async function waitForDebounce() {
+      await new Promise((resolve) => setTimeout(resolve, 350))
+      await flushPromises()
+    }
+
+    /** Answers each search with the matching subset, the way the endpoint does. */
+    function respondToSearch() {
+      mockPluginIndex.mockImplementation((params: { search?: string | null }) => {
+        if (!params.search) return Promise.resolve(mockPluginsResponse)
+
+        const data = mockPluginsResponse.data.filter(
+          (plugin) =>
+            plugin.name.includes(params.search!.toLowerCase()) ||
+            plugin.title.toLowerCase().includes(params.search!.toLowerCase()),
+        )
+
+        return Promise.resolve({ data, meta: { total: data.length, last_page: 1 } })
+      })
+    }
+
+    async function type(wrapper: ReturnType<typeof mountView>, value: string) {
+      await wrapper.find('[data-test="search-input"]').setValue(value)
+      await waitForDebounce()
+    }
+
+    it('asks the API for the matches instead of filtering the page in hand', async () => {
+      respondToSearch()
+
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(2)
+
+      await type(wrapper, 'first')
+
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({
+        page: 1,
+        per_page: 9,
+        category: null,
+        search: 'first',
+      })
+      expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(1)
+      expect(wrapper.text()).toContain('matching "first"')
+    })
+
+    it('waits for the typing to settle before asking the API', async () => {
+      const wrapper = mountView()
+      await flushPromises()
+      expect(mockPluginIndex).toHaveBeenCalledTimes(1)
+
+      await wrapper.find('[data-test="search-input"]').setValue('first')
+      await flushPromises()
+
+      // A request per keystroke would hammer the endpoint on a long keyword.
+      expect(mockPluginIndex).toHaveBeenCalledTimes(1)
+
+      await waitForDebounce()
+      expect(mockPluginIndex).toHaveBeenCalledTimes(2)
+    })
+
+    it('collapses a burst of typing into a single request', async () => {
+      const wrapper = mountView()
+      await flushPromises()
+
+      const input = wrapper.find<HTMLInputElement>('[data-test="search-input"]')
+
+      for (const char of 'aaa') {
+        await input.setValue(input.element.value + char)
+      }
+      await waitForDebounce()
+
+      // Three keystrokes, three timers — and only the last one survives.
+      expect(mockPluginIndex).toHaveBeenCalledTimes(2)
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({
+        page: 1,
+        per_page: 9,
+        category: null,
+        search: 'aaa',
+      })
+      expect(mockReplace).toHaveBeenLastCalledWith({ query: { search: 'aaa' } })
+    })
+
+    it('keeps the search in the URL so the view can be shared and reloaded', async () => {
+      respondToSearch()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await type(wrapper, 'first')
+
+      expect(mockReplace).toHaveBeenLastCalledWith({ query: { search: 'first' } })
+    })
+
+    it('starts from the search in the URL', async () => {
+      mockRoute.value = { query: { search: 'first' } }
+
+      mountView()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenCalledWith({
+        page: 1,
+        per_page: 9,
+        category: null,
+        search: 'first',
+      })
+    })
+
+    it('goes back to page 1, because the matches are a different set', async () => {
+      const wrapper = mountView()
+      await flushPromises()
+
+      const next = wrapper.findAll('button').find((b) => b.text().includes('Next'))
+      await next!.trigger('click')
+      await flushPromises()
+
+      await type(wrapper, 'first')
+
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({
+        page: 1,
+        per_page: 9,
+        category: null,
+        search: 'first',
+      })
+    })
+
+    /** The matches are paginated too, so hiding the pager would strand them. */
+    it('keeps the pager while searching', async () => {
+      mockRoute.value = { query: { search: 'plugin' } }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Page 1 of 2')
+
+      const next = wrapper.findAll('button').find((b) => b.text().includes('Next'))
+      await next!.trigger('click')
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({
+        page: 2,
+        per_page: 9,
+        category: null,
+        search: 'plugin',
+      })
+    })
+
+    it('displays empty state if search yields no results', async () => {
+      respondToSearch()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await type(wrapper, 'non-existent-plugin')
+
+      expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(0)
+      expect(wrapper.text()).toContain('No plugins found')
+      expect(wrapper.text()).toContain('We couldn\'t find any plugin matching "non-existent-plugin"')
+
+      const clear = wrapper.findAll('button').find((b) => b.text() === 'Clear search')
+      await clear!.trigger('click')
+      await waitForDebounce()
+
+      expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(2)
+      expect(mockReplace).toHaveBeenLastCalledWith({ query: {} })
+    })
+  })
+
   describe('the category filter', () => {
     const option = (name: string) =>
       document.querySelector<HTMLElement>(`[data-test="${name}"]`)
@@ -233,7 +349,7 @@ describe('PluginsView.vue', () => {
       mountView()
       await flushPromises()
 
-      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null })
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null, search: null })
     })
 
     it('sends the picked category and puts it in the URL', async () => {
@@ -244,7 +360,7 @@ describe('PluginsView.vue', () => {
       option('category-option-Vision')!.click()
       await flushPromises()
 
-      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: 'Vision' })
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: 'Vision', search: null })
       expect(mockReplace).toHaveBeenCalledWith({ query: { category: 'Vision' } })
       expect(wrapper.text()).toContain('Vision')
     })
@@ -262,7 +378,7 @@ describe('PluginsView.vue', () => {
       option('category-option-Integrations')!.click()
       await flushPromises()
 
-      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: 'Integrations' })
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: 'Integrations', search: null })
     })
 
     it('starts from the category in the URL', async () => {
@@ -271,7 +387,7 @@ describe('PluginsView.vue', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: 'Integrations' })
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: 'Integrations', search: null })
       expect(wrapper.find('[data-test="category-trigger"]').text()).toContain('Integrations')
     })
 
@@ -283,8 +399,29 @@ describe('PluginsView.vue', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null })
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 1, per_page: 9, category: null, search: null })
       expect(wrapper.find('[data-test="category-trigger"]').text()).toContain('All categories')
+    })
+
+    it('keeps the search while the category changes', async () => {
+      mockRoute.value = { query: { search: 'first' } }
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await openFilter(wrapper)
+      option('category-option-Vision')!.click()
+      await flushPromises()
+
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({
+        page: 1,
+        per_page: 9,
+        category: 'Vision',
+        search: 'first',
+      })
+      expect(mockReplace).toHaveBeenLastCalledWith({
+        query: { category: 'Vision', search: 'first' },
+      })
     })
 
     it('clears the category and the URL when all is picked again', async () => {
@@ -302,7 +439,7 @@ describe('PluginsView.vue', () => {
       option('category-option-all')!.click()
       await flushPromises()
 
-      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: null })
+      expect(mockPluginIndex).toHaveBeenLastCalledWith({ page: 1, per_page: 9, category: null, search: null })
       expect(mockReplace).toHaveBeenLastCalledWith({ query: {} })
     })
 

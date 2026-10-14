@@ -445,6 +445,148 @@ class ListPluginsTest extends TestCase
             ->assertJsonPath('data.0.tags', []);
     }
 
+    // -----------------------------------------------------------------------
+    // search
+    // -----------------------------------------------------------------------
+
+    public function test_filters_the_catalogue_by_search_term(): void
+    {
+        $match = Plugin::factory()->create([
+            'name' => 'weather-kit',
+            'title' => 'Weather Kit',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+        Plugin::factory()->create([
+            'name' => 'clipboard-plus',
+            'title' => 'Clipboard Plus',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDay(),
+        ]);
+
+        $this->getJson('/api/v1/plugins?search=weather')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $match->id)
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_search_also_matches_the_title(): void
+    {
+        $match = Plugin::factory()->create([
+            'name' => 'weather-kit',
+            'title' => 'Forecasts for the harness',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $this->getJson('/api/v1/plugins?search=forecasts')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $match->id);
+    }
+
+    /** Postgres `like` is case-sensitive and SQLite's is not, so the term is lowered either way. */
+    public function test_search_ignores_case(): void
+    {
+        $match = Plugin::factory()->create([
+            'name' => 'weather-kit',
+            'title' => 'Weather Kit',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $this->getJson('/api/v1/plugins?search=WEATHER')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $match->id);
+    }
+
+    /** `like` reads `%` and `_` as wildcards, so a term holding one matches broadly. */
+    public function test_a_term_holding_a_wildcard_matches_more_than_the_literal_text(): void
+    {
+        Plugin::factory()->create([
+            'name' => '100%-done',
+            'title' => 'Hundred percent done',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+        Plugin::factory()->create([
+            'name' => 'almost-done',
+            'title' => 'Almost done',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDay(),
+        ]);
+
+        $this->getJson('/api/v1/plugins?search='.urlencode('%'))
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_search_never_reaches_unapproved_plugins(): void
+    {
+        Plugin::factory()->create([
+            'name' => 'weather-kit',
+            'title' => 'Weather Kit',
+            'status' => PluginStatus::Pending,
+        ]);
+
+        $this->getJson('/api/v1/plugins?search=weather')
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_search_combines_with_the_category_filter(): void
+    {
+        $match = Plugin::factory()->withCategory('Integrations')->create([
+            'name' => 'weather-slack',
+            'title' => 'Weather Slack',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+        $this->approvedPluginIn('Vision', now()->subDay());
+
+        $this->getJson('/api/v1/plugins?search=weather&category=Integrations')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $match->id);
+
+        $this->getJson('/api/v1/plugins?search=weather&category=Vision')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_the_catalogue_is_unfiltered_when_no_search_term_is_given(): void
+    {
+        Plugin::factory()->create([
+            'name' => 'weather-kit',
+            'title' => 'Weather Kit',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+        Plugin::factory()->create([
+            'name' => 'clipboard-plus',
+            'title' => 'Clipboard Plus',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDay(),
+        ]);
+
+        $this->getJson('/api/v1/plugins?search=')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_a_search_term_longer_than_the_limit_is_rejected(): void
+    {
+        $this->approvedPluginIn('Integrations');
+
+        $this->getJson('/api/v1/plugins?search='.urlencode(str_repeat('a', 101)))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('search');
+    }
+
     /**
      * An approved plugin filed under a known category.
      *

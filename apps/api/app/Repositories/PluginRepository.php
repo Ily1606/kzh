@@ -76,7 +76,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         );
     }
 
-    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null): LengthAwarePaginator
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null): LengthAwarePaginator
     {
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
@@ -85,6 +85,12 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->when($category !== null, fn (Builder $query) => $query->whereHas(
                 'categories',
                 fn (Builder $categories) => $categories->where('name', $category),
+            ))
+            // Match the keyword in either column, and nothing at all without one.
+            ->when(filled($search), fn (Builder $query) => $query->where(
+                fn (Builder $matches) => $matches
+                    ->whereLike('name', "%{$search}%")
+                    ->orWhereLike('title', "%{$search}%"),
             ))
             ->withCount([
                 'stars as star_count',

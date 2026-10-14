@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePluginsStore, useTaxonomyStore } from '@/stores'
-import type { PluginResource } from '@/api/generated/model'
 import PluginCard from '@/components/pages/plugin/PluginCard.vue'
 import Reveal from '@/components/common/Reveal.vue'
 import { Button } from '@/components/ui/button'
@@ -23,36 +22,39 @@ function isCategory(value: unknown): value is string {
 }
 
 const selectedCategory = ref<string | null>(isCategory(route.query.category) ? route.query.category : null)
-
-// UI state, not server state: this filters the page already in hand, so it
-// belongs here rather than in the store.
-const searchQuery = ref('')
-
-const filteredPlugins = computed<PluginResource[]>(() => {
-  const plugins = store.listPlugins
-
-  if (!searchQuery.value.trim()) return plugins
-
-  const q = searchQuery.value.toLowerCase().trim()
-  return plugins.filter(
-    (p) =>
-      p.name?.toLowerCase().includes(q) ||
-      p.title?.toLowerCase().includes(q) ||
-      p.license?.toLowerCase().includes(q)
-  )
-})
+const searchQuery = ref(typeof route.query.search === 'string' ? route.query.search : '')
+const SEARCH_DEBOUNCE_MS = 300
 
 async function fetchAllPlugins(page = 1) {
-  await store.fetchList(page, selectedCategory.value)
+  await store.fetchList(page, selectedCategory.value, searchQuery.value || null)
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-/** The category lives in the URL so the filtered view can be shared and reloaded. */
 async function chooseCategory(category: string | null) {
   selectedCategory.value = category
-  await router.replace({ query: category ? { category } : {} })
+  await syncQuery()
   await fetchAllPlugins(1)
 }
+
+/** Reads the current filter state and writes it to the URL, so both filters
+ *  stay in step after either one changes. */
+async function syncQuery() {
+  await router.replace({
+    query: {
+      ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
+      ...(searchQuery.value.trim() ? { search: searchQuery.value.trim() } : {}),
+    },
+  })
+}
+
+watch(searchQuery, (_query, _previous, onCleanup) => {
+  const timer = setTimeout(async () => {
+    await syncQuery()
+    await fetchAllPlugins(1)
+  }, SEARCH_DEBOUNCE_MS)
+
+  onCleanup(() => clearTimeout(timer))
+})
 
 onMounted(async () => {
   // The URL can name a category before the list arrives, so the check has to
@@ -90,6 +92,7 @@ onMounted(async () => {
             v-model="searchQuery"
             type="text"
             placeholder="Search plugins ..."
+            data-test="search-input"
             class="h-11 rounded-xl pl-9"
           />
         </div>
@@ -134,11 +137,12 @@ onMounted(async () => {
     <!-- Stats summary -->
     <div class="flex items-center justify-between text-sm text-muted-foreground">
       <span>
-        Showing <span class="font-medium text-foreground">{{ filteredPlugins.length }}</span>
         <template v-if="searchQuery">
+          <span class="font-medium text-foreground">{{ store.list.total }}</span>
           matching "<span class="font-medium text-foreground">{{ searchQuery }}</span>"
         </template>
         <template v-else>
+          Showing <span class="font-medium text-foreground">{{ store.listPlugins.length }}</span>
           of <span class="font-medium text-foreground">{{ store.list.total }}</span> total plugins
         </template>
       </span>
@@ -154,9 +158,9 @@ onMounted(async () => {
     </div>
 
     <!-- Plugin Grid -->
-    <div v-else-if="filteredPlugins.length > 0" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div v-else-if="store.listPlugins.length > 0" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       <Reveal
-        v-for="(plugin, index) in filteredPlugins"
+        v-for="(plugin, index) in store.listPlugins"
         :key="plugin.id"
         :delay="(index % 9) * 0.05"
         :y="16"
@@ -195,7 +199,7 @@ onMounted(async () => {
 
     <!-- Pagination Controls -->
     <div
-      v-if="!searchQuery && store.list.lastPage > 1"
+      v-if="store.list.lastPage > 1"
       class="pt-6 flex items-center justify-center gap-4 border-t"
     >
       <Button
