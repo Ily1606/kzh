@@ -4,6 +4,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
 import { LogOut, UserRound } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
+import ThemeToggle from "@/components/common/ThemeToggle.vue"
 
 const auth = useAuth()
 const router = useRouter()
@@ -23,11 +24,12 @@ async function handleLogout() {
           <span>DSH</span>
         </RouterLink>
         <div class="hidden items-center gap-6 md:flex">
-          <RouterLink to="/plugins" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Plugins</RouterLink>
-          <RouterLink v-if="auth.isAuthenticated" to="/resources" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Resources</RouterLink>
+          <RouterLink to="/plugins" class="nav-link">Plugins</RouterLink>
+          <RouterLink v-if="auth.isAuthenticated" to="/resources" class="nav-link">Resources</RouterLink>
         </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
+        <ThemeToggle />
         <template v-if="auth.isAuthenticated">
           <RouterLink to="/profile" class="hidden items-center gap-2 rounded-full border bg-muted/50 py-1 pl-1 pr-3 text-sm transition-colors hover:bg-muted sm:flex">
              <img v-if="auth.user?.avatarLink" :src="auth.user.avatarLink" class="size-7 rounded-full object-cover border border-border" alt="Avatar" />
@@ -43,3 +45,23 @@ async function handleLogout() {
     </div>
   </nav>
 </template>
+
+<style scoped>
+/* Vue Router puts router-link-active on the link matching the current route. */
+.nav-link {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  transition: color 0.15s;
+}
+
+.nav-link:hover {
+  color: var(--foreground);
+}
+
+.nav-link.router-link-active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+</style>

@@ -12,6 +12,24 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      // Runs before Vue so the first paint already has the right theme; without
+      // it the page flashes white on every load for a visitor using dark.
+      // Mirrors the storage key and the "auto" | "dark" | "light" values that
+      // useDark writes (see useTheme.ts).
+      (function () {
+        try {
+          var mode = localStorage.getItem("dsh-theme") || "auto";
+          var dark =
+            mode === "dark" ||
+            (mode !== "light" &&
+              matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+        } catch (e) {
+          /* private mode: fall back to whatever CSS resolves to */
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

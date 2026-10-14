@@ -63,8 +63,8 @@ watch(pluginId, () => {
 
 <template>
   <div class="mx-auto max-w-4xl py-12 px-4 sm:px-6">
-    <div v-if="store.isFetchingPlugin && !plugin" class="text-center py-12">
-      <div class="animate-pulse flex flex-col items-center">
+    <div v-if="store.isFetchingPlugin && !plugin" class="glass animate-pulse rounded-2xl py-12 text-center">
+      <div class="flex flex-col items-center">
         <div class="h-12 w-12 bg-muted rounded-full mb-4"></div>
         <div class="h-6 w-1/3 bg-muted rounded mb-2"></div>
       </div>
@@ -101,7 +101,7 @@ watch(pluginId, () => {
       </div>
 
       <!-- Error -->
-      <div v-else-if="error" class="py-12 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
+      <div v-else-if="error" class="glass rounded-2xl py-12 text-center p-8 space-y-3">
         <div class="mx-auto size-12 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
           <X class="size-6" />
         </div>
@@ -111,7 +111,7 @@ watch(pluginId, () => {
       </div>
 
       <!-- Empty -->
-      <div v-else-if="events.length === 0" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-2">
+      <div v-else-if="events.length === 0" class="glass rounded-2xl py-16 text-center p-8 space-y-2">
         <div class="mx-auto size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
           <MessageSquare class="size-6" />
         </div>

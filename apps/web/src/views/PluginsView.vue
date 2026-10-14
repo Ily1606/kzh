@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePluginsStore, useTaxonomyStore } from '@/stores'
 import type { PluginResource } from '@/api/generated/model'
 import PluginCard from '@/components/pages/plugin/PluginCard.vue'
+import Reveal from '@/components/common/Reveal.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -71,7 +72,9 @@ onMounted(async () => {
     <div class="pb-6 border-b">
       <div>
         <div class="inline-flex items-center gap-2 py-1 text-xs font-medium mb-3">
-          <PackageOpen class="size-7 text-primary " />
+          <span class="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <PackageOpen class="size-5" />
+          </span>
           <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Plugins</h1>
         </div>
         <p class="mt-2 text-muted-foreground max-w-xl">
@@ -152,16 +155,21 @@ onMounted(async () => {
 
     <!-- Plugin Grid -->
     <div v-else-if="filteredPlugins.length > 0" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <PluginCard
-        v-for="plugin in filteredPlugins"
+      <Reveal
+        v-for="(plugin, index) in filteredPlugins"
         :key="plugin.id"
-        :plugin="plugin"
-        class="min-w-0! max-w-none! w-full! shrink!"
-      />
+        :delay="(index % 9) * 0.05"
+        :y="16"
+      >
+        <PluginCard
+          :plugin="plugin"
+          class="min-w-0! max-w-none! w-full! shrink!"
+        />
+      </Reveal>
     </div>
 
     <!-- Empty State -->
-    <div v-else class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
+    <div v-else class="glass py-16 text-center rounded-2xl p-8 space-y-3">
       <div class="mx-auto size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
         <PackageOpen class="size-6" />
       </div>

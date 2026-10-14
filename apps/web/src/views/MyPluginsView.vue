@@ -84,7 +84,9 @@ watch([activeStatus, () => route.query.page], () => {
     <div class="flex flex-col gap-6 pb-6 border-b sm:flex-row sm:items-end sm:justify-between">
       <div>
         <div class="inline-flex items-center gap-2 py-1 text-xs font-medium mb-3">
-          <PackageOpen class="size-7 text-primary" />
+          <span class="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <PackageOpen class="size-5" />
+          </span>
           <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Resources</h1>
         </div>
         <p class="mt-2 text-muted-foreground max-w-xl">
@@ -113,7 +115,10 @@ watch([activeStatus, () => route.query.page], () => {
         @click="setStatus(tab.value)"
       >
         {{ tab.label }}
-        <span v-if="index === 0 && allTabTotal !== null" class="text-xs text-muted-foreground">
+        <span
+          v-if="index === 0 && allTabTotal !== null"
+          class="text-xs rounded-full bg-primary/10 px-1.5 py-0.5 text-primary"
+        >
           {{ allTabTotal }}
         </span>
         <span
@@ -136,7 +141,7 @@ watch([activeStatus, () => route.query.page], () => {
       </div>
 
       <!-- Error -->
-      <div v-else-if="store.fetchError" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
+      <div v-else-if="store.fetchError" class="glass py-16 text-center rounded-2xl p-8 space-y-3">
         <div class="mx-auto size-12 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
           <AlertCircle class="size-6" />
         </div>
@@ -148,7 +153,7 @@ watch([activeStatus, () => route.query.page], () => {
       </div>
 
       <!-- No plugins at all -->
-      <div v-else-if="store.minePlugins.length === 0 && activeStatus === undefined" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-3">
+      <div v-else-if="store.minePlugins.length === 0 && activeStatus === undefined" class="glass py-16 text-center rounded-2xl p-8 space-y-3">
         <div class="mx-auto size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
           <PackageOpen class="size-6" />
         </div>
@@ -162,7 +167,7 @@ watch([activeStatus, () => route.query.page], () => {
       </div>
 
       <!-- Nothing in this particular tab -->
-      <div v-else-if="store.minePlugins.length === 0" class="py-16 text-center border rounded-2xl bg-card/60 p-8 space-y-2">
+      <div v-else-if="store.minePlugins.length === 0" class="glass py-16 text-center rounded-2xl p-8 space-y-2">
         <h3 class="text-base font-semibold">No {{ activeTabLabel.toLowerCase() }} plugins</h3>
         <p class="text-sm text-muted-foreground">
           Switch to another tab to see the rest of your plugins.
@@ -170,7 +175,7 @@ watch([activeStatus, () => route.query.page], () => {
       </div>
 
       <template v-else>
-        <ul class="rounded-2xl border bg-card/60 overflow-hidden">
+        <ul class="glass rounded-2xl overflow-hidden">
           <MyPluginRow v-for="plugin in store.minePlugins" :key="plugin.id" :plugin="plugin" />
         </ul>
 

@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* Dark mode is driven by a class on <html> so the navbar toggle can win over
+   the OS preference. Without this variant `dark:` would keep following the
+   media query and the toggle would appear to do nothing. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ---------------------------------------------------------------------------
    Typography — self-hosted (no CDN), latin + vietnamese subsets only.
    Inter Variable       → UI, body copy, headings
@@ -101,25 +106,35 @@
   --border: #e4e4e7;
   --input: #e4e4e7;
   --ring: #9333ea;
+
+  /* Glass surfaces read off these so the theme toggle can flip them along
+     with the rest of the palette. */
+  --glass-bg: rgb(255 255 255 / 0.62);
+  --glass-border: rgb(255 255 255 / 0.55);
+  --glass-highlight: rgb(255 255 255 / 0.75);
+  --glass-shadow: 0 8px 32px rgb(17 17 17 / 0.06);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #111111;
-    --foreground: #fafafa;
-    --card: #18181b;
-    --card-foreground: #fafafa;
-    --popover: #18181b;
-    --popover-foreground: #fafafa;
-    --secondary: #27272a;
-    --secondary-foreground: #fafafa;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
-    --accent: #2e164b;
-    --accent-foreground: #e9d5ff;
-    --border: #27272a;
-    --input: #27272a;
-  }
+.dark {
+  --background: #111111;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #2e164b;
+  --accent-foreground: #e9d5ff;
+  --border: #27272a;
+  --input: #27272a;
+
+  --glass-bg: rgb(24 24 27 / 0.66);
+  --glass-border: rgb(255 255 255 / 0.1);
+  --glass-highlight: rgb(255 255 255 / 0.14);
+  --glass-shadow: 0 8px 32px rgb(0 0 0 / 0.4);
 }
 
 @layer base {
@@ -127,4 +142,129 @@
   html { scroll-behavior: smooth; }
   body { @apply bg-background text-foreground antialiased; }
   button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+}
+
+/* ---------------------------------------------------------------------------
+   Surfaces — glass sits on top of the aurora backgrounds, so it reads the
+   --glass-* tokens rather than hardcoding white/black.
+--------------------------------------------------------------------------- */
+@utility glass {
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+@utility glass-strong {
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+}
+
+/* Hairline rim used to outline a glass panel without adding another border. */
+@utility glass-edge {
+  box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-highlight);
+}
+
+@utility gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-primary-600) 0%,
+    var(--color-primary-400) 45%,
+    #d946ef 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.dark .gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    #c084fc 0%,
+    #a75cf3 45%,
+    #e879f9 100%
+  );
+}
+
+@utility grid-dots {
+  background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+@utility aurora {
+  background-image:
+    radial-gradient(ellipse 50% 40% at 15% 10%, rgb(147 51 234 / 0.28), transparent 65%),
+    radial-gradient(ellipse 45% 40% at 85% 0%, rgb(59 130 246 / 0.2), transparent 65%),
+    radial-gradient(ellipse 60% 45% at 50% 100%, rgb(217 70 239 / 0.16), transparent 70%);
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — every duration lives here so one reduced-motion block can reach
+   them all.
+--------------------------------------------------------------------------- */
+@theme {
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 12s ease-in-out infinite;
+  --animate-aurora-pan: aurora-pan 22s ease-in-out infinite alternate;
+  --animate-gradient-pan: gradient-pan 8s linear infinite;
+  --animate-marquee: marquee 38s linear infinite;
+  --animate-pulse-ring: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-typing: typing 2.4s steps(28, end) 0.3s 1 both;
+  --animate-blink: blink 1.1s step-end infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(0, -22px, 0); }
+  }
+
+  @keyframes aurora-pan {
+    0% { transform: translate3d(-4%, -2%, 0) scale(1); }
+    100% { transform: translate3d(4%, 3%, 0) scale(1.12); }
+  }
+
+  @keyframes gradient-pan {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(1.6); }
+  }
+
+  /* Reveals a line in chunks regardless of how wide its parent is — max-width
+     would finish early whenever the parent is wider than the text. Pair with
+     the caret on .terminal-line::after; `both` holds the finished line. */
+  @keyframes typing {
+    0% { clip-path: inset(0 100% 0 0); }
+    75% { clip-path: inset(0 0 0 0); }
+    100% { clip-path: inset(0 0 0 0); }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

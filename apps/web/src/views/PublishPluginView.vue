@@ -89,7 +89,7 @@ async function submitPlugin(values: PluginFields) {
         <div class="lg:col-span-7 space-y-8">
           <div>
             <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">
-              Publish your plugin
+              Publish your <span class="gradient-text">plugin</span>
             </h1>
             <p class="mt-3 text-base sm:text-lg text-muted-foreground max-w-xl leading-relaxed">
               Share your package with the DeepSeek Harness community. Once reviewed, developers worldwide can install it with one command.
@@ -129,7 +129,7 @@ async function submitPlugin(values: PluginFields) {
 
         <!-- Right Column: Stylized Floating Glassmorphism Showcase Card (5 cols) -->
         <div class="lg:col-span-5 relative lg:sticky lg:top-24">
-          <div class="rounded-3xl border border-border/60 bg-card/70 backdrop-blur-xl p-8 sm:p-9 shadow-2xl h-95 sm:h-100 flex flex-col justify-between relative overflow-hidden">
+          <div class="glass-strong rounded-3xl p-8 sm:p-9 shadow-2xl h-95 sm:h-100 flex flex-col justify-between relative overflow-hidden">
             <!-- Subtle card inner glow -->
             <div class="pointer-events-none absolute -top-12 -right-12 size-36 bg-emerald-500/10 rounded-full blur-2xl" />
 

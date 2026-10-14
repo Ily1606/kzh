@@ -27,3 +27,26 @@ Object.defineProperty(window, 'matchMedia', {
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.setPointerCapture ??= () => {};
 Element.prototype.releasePointerCapture ??= () => {};
+
+// jsdom has no IntersectionObserver, and motion-v's whileInView constructs one
+// on mount. Reporting every element as already in view keeps reveal animations
+// in their finished state instead of throwing.
+class ImmediateIntersectionObserver {
+  constructor(private callback: IntersectionObserverCallback) {}
+  observe(target: Element) {
+    this.callback(
+      [{ target, isIntersecting: true, intersectionRatio: 1 } as IntersectionObserverEntry],
+      this as unknown as IntersectionObserver,
+    );
+  }
+  unobserve() {}
+  disconnect() {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+  root = null;
+  rootMargin = '';
+  thresholds: number[] = [];
+}
+window.IntersectionObserver ??=
+  ImmediateIntersectionObserver as unknown as typeof IntersectionObserver;

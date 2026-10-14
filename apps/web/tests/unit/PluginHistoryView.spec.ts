@@ -396,7 +396,7 @@ describe('PluginHistoryView.vue', () => {
 
       expect(wrapper.text()).toContain('Page 2 of 3')
 
-      const [previous, next] = wrapper.findAll('button').slice(-2)
+      const [previous] = wrapper.findAll('button').slice(-2)
       await previous!.trigger('click')
       await flushPromises()
 
