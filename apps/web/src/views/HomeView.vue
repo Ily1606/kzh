@@ -11,7 +11,7 @@ import {
   PackageOpen,
   Terminal,
   UploadCloud,
-} from "lucide-vue-next";
+} from "@lucide/vue";
 import { getHealth } from "@/api/generated/endpoints";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

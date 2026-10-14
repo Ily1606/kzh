@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Pencil } from 'lucide-vue-next'
+import { Pencil } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'

@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,7 +51,9 @@ const onSubmit = handleSubmit(async (values) => {
 <template>
   <Card class="gap-0 overflow-hidden border-border/80 bg-card/90 py-0 shadow-xl shadow-primary/5">
     <form class="space-y-4 p-6" @submit.prevent="onSubmit">
-      <Alert v-if="errorMsg" variant="destructive">{{ errorMsg }}</Alert>
+      <Alert v-if="errorMsg" variant="destructive">
+        <AlertDescription>{{ errorMsg }}</AlertDescription>
+      </Alert>
       <div class="space-y-1.5">
         <Label for="email">Email</Label>
         <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(errors.email)" />

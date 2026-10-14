@@ -3,7 +3,9 @@
 namespace App\Contracts;
 
 use App\Enums\PluginStatus;
+use App\Models\Category;
 use App\Models\Plugin;
+use App\Models\Tag;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -29,7 +31,26 @@ interface PluginRepositoryInterface
      */
     public function update(Model $model, array $attributes): Plugin;
 
-    public function getPaginatedApprovedPlugins(int $perPage): LengthAwarePaginator;
+    /**
+     * Put the plugin in this category, replacing whatever it was in.
+     */
+    public function replaceCategory(Plugin $plugin, Category $category): void;
+
+    /**
+     * Give the plugin exactly these tags, replacing whatever it had.
+     *
+     * An empty list clears them all.
+     *
+     * @param  array<int, Tag>  $tags
+     */
+    public function replaceTags(Plugin $plugin, array $tags): void;
+
+    /**
+     * List the published catalogue.
+     *
+     * @param  string|null  $category  Restrict to one category by name, or null for all of them.
+     */
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null): LengthAwarePaginator;
 
     /**
      * List one owner's plugins, whatever their review status.

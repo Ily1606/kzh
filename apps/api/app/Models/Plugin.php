@@ -5,10 +5,12 @@ namespace App\Models;
 use App\Enums\PluginStatus;
 use Database\Factories\PluginFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -63,5 +65,36 @@ class Plugin extends Model
     public function stars(): HasMany
     {
         return $this->hasMany(Star::class);
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class);
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class);
+    }
+
+    public function categoryLinks(): HasMany
+    {
+        return $this->hasMany(CategoryPlugin::class);
+    }
+
+    public function tagLinks(): HasMany
+    {
+        return $this->hasMany(PluginTag::class);
+    }
+
+    /**
+     * The plugin's one category, or null for plugins submitted before
+     * categories existed.
+     *
+     * @return Attribute<Category|null, $this>
+     */
+    protected function category(): Attribute
+    {
+        return Attribute::get(fn (): ?Category => $this->categories->first());
     }
 }

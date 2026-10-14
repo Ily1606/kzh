@@ -76,4 +76,9 @@ return [
         'age_offset' => env('PLUGIN_TRENDING_AGE_OFFSET', 2),
     ],
     'licenses' => array_column(PluginLicense::cases(), 'value'),
+
+    /*
+    | How many tags one plugin may carry
+    */
+    'tags_per_plugin_limit' => 5,
 ];

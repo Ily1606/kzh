@@ -70,6 +70,8 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     author: { id: 'user-456', name: 'Jane Dev', avatar_url: '' },
     title: 'My awesome plugin',
     license: 'MIT',
+    category: 'Integrations',
+    tags: ['May read files'],
     approved_at: '2026-10-01T00:00:00Z',
     status: 'approved',
     source_link: 'https://github.com/owner/repo',

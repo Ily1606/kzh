@@ -4,9 +4,13 @@ namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
 use App\Events\Plugin\PluginSubmitted;
+use App\Models\Category;
 use App\Models\Plugin;
+use App\Models\Tag;
 use App\Models\User;
+use Database\Seeders\CategoryAndTagSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -20,6 +24,11 @@ class SubmitPluginTest extends TestCase
     {
         parent::setUp();
 
+        // The taxonomy tables are empty under RefreshDatabase, and requests
+        // validate `category` and `tags.*` against them. Seeding is what a
+        // deployed environment does at setup time.
+        $this->seed(CategoryAndTagSeeder::class);
+
         Event::fake([PluginSubmitted::class]);
     }
 
@@ -32,6 +41,7 @@ class SubmitPluginTest extends TestCase
             'name' => 'Laravel Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
+            'category' => 'Developer tools',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar',
         ], $overrides);
     }
@@ -150,7 +160,7 @@ class SubmitPluginTest extends TestCase
 
         $this->postJson('/api/v1/plugins', [])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name', 'title', 'license', 'source_link']);
+            ->assertJsonValidationErrors(['name', 'title', 'license', 'category', 'source_link']);
     }
 
     public function test_submission_rejects_invalid_license_and_non_https_source_link(): void
@@ -399,5 +409,226 @@ class SubmitPluginTest extends TestCase
             ->assertJsonValidationErrors('name');
 
         $this->assertDatabaseCount('plugins', 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // category & tags
+    // -----------------------------------------------------------------------
+
+    public function test_submission_files_the_plugin_under_the_submitted_category(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $response = $this->postJson('/api/v1/plugins', $this->payload([
+            'category' => 'Security & diagnostics',
+        ]))->assertCreated()
+            ->assertJsonPath('data.plugin.category', 'Security & diagnostics')
+            ->assertJsonPath('data.plugin.tags', []);
+
+        $pluginId = $response->json('data.plugin.id');
+
+        $this->assertDatabaseHas('category_plugin', [
+            'plugin_id' => $pluginId,
+            'category_id' => Category::query()->where('name', 'Security & diagnostics')->value('id'),
+        ]);
+    }
+
+    public function test_submission_attaches_every_submitted_tag(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $response = $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['May read files', 'May run commands'],
+        ]))->assertCreated()
+            ->assertJsonPath('data.plugin.tags', ['May read files', 'May run commands']);
+
+        $pluginId = $response->json('data.plugin.id');
+
+        $this->assertSame(2, DB::table('plugin_tag')->where('plugin_id', $pluginId)->count());
+    }
+
+    public function test_submission_without_tags_attaches_none(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $response = $this->postJson('/api/v1/plugins', $this->payload())->assertCreated();
+
+        $this->assertSame(
+            0,
+            DB::table('plugin_tag')->where('plugin_id', $response->json('data.plugin.id'))->count(),
+        );
+    }
+
+    /**
+     * plugin_tag is unique on (plugin_id, tag_id), so a repeated tag that was
+     * not collapsed first would fail the constraint and surface as a 500.
+     */
+    public function test_a_tag_sent_twice_is_attached_once(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $response = $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['May run commands', 'May run commands', '  May run commands  '],
+        ]))->assertCreated()
+            ->assertJsonPath('data.plugin.tags', ['May run commands']);
+
+        $this->assertSame(
+            1,
+            DB::table('plugin_tag')->where('plugin_id', $response->json('data.plugin.id'))->count(),
+        );
+    }
+
+    public function test_submission_rejects_a_category_outside_the_known_list(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'category' => 'Cryptocurrency',
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors('category');
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    public function test_submission_rejects_a_tag_outside_the_known_list(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['May read files', 'Runs arbitrary shell'],
+        ]))->assertUnprocessable()
+            // A rejected item is reported on its own index, which is what a
+            // client needs to point at the offending chip.
+            ->assertJsonValidationErrors(['tags.1']);
+
+        $this->assertDatabaseCount('plugins', 0);
+        // The taxonomy itself survives a rejected submission — only the pivot
+        // row it would have created must be absent.
+        $this->assertDatabaseCount('plugin_tag', 0);
+    }
+
+    /**
+     * Padded tags must not fail the configured-list rule. The global `TrimStrings`
+     * middleware is what strips them — this pins that behaviour on the HTTP path,
+     * which a unit test building the FormRequest directly never exercises.
+     */
+    public function test_padded_tags_are_accepted(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['  May read files  ', "\tMay run commands\n"],
+        ]))->assertCreated()
+            ->assertJsonPath('data.plugin.tags', ['May read files', 'May run commands']);
+    }
+
+    public function test_a_whitespace_only_tag_is_rejected(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        // Trims down to an empty string, and Laravel skips every non-implicit rule
+        // on an empty string — so only `required` on `tags.*` stands in the way.
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['May read files', '   '],
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['tags.1']);
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    public function test_a_tag_that_is_not_a_string_is_rejected(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => [['nested' => 'value']],
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors(['tags.0']);
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    public function test_tags_sent_as_a_string_rather_than_an_array_is_rejected(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => 'May read files',
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors('tags');
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    public function test_submission_rejects_more_tags_than_the_configured_limit(): void
+    {
+        config()->set('plugins.tags_per_plugin_limit', 2);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['May read files', 'May run commands', 'Integrations'],
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors('tags');
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    public function test_submission_accepts_a_tag_added_after_seeding(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['Custom Tag'],
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors('tags.0');
+
+        // The `tags` table is the source of truth, so a row added after the
+        // seed is usable straight away — no code change and no re-deploy.
+        Tag::query()->create(['name' => 'Custom Tag']);
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['Custom Tag'],
+        ]))->assertCreated()
+            ->assertJsonPath('data.plugin.tags', ['Custom Tag']);
+    }
+
+    /**
+     * A submission whose category has no row behind it is refused with a
+     * field-level error. The service deliberately does not create the row:
+     * creating whatever arrives would let any client invent a category.
+     */
+    public function test_submission_accepts_a_category_added_after_seeding(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        Category::query()->where('name', 'Integrations')->delete();
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'category' => 'Integrations',
+        ]))->assertUnprocessable()
+            ->assertJsonValidationErrors('category');
+
+        $this->assertDatabaseCount('plugins', 0);
+        $this->assertDatabaseCount('category_plugin', 0);
+
+        Category::query()->create(['name' => 'Integrations']);
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'category' => 'Integrations',
+        ]))->assertCreated()
+            ->assertJsonPath('data.plugin.category', 'Integrations');
+    }
+
+    public function test_a_refused_taxonomy_leaves_no_plugin_and_no_event(): void
+    {
+        Event::fake([PluginSubmitted::class]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload([
+            'tags' => ['Runs arbitrary shell'],
+        ]))->assertUnprocessable();
+
+        $this->assertDatabaseCount('plugins', 0);
+        $this->assertDatabaseCount('plugin_events', 0);
     }
 }

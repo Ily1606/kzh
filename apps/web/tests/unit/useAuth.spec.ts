@@ -83,7 +83,7 @@ describe('useAuth composable', () => {
     authStore.setToken('old-token');
     authStore.setUser({ id: '1', name: 'User', email: 'test@example.com' } as any);
     pluginsStore.put([{
-      id: 'plugin-1', name: '@dsh/x', user_id: '1', author: null, title: 't', license: 'MIT',
+      id: 'plugin-1', name: '@dsh/x', user_id: '1', author: null, title: 't', license: 'MIT', category: null, tags: [],
       approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
       is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
     }]);
@@ -106,7 +106,7 @@ describe('useAuth composable', () => {
 
     authStore.setToken('old-token');
     pluginsStore.put([{
-      id: 'plugin-1', name: '@dsh/x', user_id: '1', author: null, title: 't', license: 'MIT',
+      id: 'plugin-1', name: '@dsh/x', user_id: '1', author: null, title: 't', license: 'MIT', category: null, tags: [],
       approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 0,
       comment_count: 0, view_count: 0, created_at: null, updated_at: null,
     }]);

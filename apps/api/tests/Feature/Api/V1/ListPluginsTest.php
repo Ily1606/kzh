@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Models\Category;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -196,9 +197,9 @@ class ListPluginsTest extends TestCase
         $this->getJson('/api/v1/plugins')->assertOk();
 
         // The plugins page plus its count query, plus exactly one query per
-        // eager loaded relation (users, user_profiles) — all batched. Without
-        // the eager loads this grows with the page size.
-        $this->assertLessThanOrEqual(4, $queries);
+        // eager loaded relation (users, user_profiles, categories, tags) — all
+        // batched. Without the eager loads this grows with the page size.
+        $this->assertLessThanOrEqual(6, $queries);
     }
 
     public function test_response_uses_plugin_resource_format(): void
@@ -305,5 +306,156 @@ class ListPluginsTest extends TestCase
         $this->getJson('/api/v1/plugins')
             ->assertOk()
             ->assertJsonPath('data.0.is_star', false);
+    }
+
+    // -----------------------------------------------------------------------
+    // category filter
+    // -----------------------------------------------------------------------
+
+    public function test_filters_the_catalogue_by_category(): void
+    {
+        $fun = $this->approvedPluginIn('Integrations');
+        $this->approvedPluginIn('Vision', now()->subDay());
+
+        $this->getJson('/api/v1/plugins?category=Integrations')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $fun->id)
+            // The total counts the filter, not the whole catalogue — that is
+            // what drives the pager.
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_the_catalogue_is_unfiltered_when_no_category_is_given(): void
+    {
+        $this->approvedPluginIn('Integrations');
+        $this->approvedPluginIn('Vision');
+
+        $this->getJson('/api/v1/plugins')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    /**
+     * A plugin submitted before categories existed sits in none of them, so it
+     * belongs to no category view while staying in the unfiltered list.
+     */
+    public function test_a_plugin_without_a_category_is_excluded_from_every_category_filter(): void
+    {
+        $legacy = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+        $this->approvedPluginIn('Integrations', now()->subDay());
+
+        $this->getJson('/api/v1/plugins?category=Integrations')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.category', 'Integrations');
+
+        $this->getJson('/api/v1/plugins')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.category', null)
+            ->assertJsonPath('data.1.category', 'Integrations');
+
+        $this->assertNull($legacy->categories()->first());
+    }
+
+    /**
+     * `UI & workspace` carries an ampersand, so the filter has to survive a
+     * round trip through a query string that encodes it.
+     */
+    public function test_filters_by_a_category_whose_name_needs_url_encoding(): void
+    {
+        $plugin = $this->approvedPluginIn('UI & workspace');
+
+        $this->getJson('/api/v1/plugins?category='.urlencode('UI & workspace'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $plugin->id)
+            ->assertJsonPath('data.0.category', 'UI & workspace');
+    }
+
+    public function test_a_category_outside_the_known_list_is_rejected(): void
+    {
+        $this->approvedPluginIn('Integrations');
+
+        $this->getJson('/api/v1/plugins?category=Cryptocurrency')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('category');
+    }
+
+    public function test_a_category_with_no_plugins_returns_an_empty_page(): void
+    {
+        $this->approvedPluginIn('Integrations');
+
+        // The filter is checked against the `categories` table, so the row has
+        // to exist for the query to run at all.
+        Category::query()->create(['name' => 'Vision']);
+
+        $this->getJson('/api/v1/plugins?category=Vision')
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_the_category_filter_holds_for_a_signed_in_viewer(): void
+    {
+        $fun = $this->approvedPluginIn('Integrations');
+        $this->approvedPluginIn('Vision', now()->subDay());
+
+        Sanctum::actingAs(User::factory()->create(), [], 'api');
+
+        $this->getJson('/api/v1/plugins?category=Integrations')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $fun->id);
+    }
+
+    public function test_the_category_filter_paginates_within_the_filtered_set(): void
+    {
+        $oldest = $this->approvedPluginIn('Integrations', now()->subDays(3));
+        $middle = $this->approvedPluginIn('Integrations', now()->subDays(2));
+        $newest = $this->approvedPluginIn('Integrations', now()->subDay());
+        $this->approvedPluginIn('Vision');
+
+        $this->getJson('/api/v1/plugins?category=Integrations&per_page=2')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $newest->id)
+            ->assertJsonPath('data.1.id', $middle->id)
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('meta.last_page', 2);
+
+        $this->getJson('/api/v1/plugins?category=Integrations&per_page=2&page=2')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $oldest->id);
+    }
+
+    public function test_the_response_carries_the_plugin_taxonomy(): void
+    {
+        $this->approvedPluginIn('Developer tools');
+
+        $this->getJson('/api/v1/plugins')
+            ->assertOk()
+            ->assertJsonPath('data.0.category', 'Developer tools')
+            ->assertJsonPath('data.0.tags', []);
+    }
+
+    /**
+     * An approved plugin filed under a known category.
+     *
+     * @param  mixed  $approvedAt  When it was approved; ordering assertions
+     *                             need something to sort by.
+     */
+    private function approvedPluginIn(string $category, mixed $approvedAt = null): Plugin
+    {
+        return Plugin::factory()->withCategory($category)->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => $approvedAt ?? now(),
+        ]);
     }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { ArrowLeft, Check, LoaderCircle, MessageSquare, RefreshCw, Send, X } from 'lucide-vue-next'
+import { ArrowLeft, Check, LoaderCircle, MessageSquare, RefreshCw, Send, X } from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { usePluginsStore } from '@/stores'

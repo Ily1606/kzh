@@ -130,12 +130,12 @@ export const usePluginsStore = defineStore('plugins', () => {
   }
 
   /** Always fetches: this list is paginated, and a search or page change must see fresh counts. */
-  async function fetchList(page = 1): Promise<void> {
+  async function fetchList(page = 1, category?: string | null): Promise<void> {
     isFetchingList.value = true;
     fetchError.value = null;
 
     try {
-      const res = await pluginIndex({ params: { page, per_page: pluginConfig.numberPluginPerPage } });
+      const res = await pluginIndex({ page, per_page: pluginConfig.numberPluginPerPage, category });
       const plugins = res.data ?? [];
 
       put(plugins);

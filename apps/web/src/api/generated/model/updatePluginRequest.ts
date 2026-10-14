@@ -12,6 +12,12 @@ export interface UpdatePluginRequest {
   /** @maxLength 255 */
   title?: string;
   license?: UpdatePluginRequestLicense;
+  category?: string;
+  /**
+     * @maxItems 5
+     * @nullable
+     */
+  tags?: string[] | null;
   /** @maxLength 2048 */
   source_link?: string;
 }

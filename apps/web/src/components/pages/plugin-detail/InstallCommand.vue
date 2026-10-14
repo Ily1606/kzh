@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Check, Copy, Terminal } from 'lucide-vue-next'
+import { Check, Copy, Terminal } from '@lucide/vue'
 
 const props = defineProps<{
   /** Full package name as published, e.g. `@dsh/guardrails`. */

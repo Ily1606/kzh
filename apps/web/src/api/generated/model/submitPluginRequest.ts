@@ -12,6 +12,12 @@ export interface SubmitPluginRequest {
   /** @maxLength 255 */
   title: string;
   license: SubmitPluginRequestLicense;
+  category: string;
+  /**
+     * @maxItems 5
+     * @nullable
+     */
+  tags?: string[] | null;
   /** @maxLength 2048 */
   source_link: string;
 }

@@ -14,6 +14,12 @@ export interface PluginResource {
   author: PluginResourceAuthor;
   title: string;
   license: string;
+  /**
+     * Null for a plugin submitted before categories existed.
+     * @nullable
+     */
+  category: string | null;
+  tags: string[];
   /** @nullable */
   approved_at: string | null;
   status: string;

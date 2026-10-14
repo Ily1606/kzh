@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { toRef, watch } from 'vue'
-import { FileText } from 'lucide-vue-next'
+import { toRef, useTemplateRef, watch } from 'vue'
+import { FileText } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { README_COLLAPSED_MAX_HEIGHT, usePluginReadme } from '@/composables/usePluginReadme'
 
@@ -19,8 +19,12 @@ const emit = defineEmits<{
   (e: 'loaded'): void
 }>()
 
-const { html, isLoading, error, isExpanded, isLong, load, expand, collapse } =
-  usePluginReadme(toRef(props, 'sourceLink'))
+const container = useTemplateRef<HTMLElement | null>('container')
+
+const { html, isLoading, error, isExpanded, isLong, load, expand, collapse } = usePluginReadme(
+  toRef(props, 'sourceLink'),
+  container,
+)
 
 // A `watch` on the prop rather than `onMounted`: a detail page reached before
 // its plugin resolves mounts this component only once the plugin is known, and

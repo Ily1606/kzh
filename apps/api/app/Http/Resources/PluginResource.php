@@ -29,6 +29,10 @@ class PluginResource extends JsonResource
             ] : null,
             'title' => $this->title,
             'license' => $this->license,
+            // Null for a plugin submitted before categories existed.
+            'category' => $this->category?->name,
+            /** @var list<string> $tags */
+            'tags' => $this->tags->pluck('name')->values()->all(),
             'approved_at' => $this->approved_at?->toISOString(),
             'status' => $this->status->value,
             'source_link' => $this->source_link,

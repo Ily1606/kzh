@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(CategoryAndTagSeeder::class);
+
         User::query()->updateOrCreate(
             ['email' => 'admin@example.com'],
             [

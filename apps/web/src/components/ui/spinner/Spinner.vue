@@ -1,6 +1,17 @@
+<script setup lang="ts">
+import type { HTMLAttributes } from "vue"
+import { Loader2Icon } from "@lucide/vue"
+import { cn } from '@/utils/cn'
+
+const props = defineProps<{
+  class?: HTMLAttributes["class"]
+}>()
+</script>
+
 <template>
-  <svg data-slot="spinner" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4z" />
-  </svg>
+  <Loader2Icon
+    role="status"
+    aria-label="Loading"
+    :class="cn('size-4 animate-spin', props.class)"
+  />
 </template>

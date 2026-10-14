@@ -43,6 +43,8 @@ export const PluginMyPluginsResponse = zod.object({
 }).nullable(),
   "title": zod.string(),
   "license": zod.string(),
+  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
+  "tags": zod.array(zod.string()),
   "approved_at": zod.string().nullable(),
   "status": zod.string(),
   "source_link": zod.string(),
@@ -82,6 +84,8 @@ export const pluginStoreBodyNameMax = 255;
 
 export const pluginStoreBodyTitleMax = 255;
 
+export const pluginStoreBodyTagsMax = 5;
+
 export const pluginStoreBodySourceLinkMax = 2048;
 
 
@@ -90,6 +94,8 @@ export const PluginStoreBody = zod.object({
   "name": zod.string().max(pluginStoreBodyNameMax),
   "title": zod.string().max(pluginStoreBodyTitleMax),
   "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']),
+  "category": zod.string(),
+  "tags": zod.array(zod.string()).max(pluginStoreBodyTagsMax).nullish(),
   "source_link": zod.string().url().max(pluginStoreBodySourceLinkMax)
 })
 
@@ -108,6 +114,8 @@ export const PluginStoreResponse = zod.object({
 }).nullable(),
   "title": zod.string(),
   "license": zod.string(),
+  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
+  "tags": zod.array(zod.string()),
   "approved_at": zod.string().nullable(),
   "status": zod.string(),
   "source_link": zod.string(),
@@ -126,6 +134,16 @@ export const PluginStoreResponse = zod.object({
 /**
  * @summary Get plugin list
  */
+
+
+
+
+export const PluginIndexQueryParams = zod.object({
+  "category": zod.string().nullish(),
+  "page": zod.number().int().min(1).nullish(),
+  "per_page": zod.number().int().min(1).nullish()
+})
+
 
 
 
@@ -148,6 +166,8 @@ export const PluginIndexResponse = zod.object({
 }).nullable(),
   "title": zod.string(),
   "license": zod.string(),
+  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
+  "tags": zod.array(zod.string()),
   "approved_at": zod.string().nullable(),
   "status": zod.string(),
   "source_link": zod.string(),
@@ -191,6 +211,8 @@ export const pluginUpdateBodyNameMax = 255;
 
 export const pluginUpdateBodyTitleMax = 255;
 
+export const pluginUpdateBodyTagsMax = 5;
+
 export const pluginUpdateBodySourceLinkMax = 2048;
 
 
@@ -199,6 +221,8 @@ export const PluginUpdateBody = zod.object({
   "name": zod.string().max(pluginUpdateBodyNameMax).optional(),
   "title": zod.string().max(pluginUpdateBodyTitleMax).optional(),
   "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']).optional(),
+  "category": zod.string().optional(),
+  "tags": zod.array(zod.string()).max(pluginUpdateBodyTagsMax).nullish(),
   "source_link": zod.string().url().max(pluginUpdateBodySourceLinkMax).optional()
 })
 
@@ -217,6 +241,8 @@ export const PluginUpdateResponse = zod.object({
 }).nullable(),
   "title": zod.string(),
   "license": zod.string(),
+  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
+  "tags": zod.array(zod.string()),
   "approved_at": zod.string().nullable(),
   "status": zod.string(),
   "source_link": zod.string(),
@@ -269,6 +295,8 @@ export const PluginShowResponse = zod.object({
 }).nullable(),
   "title": zod.string(),
   "license": zod.string(),
+  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
+  "tags": zod.array(zod.string()),
   "approved_at": zod.string().nullable(),
   "status": zod.string(),
   "source_link": zod.string(),

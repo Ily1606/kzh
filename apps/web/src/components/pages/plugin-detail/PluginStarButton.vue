@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
-import { Loader2, Star } from 'lucide-vue-next'
+import { Loader2, Star } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'

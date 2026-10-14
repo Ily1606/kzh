@@ -49,6 +49,8 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     author: { id: 'user-456', name: 'Jane Dev', avatar_url: '' },
     title: 'My awesome plugin',
     license: 'MIT',
+    category: null,
+    tags: [],
     approved_at: null,
     status: 'pending',
     source_link: 'https://github.com/owner/repo',

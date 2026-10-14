@@ -9,7 +9,6 @@ import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
 import { usePluginsStore } from '@/stores'
 import { notifySuccess } from '@/utils/toast'
 import type { PluginFields } from '@/schemas/plugin.schema'
-import { updatePluginSchema } from '@/schemas/plugin.schema'
 
 const error = ref('')
 const route = useRoute()
@@ -27,6 +26,8 @@ const initialValues = computed<PluginFields | null>(() =>
         name: plugin.value.name,
         title: plugin.value.title,
         license: plugin.value.license as PluginFields['license'],
+        category: plugin.value.category ?? '',
+        tags: plugin.value.tags,
         source_link: plugin.value.source_link,
       }
     : null,
@@ -103,7 +104,6 @@ onMounted(async () => {
       </p>
 
       <PluginFieldsForm
-        :schema="updatePluginSchema"
         :initial-values="initialValues"
         submit-label="Save changes"
         :submit="save"

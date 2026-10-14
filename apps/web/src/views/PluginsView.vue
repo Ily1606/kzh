@@ -1,13 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { usePluginsStore } from '@/stores'
+import { useRoute, useRouter } from 'vue-router'
+import { usePluginsStore, useTaxonomyStore } from '@/stores'
 import type { PluginResource } from '@/api/generated/model'
 import PluginCard from '@/components/pages/plugin/PluginCard.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, LoaderCircle, PackageOpen } from 'lucide-vue-next'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Search, LoaderCircle, PackageOpen, ChevronDown, Check } from '@lucide/vue'
 
 const store = usePluginsStore()
+const route = useRoute()
+const router = useRouter()
+
+const taxonomy = useTaxonomyStore()
+const categories = computed(() => taxonomy.categories)
+
+/** A hand-edited URL can hold anything, and the endpoint answers an unknown name with 422. */
+function isCategory(value: unknown): value is string {
+  return typeof value === 'string' && taxonomy.categories.includes(value)
+}
+
+const selectedCategory = ref<string | null>(isCategory(route.query.category) ? route.query.category : null)
 
 // UI state, not server state: this filters the page already in hand, so it
 // belongs here rather than in the store.
@@ -28,11 +42,24 @@ const filteredPlugins = computed<PluginResource[]>(() => {
 })
 
 async function fetchAllPlugins(page = 1) {
-  await store.fetchList(page)
+  await store.fetchList(page, selectedCategory.value)
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-onMounted(() => {
+/** The category lives in the URL so the filtered view can be shared and reloaded. */
+async function chooseCategory(category: string | null) {
+  selectedCategory.value = category
+  await router.replace({ query: category ? { category } : {} })
+  await fetchAllPlugins(1)
+}
+
+onMounted(async () => {
+  // The URL can name a category before the list arrives, so the check has to
+  // wait for it. Fetching first would send no category and quietly drop it.
+  await taxonomy.ensureLoaded()
+
+  selectedCategory.value = isCategory(route.query.category) ? route.query.category : null
+
   fetchAllPlugins(1)
 })
 </script>
@@ -41,7 +68,7 @@ onMounted(() => {
   <div class="py-8 space-y-8">
 
     <!-- Header & Search -->
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b">
+    <div class="pb-6 border-b">
       <div>
         <div class="inline-flex items-center gap-2 py-1 text-xs font-medium mb-3">
           <PackageOpen class="size-7 text-primary " />
@@ -52,15 +79,52 @@ onMounted(() => {
         </p>
       </div>
 
-      <!-- Search Box -->
-      <div class="w-full md:w-80 relative">
-        <Search class="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Filter plugins by name..."
-          class="pl-9"
-        />
+      <!-- Search Box & Category Filter -->
+      <div class="mt-6 flex flex-col sm:flex-row gap-3">
+        <div class="relative shrink-0 sm:w-80">
+          <Search class="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search plugins ..."
+            class="h-11 rounded-xl pl-9"
+          />
+        </div>
+
+        <Popover>
+          <PopoverTrigger
+            data-test="category-trigger"
+            class="flex h-11 w-full shrink-0 cursor-pointer items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 sm:w-52"
+          >
+            <span class="truncate" :class="{ 'text-muted-foreground': !selectedCategory }">
+              {{ selectedCategory ?? 'All categories' }}
+            </span>
+            <ChevronDown class="size-4 shrink-0 text-muted-foreground" />
+          </PopoverTrigger>
+
+          <PopoverContent align="end" class="w-[var(--reka-popover-trigger-width)] p-1">
+            <button
+              type="button"
+              data-test="category-option-all"
+              class="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+              @click="chooseCategory(null)"
+            >
+              <span>All categories</span>
+              <Check v-if="!selectedCategory" class="size-4 text-primary" />
+            </button>
+            <button
+              v-for="category in categories"
+              :key="category"
+              type="button"
+              :data-test="`category-option-${category}`"
+              class="flex w-full cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+              @click="chooseCategory(category)"
+            >
+              <span>{{ category }}</span>
+              <Check v-if="selectedCategory === category" class="size-4 text-primary" />
+            </button>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
 
@@ -103,10 +167,21 @@ onMounted(() => {
       </div>
       <h3 class="text-lg font-semibold">No plugins found</h3>
       <p class="text-sm text-muted-foreground max-w-sm mx-auto">
-        {{ searchQuery ? `We couldn't find any plugin matching "${searchQuery}". Try a different keyword.` : 'There are currently no published plugins available.' }}
+        <template v-if="searchQuery">
+          We couldn't find any plugin matching "{{ searchQuery }}". Try a different keyword.
+        </template>
+        <template v-else-if="selectedCategory">
+          There are no plugins in {{ selectedCategory }} yet.
+        </template>
+        <template v-else>
+          There are currently no published plugins available.
+        </template>
       </p>
       <Button v-if="searchQuery" variant="outline" size="sm" @click="searchQuery = ''">
         Clear search
+      </Button>
+      <Button v-else-if="selectedCategory" variant="outline" size="sm" @click="chooseCategory(null)">
+        Show all categories
       </Button>
     </div>
 

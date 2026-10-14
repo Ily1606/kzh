@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { getPlugin } from '@/api/generated/endpoints'
 import type { SubmitPluginRequest } from '@/api/generated/model'
 import type { PluginFields } from '@/schemas/plugin.schema'
@@ -14,10 +14,9 @@ import {
   ShieldCheck,
   Terminal,
   Sparkles
-} from 'lucide-vue-next'
-import { emptyPluginFields, submitPluginSchema } from '@/schemas/plugin.schema'
+} from '@lucide/vue'
+import { emptyPluginFields } from '@/schemas/plugin.schema'
 
-const router = useRouter()
 const { pluginStore } = getPlugin()
 
 const error = ref('')
@@ -61,6 +60,7 @@ async function submitPlugin(values: PluginFields) {
 
   try {
     await pluginStore(values as SubmitPluginRequest)
+    isSuccess.value = true
   } catch (err: unknown) {
     const response = (err as { response?: { status?: number; data?: { message?: string; errors?: Record<string, string[]> } } }).response
 
@@ -72,14 +72,6 @@ async function submitPlugin(values: PluginFields) {
 
     throw err
   }
-}
-
-function onSubmitted() {
-  isSuccess.value = true
-
-  setTimeout(() => {
-    router.push({ name: 'my-plugins', query: { status: 'pending' } })
-  }, 2400)
 }
 </script>
 
@@ -111,7 +103,7 @@ function onSubmitted() {
             </div>
             <h3 class="text-2xl font-bold">Plugin Submitted Successfully!</h3>
             <p class="text-muted-foreground max-w-md mx-auto text-sm leading-relaxed">
-              Your plugin has been submitted to the registry queue and will be reviewed by an administrator shortly. Redirecting to your resources...
+              Your plugin has been submitted to the registry queue and will be reviewed by an administrator shortly.
             </p>
             <div class="pt-2">
               <Button as-child variant="outline" class="rounded-full px-6">
@@ -124,11 +116,9 @@ function onSubmitted() {
           <PluginFieldsForm
             v-else
             ref="form"
-            :schema="submitPluginSchema"
             :initial-values="emptyPluginFields"
             submit-label="Publish plugin"
             :submit="submitPlugin"
-            @submitted="onSubmitted"
           />
 
           <!-- Error Banner -->
