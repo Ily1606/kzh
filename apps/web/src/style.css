@@ -139,7 +139,9 @@
 
 @layer base {
   * { @apply border-border; }
-  html { scroll-behavior: smooth; }
+  /* Giữ chỗ cho thanh cuộn: trang ngắn hơn viewport sẽ không làm khung nội dung
+     rộng ra, nhờ vậy navbar căn giữa không bị đẩy sang ngang. */
+  html { scroll-behavior: smooth; scrollbar-gutter: stable; }
   body { @apply bg-background text-foreground antialiased; }
   button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
 }

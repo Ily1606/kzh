@@ -76,7 +76,7 @@ async function submitPlugin(values: PluginFields) {
 </script>
 
 <template>
-  <div class="relative isolate overflow-hidden min-h-[calc(100vh-4rem)] py-10">
+  <div class="relative isolate overflow-hidden min-h-[calc(100vh-4rem)] py-12">
 
     <!-- Atmospheric Ambient Glows (Inspired by Arctiq dark aesthetic) -->
     <div class="pointer-events-none absolute right-0 bottom-0 -z-10 h-130 w-130 rounded-full bg-emerald-500/15 blur-[120px] dark:bg-emerald-500/20" />

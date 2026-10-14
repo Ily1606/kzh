@@ -78,7 +78,7 @@ watch([activeStatus, () => route.query.page], () => {
 </script>
 
 <template>
-  <div class="py-8 space-y-6">
+  <div class="py-12 space-y-6">
 
     <!-- Header -->
     <div class="flex flex-col gap-6 pb-6 border-b sm:flex-row sm:items-end sm:justify-between">

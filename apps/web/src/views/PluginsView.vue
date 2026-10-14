@@ -68,7 +68,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="py-8 space-y-8">
+  <div class="py-12 space-y-8">
 
     <!-- Header & Search -->
     <div class="pb-6 border-b">
