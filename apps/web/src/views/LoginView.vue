@@ -68,7 +68,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+            <Input type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -80,7 +80,7 @@ const onSubmit = handleSubmit(async (values) => {
             <RouterLink to="/forgot-password" class="text-sm font-medium text-primary hover:underline">Forgot password?</RouterLink>
           </div>
           <FormControl>
-            <Input id="password" type="password" autocomplete="current-password" v-bind="componentField" />
+            <Input type="password" autocomplete="current-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>

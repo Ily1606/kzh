@@ -32,6 +32,22 @@ describe('LoginView.vue', () => {
     expect(wrapper.find('button[type="submit"]').text()).toContain('Sign in');
   });
 
+  it('associates FormLabel with Input id via FormControl', () => {
+    const wrapper = mount(LoginView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    const labels = wrapper.findAll('label');
+    expect(labels.length).toBeGreaterThan(0);
+    labels.forEach((label) => {
+      const forId = label.attributes('for');
+      expect(forId).toBeDefined();
+      expect(wrapper.find(`#${forId}`).exists()).toBe(true);
+    });
+  });
+
   it('displays frontend validation errors when submitting empty or invalid data', async () => {
     const wrapper = mount(LoginView, {
       global: {

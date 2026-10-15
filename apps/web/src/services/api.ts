@@ -36,8 +36,12 @@ api.interceptors.response.use(
           localStorage.removeItem('auth_token');
         }
 
-        if (router.currentRoute?.value?.path !== '/login') {
-          router.push('/login');
+        const currentRoute = router.currentRoute?.value;
+        if (currentRoute?.meta?.requiresAuth && currentRoute?.path !== '/login') {
+          router.push({
+            name: 'login',
+            query: { redirect: currentRoute?.fullPath || currentRoute?.path },
+          });
         }
       }
     }

@@ -55,8 +55,11 @@ export function useAuth() {
     try {
       const response = await profileShow();
       store.setUser(response.data || null);
-    } catch (e) {
-      store.clearAuth();
+    } catch (e: any) {
+      if (e?.response?.status === 401 || e?.status === 401) {
+        store.clearAuth();
+        pluginsStore.reset();
+      }
     } finally {
       store.setLoading(false);
     }

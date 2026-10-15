@@ -26,6 +26,22 @@ describe('ForgotPasswordView.vue', () => {
     expect(wrapper.find('button[type="submit"]').text()).toContain('Email Password Reset Link');
   });
 
+  it('associates FormLabel with Input id via FormControl', () => {
+    const wrapper = mount(ForgotPasswordView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    const labels = wrapper.findAll('label');
+    expect(labels.length).toBeGreaterThan(0);
+    labels.forEach((label) => {
+      const forId = label.attributes('for');
+      expect(forId).toBeDefined();
+      expect(wrapper.find(`#${forId}`).exists()).toBe(true);
+    });
+  });
+
   it('displays validation error if email is empty or invalid', async () => {
     const wrapper = mount(ForgotPasswordView, {
       global: {

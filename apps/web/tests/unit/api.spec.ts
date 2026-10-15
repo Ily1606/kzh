@@ -6,7 +6,7 @@ import { router } from '@/router';
 
 vi.mock('@/router', () => ({
   router: {
-    currentRoute: { value: { path: '/resources' } },
+    currentRoute: { value: { path: '/resources/5/edit', fullPath: '/resources/5/edit', meta: { requiresAuth: true } } },
     push: vi.fn(),
   }
 }));
@@ -16,6 +16,7 @@ describe('services/api interceptors', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     localStorage.clear();
+    (router.currentRoute as any).value = { path: '/resources/5/edit', fullPath: '/resources/5/edit', meta: { requiresAuth: true } };
   });
 
   it('adds Authorization header when auth_token exists in localStorage', async () => {
@@ -50,7 +51,42 @@ describe('services/api interceptors', () => {
 
     expect(store.token).toBeNull();
     expect(store.user).toBeNull();
-    expect(router.push).toHaveBeenCalledWith('/login');
+    expect(router.push).toHaveBeenCalledWith({
+      name: 'login',
+      query: { redirect: '/resources/5/edit' },
+    });
+  });
+
+  it('does not redirect if currentRoute is already /login on 401 error', async () => {
+    (router.currentRoute as any).value = { path: '/login', fullPath: '/login' };
+    const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
+    const error = {
+      response: { status: 401 },
+      config: { url: '/v1/user/profile' },
+    };
+
+    await expect(responseErrorHandler(error)).rejects.toEqual(error);
+
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('clears auth but does not redirect to /login on 401 error on a public route without requiresAuth', async () => {
+    (router.currentRoute as any).value = { path: '/plugins', fullPath: '/plugins', meta: {} };
+    const store = useAuthStore();
+    store.setToken('expired-token');
+    store.setUser({ id: '1', name: 'User' } as any);
+
+    const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
+    const error = {
+      response: { status: 401 },
+      config: { url: '/v1/user/profile' },
+    };
+
+    await expect(responseErrorHandler(error)).rejects.toEqual(error);
+
+    expect(store.token).toBeNull();
+    expect(store.user).toBeNull();
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('does not clear auth or redirect to /login on 401 error from /v1/login', async () => {
