@@ -38,29 +38,33 @@ const mockRoute = ref({
   query: {} as Record<string, string | string[]>
 })
 
-vi.mock('vue-router', () => ({
-  useRoute: () => mockRoute.value,
-  useRouter: () => ({ push: vi.fn() }),
-  // Renders a real href from `to` so the sign-in target is assertable. Named
-  // routes with params keep the name visible: resolving `plugin-detail` + `{ id }`
-  // to a path needs the router's route table, which is not what these tests are
-  // about.
-  RouterLink: {
-    props: ['to'],
-    methods: {
-      href(to: string | { name?: string; query?: Record<string, unknown>; params?: Record<string, unknown> }): string {
-        if (typeof to === 'string') return to
+vi.mock('vue-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-router')>()
+  return {
+    ...actual,
+    useRoute: () => mockRoute.value,
+    useRouter: () => ({ push: vi.fn() }),
+    // Renders a real href from `to` so the sign-in target is assertable. Named
+    // routes with params keep the name visible: resolving `plugin-detail` + `{ id }`
+    // to a path needs the router's route table, which is not what these tests are
+    // about.
+    RouterLink: {
+      props: ['to'],
+      methods: {
+        href(to: string | { name?: string; query?: Record<string, unknown>; params?: Record<string, unknown> }): string {
+          if (typeof to === 'string') return to
 
-        const params = Object.entries(to.params ?? {})
-          .map(([key, value]) => `${key}=${value}`)
-          .join('&')
+          const params = Object.entries(to.params ?? {})
+            .map(([key, value]) => `${key}=${value}`)
+            .join('&')
 
-        return `/${to.name}?redirect=${to.query?.redirect ?? ''}${params ? `&${params}` : ''}`
+          return `/${to.name}?redirect=${to.query?.redirect ?? ''}${params ? `&${params}` : ''}`
+        },
       },
-    },
-    template: '<a :href="href(to)"><slot /></a>'
+      template: '<a :href="href(to)"><slot /></a>'
+    }
   }
-}))
+})
 
 const mockFetch = vi.fn()
 global.fetch = mockFetch

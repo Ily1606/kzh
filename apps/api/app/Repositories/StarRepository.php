@@ -32,11 +32,14 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
 
     public function insertIgnore(string $pluginId, string $userId): bool
     {
+        $now = now();
 
         return $this->newQuery()
             ->insertOrIgnore([
                 'plugin_id' => $pluginId,
                 'user_id' => $userId,
+                'created_at' => $now,
+                'updated_at' => $now,
             ]) === 1;
     }
 
@@ -55,16 +58,22 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
         $driver = $query->getConnection()->getDriverName();
 
         if ($driver === 'pgsql') {
-            $dateFormat = $byMonth ? "TO_CHAR(created_at, 'YYYY-MM')" : "TO_CHAR(created_at, 'YYYY-MM-DD')";
+            $dateFormat = $byMonth ? "TO_CHAR(updated_at, 'YYYY-MM')" : "TO_CHAR(updated_at, 'YYYY-MM-DD')";
         } elseif ($driver === 'sqlite') {
-            $dateFormat = $byMonth ? "strftime('%Y-%m', created_at)" : "DATE(created_at)";
+            $dateFormat = $byMonth ? "strftime('%Y-%m', updated_at)" : "DATE(updated_at)";
         } else {
-            $dateFormat = $byMonth ? "DATE_FORMAT(created_at, '%Y-%m')" : "DATE(created_at)";
+            $dateFormat = $byMonth ? "DATE_FORMAT(updated_at, '%Y-%m')" : "DATE(updated_at)";
         }
 
-        return $query->selectRaw("{$dateFormat} as date, count(*) as count")
+        return $query->toBase()
+            ->selectRaw("{$dateFormat} as date, count(*) as count")
             ->groupBy('date')
             ->orderBy('date', 'asc')
-            ->get();
+            ->get()
+            ->map(fn ($row) => [
+                'date' => $row->date,
+                'count' => (int) $row->count,
+            ])
+            ->all();
     }
 }
