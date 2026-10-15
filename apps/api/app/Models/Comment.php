@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Observers\CommentObserver;
 use Database\Factories\CommentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\DB;
     'content',
     'hidden_at',
 ])]
+#[ObservedBy([CommentObserver::class])]
 class Comment extends Model
 {
     /** @use HasFactory<CommentFactory> */

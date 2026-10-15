@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Enums\PluginStatus;
+use App\Observers\PluginObserver;
 use Database\Factories\PluginFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 #[Fillable([
     'name',
@@ -21,6 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'license',
     'source_link',
 ])]
+#[ObservedBy([PluginObserver::class])]
 class Plugin extends Model
 {
     /** @use HasFactory<PluginFactory> */
@@ -50,6 +54,12 @@ class Plugin extends Model
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query->where('status', PluginStatus::Approved)
+            ->whereNotNull('approved_at');
     }
 
     public function user(): BelongsTo

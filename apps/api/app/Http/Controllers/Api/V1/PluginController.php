@@ -9,6 +9,7 @@ use App\Http\Requests\Api\V1\ListPluginsRequest;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
 use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
+use App\Http\Resources\PluginViewResource;
 use App\Services\PluginService;
 use App\Support\ApiResponse;
 use App\Support\RequestContext;
@@ -138,9 +139,13 @@ class PluginController extends Controller
      */
     public function trackView(Request $request, string $id): JsonResponse
     {
-        $result = $this->pluginService->incrementViewIfNotViewed($id, $request);
+        $viewerId = (string) ($request->user()?->getAuthIdentifier() ?? 'guest:'.sha1($request->ip().'|'.$request->userAgent()));
+        $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
 
-        return ApiResponse::successResponse($result, $result['message']);
+        return ApiResponse::successResponse(
+            (new PluginViewResource($result))->resolve(),
+            $result->message
+        );
     }
 
     /**
@@ -156,10 +161,10 @@ class PluginController extends Controller
         $limit = (int) $request->query('limit', $defaultLimit);
         $limit = max(1, min($limit, $maxLimit));
 
-        $plugins = $this->pluginService->getTrendingPlugins($limit, $request->user());
+        $paginator = $this->pluginService->getTrendingPlugins($limit, $request->user());
 
         return ApiResponse::successResponse([
-            'plugins' => $plugins,
-        ]);
+            'plugins' => PluginResource::collection($paginator->items())->resolve(),
+        ], meta: ApiResponse::paginationMeta($paginator));
     }
 }

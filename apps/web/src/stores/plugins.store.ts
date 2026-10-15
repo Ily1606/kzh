@@ -27,7 +27,7 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export const usePluginsStore = defineStore('plugins', () => {
-  const { pluginIndex, pluginTrending, pluginMyPlugins, pluginShow, pluginUpdate } = getPlugin();
+  const { pluginIndex, pluginTrending, pluginMyPlugins, pluginShow, pluginUpdate, pluginTrackView } = getPlugin();
   const { starStore } = getStar();
 
   const entities = ref<Record<string, PluginResource>>({});
@@ -222,6 +222,28 @@ export const usePluginsStore = defineStore('plugins', () => {
   }
 
   /**
+   * Record a view for the plugin.
+   *
+   * Fires asynchronously without throwing so viewing the plugin is never
+   * interrupted. Updates the stored view_count if the server returns one.
+   */
+  async function trackView(id: string): Promise<void> {
+    if (!id) {
+      return;
+    }
+
+    try {
+      const res = await pluginTrackView(id);
+
+      if (res?.data?.view_count !== undefined) {
+        patchPlugin(id, { view_count: res.data.view_count });
+      }
+    } catch {
+      // Non-blocking: view tracking failure is silent to the viewer
+    }
+  }
+
+  /**
    * Move one user's star to `starred` and report the state that resulted.
    *
    * Set-state rather than toggle, matching the endpoint: the caller says which
@@ -299,6 +321,7 @@ export const usePluginsStore = defineStore('plugins', () => {
     fetchList,
     fetchMine,
     ensurePlugin,
+    trackView,
     setStar,
     updatePlugin,
     reset,

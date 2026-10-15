@@ -2,6 +2,8 @@
 
 namespace App\Contracts;
 
+use Illuminate\Support\Collection;
+
 interface StarRepositoryInterface
 {
     /**
@@ -24,8 +26,15 @@ interface StarRepositoryInterface
 
     /**
      * Get star count grouped by date for a plugin.
-     * 
-     * @return \Illuminate\Support\Collection
+     *
+     * @return Collection
      */
     public function getTimeline(string $pluginId, bool $byMonth = false);
+
+    /**
+     * Get daily star counts grouped by plugin and date for the last N days.
+     *
+     * @return Collection<int, object{plugin_id: string, date: string, count: int}>
+     */
+    public function getDailyStarCounts(int $daysLimit): Collection;
 }

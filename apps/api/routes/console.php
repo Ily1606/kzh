@@ -10,5 +10,10 @@ Artisan::command('inspire', function () {
 
 // Sync buffered plugin views from Redis to Database every 5 minutes
 Schedule::command('plugins:sync-views')
-    ->everyFiveMinutes()
+    ->cron(config('plugins.sync_views_schedule'))
+    ->withoutOverlapping();
+
+// Calculate and cache trending plugins
+Schedule::command('plugins:refresh-trending')
+    ->cron(config('plugins.trending.schedule'))
     ->withoutOverlapping();
