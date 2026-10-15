@@ -147,4 +147,41 @@ describe('PluginComments.vue', () => {
     // No api call because of !trim() inside component or disabled button
     expect(mockCommentStore).not.toHaveBeenCalled()
   })
+
+  it('deduplicates comments when loading more comments (Show more comments)', async () => {
+    mockCommentIndex.mockResolvedValueOnce({
+      data: { comments: [{ id: 'c1', content: 'First' }, { id: 'c2', content: 'Second' }] },
+      meta: { current_page: 1, last_page: 2 }
+    })
+    mockCommentIndex.mockResolvedValueOnce({
+      data: { comments: [{ id: 'c2', content: 'Second' }, { id: 'c3', content: 'Third' }] },
+      meta: { current_page: 2, last_page: 2 }
+    })
+
+    const wrapper = mount(PluginComments, {
+      props: { pluginId: '1' },
+      global: {
+        stubs: {
+          'router-link': true,
+          CommentItem: {
+            props: ['comment'],
+            template: '<div class="comment-stub">{{ comment.id }}</div>'
+          }
+        }
+      }
+    })
+
+    await flushPromises()
+    expect(wrapper.findAll('.comment-stub').length).toBe(2)
+
+    const showMoreBtn = wrapper.findAll('button').find(b => b.text().includes('Show more comments'))
+    expect(showMoreBtn).toBeDefined()
+    await showMoreBtn!.trigger('click')
+    await flushPromises()
+
+    expect(mockCommentIndex).toHaveBeenCalledTimes(2)
+    const stubs = wrapper.findAll('.comment-stub')
+    expect(stubs.length).toBe(3)
+    expect(stubs.map(s => s.text())).toEqual(['c1', 'c2', 'c3'])
+  })
 })
