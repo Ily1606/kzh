@@ -23,22 +23,23 @@ function isCategory(value: unknown): value is string {
 }
 
 const selectedCategory = ref<string | null>(isCategory(route.query.category) ? route.query.category : null)
-const searchQuery = ref(typeof route.query.search === 'string' ? route.query.search : '')
+
 const SEARCH_DEBOUNCE_MS = 300
+const searchQuery = ref(typeof route.query.search === 'string' ? route.query.search.trim() : '')
+
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 async function fetchAllPlugins(page = 1) {
-  await store.fetchList(page, selectedCategory.value, searchQuery.value || null)
+  await store.fetchList(page, selectedCategory.value, searchQuery.value.trim() || null)
 }
 
-/** A new page of results is at the top of the list, so the reader goes there.
- *  Only for changes the reader asked for: scrolling on mount would undo the
- *  position restored when coming back to this page. */
 async function goToPage(page: number) {
   await fetchAllPlugins(page)
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function chooseCategory(category: string | null) {
+  clearTimeout(searchTimer)
   selectedCategory.value = category
   await syncQuery()
   await goToPage(1)
@@ -47,20 +48,23 @@ async function chooseCategory(category: string | null) {
 /** Reads the current filter state and writes it to the URL, so both filters
  *  stay in step after either one changes. */
 async function syncQuery() {
+  const search = searchQuery.value.trim()
+
   await router.replace({
     query: {
       ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
-      ...(searchQuery.value.trim() ? { search: searchQuery.value.trim() } : {}),
+      ...(search ? { search } : {}),
     },
   })
 }
 
-watch(searchQuery, (_query, _previous, onCleanup) => {
+watch(() => searchQuery.value.trim(), (_query, _previous, onCleanup) => {
   const timer = setTimeout(async () => {
     await syncQuery()
     await goToPage(1)
   }, SEARCH_DEBOUNCE_MS)
 
+  searchTimer = timer
   onCleanup(() => clearTimeout(timer))
 })
 
