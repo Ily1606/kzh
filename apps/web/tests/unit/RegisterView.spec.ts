@@ -4,8 +4,11 @@ import RegisterView from '@/views/RegisterView.vue';
 
 // Mock router
 const mockPush = vi.fn();
+let mockQuery: Record<string, string> = {};
+
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mockPush })
+  useRouter: () => ({ push: mockPush }),
+  useRoute: () => ({ query: mockQuery }),
 }));
 
 // Mock composable useAuth
@@ -17,6 +20,7 @@ vi.mock('@/composables/useAuth', () => ({
 describe('RegisterView.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockQuery = {};
   });
 
   it('renders basic input fields correctly', () => {
@@ -100,6 +104,27 @@ describe('RegisterView.vue', () => {
       password_confirmation: 'password123'
     });
     expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('redirects to route.query.redirect on successful registration when provided', async () => {
+    mockQuery = { redirect: '/plugins' };
+    const wrapper = mount(RegisterView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockRegister.mockResolvedValueOnce(true);
+
+    await wrapper.find('input[id="fullName"]').setValue('John Doe');
+    await wrapper.find('input[id="email"]').setValue('test@example.com');
+    await wrapper.find('input[id="password"]').setValue('password123');
+    await wrapper.find('input[id="confirmPassword"]').setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(mockPush).toHaveBeenCalledWith('/plugins');
   });
 
   it('displays error message when registration fails via API', async () => {
