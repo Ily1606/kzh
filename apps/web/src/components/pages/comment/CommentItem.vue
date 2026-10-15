@@ -44,6 +44,7 @@ const isSubmittingReport = ref(false)
 const showReplies = ref(false)
 const isLoadingReplies = ref(false)
 const replies = ref<CommentResource[]>([])
+const hasFetchedReplies = ref(false)
 
 function toggleReplyBox() {
   if (props.depth >= 3) return
@@ -77,7 +78,7 @@ async function toggleReplies() {
     return
   }
   showReplies.value = true
-  if (replies.value.length === 0) {
+  if (!hasFetchedReplies.value) {
     await fetchReplies(1, false)
   }
 }
@@ -96,12 +97,15 @@ async function fetchReplies(page = 1, append = false) {
     const body = res as any
     const newReplies = body?.data?.comments || body?.comments || (Array.isArray(body?.data) ? body.data : [])
     if (append) {
-      replies.value = [...replies.value, ...newReplies]
+      const existingIds = new Set(replies.value.map(r => r.id))
+      const uniqueNew = newReplies.filter((r: any) => !existingIds.has(r.id))
+      replies.value = [...replies.value, ...uniqueNew]
     } else {
       replies.value = newReplies
     }
     currentReplyPage.value = body?.meta?.current_page || page
     lastReplyPage.value = body?.meta?.last_page || 1
+    hasFetchedReplies.value = true
   } catch (err) {
     console.error('Failed to load replies', err)
   } finally {
@@ -126,13 +130,24 @@ async function submitReply() {
     })
     const body = res as any
     const createdComment = body?.data?.comment || body?.comment
-    if (createdComment) {
-      replies.value.unshift(createdComment)
+
+    // Nếu replies chưa được mở/fetch và comment đã có replies, fetch trước để không làm ẩn các reply cũ
+    if (!hasFetchedReplies.value && Number(props.comment.replies_count) > 0) {
+      await fetchReplies(1, false)
+      if (createdComment && !replies.value.some(r => r.id === createdComment.id)) {
+        replies.value.unshift(createdComment)
+      }
     } else {
-      const repliesRes = await commentReplies(props.pluginId, props.comment.id)
-      const rBody = repliesRes as any
-      replies.value = rBody?.data?.comments || rBody?.comments || []
+      if (createdComment) {
+        if (!replies.value.some(r => r.id === createdComment.id)) {
+          replies.value.unshift(createdComment)
+        }
+      } else {
+        await fetchReplies(1, false)
+      }
     }
+
+    hasFetchedReplies.value = true
     props.comment.replies_count = String((Number(props.comment.replies_count) || 0) + 1)
     showReplies.value = true
     replyContent.value = ''
