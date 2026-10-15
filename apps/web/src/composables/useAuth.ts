@@ -34,6 +34,9 @@ export function useAuth() {
   async function logout() {
     try {
       await authLogout();
+    } catch {
+      // Swallowed: client-side session is cleared in finally,
+      // so notifying the user or breaking the flow is unnecessary.
     } finally {
       store.clearAuth();
       // The plugin cache holds `is_star`, which belongs to whoever is signed in.
@@ -44,6 +47,10 @@ export function useAuth() {
   }
 
   async function fetchUser() {
+    if (!store.token) {
+      store.setLoading(false);
+      return;
+    }
     store.setLoading(true);
     try {
       const response = await profileShow();

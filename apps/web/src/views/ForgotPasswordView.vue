@@ -1,23 +1,28 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import type { AxiosError } from "axios";
 import { getPasswordReset } from "@/api/generated/endpoints";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { forgotPasswordSchema } from "@/schemas/auth.schema";
 
-const { handleSubmit, defineField, errors } = useForm({
+const { handleSubmit } = useForm({
   validationSchema: forgotPasswordSchema,
   initialValues: {
     email: "",
   },
 });
-
-const [email, emailProps] = defineField("email");
 
 const errorMsg = ref("");
 const successMsg = ref("");
@@ -35,12 +40,15 @@ const onSubmit = handleSubmit(async (values) => {
       email: values.email,
     });
     successMsg.value = "We have emailed your password reset link.";
-  } catch (e: any) {
-    if (e.response?.status === 422) {
-      errorMsg.value = e.response.data?.message || "Validation failed.";
-    } else {
-      errorMsg.value = "Failed to send reset link. Please try again.";
-    }
+  } catch (e) {
+    const err = e as AxiosError<{ message?: string }>;
+    const status = err.response?.status;
+    errorMsg.value =
+      status === 429
+        ? "Too many attempts. Please try again later."
+        : status === 422
+          ? (err.response?.data?.message || "Validation failed.")
+          : "Failed to send reset link. Please try again.";
   } finally {
     loading.value = false;
   }
@@ -58,13 +66,17 @@ const onSubmit = handleSubmit(async (values) => {
         <AlertDescription>{{ errorMsg }}</AlertDescription>
       </Alert>
       <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">
-        <AlertDescription>{{ successMsg }}</AlertDescription>
+        <AlertDescription class="text-inherit">{{ successMsg }}</AlertDescription>
       </Alert>
-      <div class="space-y-1.5">
-        <Label for="email">Email</Label>
-        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(errors.email)" />
-        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="email">
+        <FormItem>
+          <FormLabel>Email</FormLabel>
+          <FormControl>
+            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Sending link" : "Email Password Reset Link" }}</Button>
     </form>
     <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">

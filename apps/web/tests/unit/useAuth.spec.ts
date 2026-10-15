@@ -113,8 +113,56 @@ describe('useAuth composable', () => {
 
     mockAuthLogout.mockRejectedValueOnce(new Error('network down'));
 
-    await expect(auth.logout()).rejects.toThrow('network down');
+    await expect(auth.logout()).resolves.toBeUndefined();
 
+    expect(authStore.token).toBeNull();
     expect(pluginsStore.entities).toEqual({});
+  });
+
+  describe('fetchUser', () => {
+    it('sets loading to false without calling API when there is no token', async () => {
+      const auth = useAuth();
+      const store = useAuthStore();
+
+      store.setToken(null);
+      store.setLoading(true);
+
+      await auth.fetchUser();
+
+      expect(mockProfileShow).not.toHaveBeenCalled();
+      expect(store.isLoading).toBe(false);
+    });
+
+    it('fetches profile and updates user in store when token is present', async () => {
+      const auth = useAuth();
+      const store = useAuthStore();
+
+      store.setToken('valid-token');
+      mockProfileShow.mockResolvedValueOnce({
+        data: { id: '42', name: 'Verified User', email: 'verified@example.com' }
+      });
+
+      await auth.fetchUser();
+
+      expect(mockProfileShow).toHaveBeenCalled();
+      expect(store.user?.name).toBe('Verified User');
+      expect(store.isLoading).toBe(false);
+    });
+
+    it('clears auth in store when profileShow fails', async () => {
+      const auth = useAuth();
+      const store = useAuthStore();
+
+      store.setToken('revoked-token');
+      store.setUser({ id: '42', name: 'Old User' } as any);
+      mockProfileShow.mockRejectedValueOnce(new Error('Unauthorized'));
+
+      await auth.fetchUser();
+
+      expect(mockProfileShow).toHaveBeenCalled();
+      expect(store.token).toBeNull();
+      expect(store.user).toBeNull();
+      expect(store.isLoading).toBe(false);
+    });
   });
 });

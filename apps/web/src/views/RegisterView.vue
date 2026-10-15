@@ -1,30 +1,24 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import type { AxiosError } from "axios";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
-import { toTypedSchema } from "@vee-validate/zod";
-import * as z from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { registerSchema } from "@/schemas/auth.schema";
 
-const registerSchema = toTypedSchema(
-  z.object({
-    name: z.string().min(1, "Full name is required"),
-    email: z.string().min(1, "Email is required").email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
-  }).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  })
-);
-
-const { handleSubmit, defineField, errors } = useForm({
+const { handleSubmit } = useForm({
   validationSchema: registerSchema,
   initialValues: {
     name: "",
@@ -33,11 +27,6 @@ const { handleSubmit, defineField, errors } = useForm({
     confirmPassword: "",
   },
 });
-
-const [name, nameProps] = defineField("name");
-const [email, emailProps] = defineField("email");
-const [password, passwordProps] = defineField("password");
-const [confirmPassword, confirmPasswordProps] = defineField("confirmPassword");
 
 const errorMsg = ref("");
 const loading = ref(false);
@@ -57,8 +46,13 @@ const onSubmit = handleSubmit(async (values) => {
       password_confirmation: values.confirmPassword,
     });
     router.push("/");
-  } catch (e: any) {
-    errorMsg.value = "Couldn't create your account. Please try again.";
+  } catch (e) {
+    const err = e as AxiosError<{ message?: string }>;
+    const status = err.response?.status;
+    errorMsg.value =
+      status === 429
+        ? "Too many attempts. Please try again later."
+        : "Couldn't create your account. Please try again.";
   } finally {
     loading.value = false;
   }
@@ -71,26 +65,42 @@ const onSubmit = handleSubmit(async (values) => {
       <Alert v-if="errorMsg" variant="destructive">
         <AlertDescription>{{ errorMsg }}</AlertDescription>
       </Alert>
-      <div class="space-y-1.5">
-        <Label for="fullName">Full name</Label>
-        <Input id="fullName" v-model="name" v-bind="nameProps" type="text" autocomplete="name" placeholder="Jane Doe" :aria-invalid="Boolean(errors.name)" />
-        <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
-      </div>
-      <div class="space-y-1.5">
-        <Label for="email">Email</Label>
-        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" placeholder="you@example.com" :aria-invalid="Boolean(errors.email)" />
-        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
-      </div>
-      <div class="space-y-1.5">
-        <Label for="password">Password</Label>
-        <Input id="password" v-model="password" v-bind="passwordProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.password)" />
-        <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
-      </div>
-      <div class="space-y-1.5">
-        <Label for="confirmPassword">Confirm password</Label>
-        <Input id="confirmPassword" v-model="confirmPassword" v-bind="confirmPasswordProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.confirmPassword)" />
-        <p v-if="errors.confirmPassword" class="text-xs text-destructive">{{ errors.confirmPassword }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="name">
+        <FormItem>
+          <FormLabel>Full name</FormLabel>
+          <FormControl>
+            <Input id="fullName" type="text" autocomplete="name" placeholder="Jane Doe" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+      <FormField v-slot="{ componentField }" name="email">
+        <FormItem>
+          <FormLabel>Email</FormLabel>
+          <FormControl>
+            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+      <FormField v-slot="{ componentField }" name="password">
+        <FormItem>
+          <FormLabel>Password</FormLabel>
+          <FormControl>
+            <Input id="password" type="password" autocomplete="new-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+      <FormField v-slot="{ componentField }" name="confirmPassword">
+        <FormItem>
+          <FormLabel>Confirm password</FormLabel>
+          <FormControl>
+            <Input id="confirmPassword" type="password" autocomplete="new-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Creating account" : "Create account" }}</Button>
     </form>
     <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">Already a publisher? <RouterLink to="/login" class="font-medium text-primary hover:underline">Sign in</RouterLink></p>

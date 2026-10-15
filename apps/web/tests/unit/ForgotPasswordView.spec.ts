@@ -100,4 +100,24 @@ describe('ForgotPasswordView.vue', () => {
 
     expect(wrapper.text()).toContain('Failed to send reset link. Please try again.');
   });
+
+  it('displays rate limit error message when API returns 429', async () => {
+    const wrapper = mount(ForgotPasswordView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockPasswordResetSendResetLinkEmail.mockRejectedValueOnce({
+      response: {
+        status: 429
+      }
+    });
+
+    await wrapper.find('input[type="email"]').setValue('test@example.com');
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Too many attempts. Please try again later.');
+  });
 });

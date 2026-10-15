@@ -1,20 +1,27 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import type { AxiosError } from "axios";
 import { getPasswordReset } from "@/api/generated/endpoints";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { resetPasswordSchema } from "@/schemas/auth.schema";
 
 const route = useRoute();
 const router = useRouter();
 
-const { handleSubmit, defineField, errors, setValues } = useForm({
+const { handleSubmit, setValues } = useForm({
   validationSchema: resetPasswordSchema,
   initialValues: {
     email: "",
@@ -22,10 +29,6 @@ const { handleSubmit, defineField, errors, setValues } = useForm({
     password_confirmation: "",
   },
 });
-
-const [email, emailProps] = defineField("email");
-const [password, passwordProps] = defineField("password");
-const [password_confirmation, passwordConfirmationProps] = defineField("password_confirmation");
 
 const token = ref("");
 const errorMsg = ref("");
@@ -64,12 +67,15 @@ const onSubmit = handleSubmit(async (values) => {
     setTimeout(() => {
       router.push("/login");
     }, 2000);
-  } catch (e: any) {
-    if (e.response?.status === 422) {
-      errorMsg.value = e.response.data?.message || "Validation failed.";
-    } else {
-      errorMsg.value = "Failed to reset password. The link might be expired or invalid.";
-    }
+  } catch (e) {
+    const err = e as AxiosError<{ message?: string }>;
+    const status = err.response?.status;
+    errorMsg.value =
+      status === 429
+        ? "Too many attempts. Please try again later."
+        : status === 422
+          ? (err.response?.data?.message || "Validation failed.")
+          : "Failed to reset password. The link might be expired or invalid.";
   } finally {
     loading.value = false;
   }
@@ -87,26 +93,38 @@ const onSubmit = handleSubmit(async (values) => {
         <AlertDescription>{{ errorMsg }}</AlertDescription>
       </Alert>
       <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">
-        <AlertDescription>{{ successMsg }}</AlertDescription>
+        <AlertDescription class="text-inherit">{{ successMsg }}</AlertDescription>
       </Alert>
 
-      <div class="space-y-1.5">
-        <Label for="email">Email</Label>
-        <Input id="email" v-model="email" v-bind="emailProps" type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" />
-        <p v-if="errors.email" class="text-xs text-destructive">{{ errors.email }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="email">
+        <FormItem>
+          <FormLabel>Email</FormLabel>
+          <FormControl>
+            <Input id="email" type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-      <div class="space-y-1.5">
-        <Label for="password">New Password</Label>
-        <Input id="password" v-model="password" v-bind="passwordProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.password)" />
-        <p v-if="errors.password" class="text-xs text-destructive">{{ errors.password }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="password">
+        <FormItem>
+          <FormLabel>New Password</FormLabel>
+          <FormControl>
+            <Input id="password" type="password" autocomplete="new-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
-      <div class="space-y-1.5">
-        <Label for="password_confirmation">Confirm New Password</Label>
-        <Input id="password_confirmation" v-model="password_confirmation" v-bind="passwordConfirmationProps" type="password" autocomplete="new-password" :aria-invalid="Boolean(errors.password_confirmation)" />
-        <p v-if="errors.password_confirmation" class="text-xs text-destructive">{{ errors.password_confirmation }}</p>
-      </div>
+      <FormField v-slot="{ componentField }" name="password_confirmation">
+        <FormItem>
+          <FormLabel>Confirm New Password</FormLabel>
+          <FormControl>
+            <Input id="password_confirmation" type="password" autocomplete="new-password" v-bind="componentField" />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      </FormField>
 
       <Button class="w-full" type="submit" :disabled="loading || Boolean(successMsg)"><Spinner v-if="loading" />{{ loading ? "Resetting" : "Reset Password" }}</Button>
     </form>

@@ -43,19 +43,19 @@ describe('LoginView.vue', () => {
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
 
-    expect(wrapper.text()).toContain('Invalid email address');
-    expect(wrapper.text()).toContain('Password must be at least 8 characters');
+    expect(wrapper.text()).toContain('Email is required');
+    expect(wrapper.text()).toContain('Password is required');
     expect(mockLogin).not.toHaveBeenCalled();
 
-    // Submit invalid email and short password
+    // Submit invalid email and empty password
     await wrapper.find('input[type="email"]').setValue('invalid-email');
-    await wrapper.find('input[type="password"]').setValue('short');
+    await wrapper.find('input[type="password"]').setValue('');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
 
     expect(wrapper.text()).toContain('Invalid email address');
-    expect(wrapper.text()).toContain('Password must be at least 8 characters');
+    expect(wrapper.text()).toContain('Password is required');
     expect(mockLogin).not.toHaveBeenCalled();
   });
 
@@ -84,14 +84,16 @@ describe('LoginView.vue', () => {
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('displays error message when login fails', async () => {
+  it('displays incorrect credentials error message when login fails with 401 or 422', async () => {
     const wrapper = mount(LoginView, {
       global: {
         stubs: ['RouterLink', 'Spinner']
       }
     });
 
-    mockLogin.mockRejectedValueOnce(new Error('Wrong Password'));
+    mockLogin.mockRejectedValueOnce({
+      response: { status: 401 }
+    });
 
     const emailInput = wrapper.find('input[type="email"]');
     const passwordInput = wrapper.find('input[type="password"]');
@@ -103,5 +105,49 @@ describe('LoginView.vue', () => {
     await new Promise(r => setTimeout(r, 10));
 
     expect(wrapper.text()).toContain('Incorrect email or password.');
+  });
+
+  it('displays rate limit error message when login fails with 429', async () => {
+    const wrapper = mount(LoginView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockLogin.mockRejectedValueOnce({
+      response: { status: 429 }
+    });
+
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInput = wrapper.find('input[type="password"]');
+
+    await emailInput.setValue('test@example.com');
+    await passwordInput.setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Too many attempts. Please try again later.');
+  });
+
+  it('displays generic error message when login fails with 500 or network error', async () => {
+    const wrapper = mount(LoginView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockLogin.mockRejectedValueOnce(new Error('Network error'));
+
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInput = wrapper.find('input[type="password"]');
+
+    await emailInput.setValue('test@example.com');
+    await passwordInput.setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Something went wrong. Please try again.');
   });
 });

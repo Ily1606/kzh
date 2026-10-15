@@ -107,4 +107,26 @@ describe('RegisterView.vue', () => {
 
     expect(wrapper.text()).toContain('Couldn\'t create your account. Please try again.');
   });
+
+  it('displays rate limit error message when registration fails with 429', async () => {
+    const wrapper = mount(RegisterView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockRegister.mockRejectedValueOnce({
+      response: { status: 429 }
+    });
+
+    await wrapper.find('input[id="fullName"]').setValue('John Doe');
+    await wrapper.find('input[id="email"]').setValue('test@example.com');
+    await wrapper.find('input[id="password"]').setValue('password123');
+    await wrapper.find('input[id="confirmPassword"]').setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Too many attempts. Please try again later.');
+  });
 });
