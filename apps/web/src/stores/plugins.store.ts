@@ -20,6 +20,8 @@ export interface PluginQueryState {
 
 const emptyQuery = (): PluginQueryState => ({ ids: [], page: 1, total: 0, lastPage: 1 });
 
+let lastListRequestId = 0;
+
 function errorMessage(err: unknown, fallback: string): string {
   const message = (err as { response?: { data?: { message?: string } } } | null)?.response?.data?.message;
 
@@ -131,6 +133,7 @@ export const usePluginsStore = defineStore('plugins', () => {
 
   /** Always fetches: this list is paginated, and a search or page change must see fresh counts. */
   async function fetchList(page = 1, category?: string | null, search?: string | null): Promise<void> {
+    const requestId = ++lastListRequestId;
     isFetchingList.value = true;
     fetchError.value = null;
 
@@ -141,6 +144,10 @@ export const usePluginsStore = defineStore('plugins', () => {
         category,
         search: search || null,
       });
+      // A slower earlier search would land last and overwrite the newer results, so
+      // only the newest request is allowed to write.
+      if (requestId !== lastListRequestId) return;
+
       const plugins = res.data ?? [];
 
       put(plugins);
@@ -151,9 +158,11 @@ export const usePluginsStore = defineStore('plugins', () => {
         lastPage: res.meta?.last_page ?? 1,
       };
     } catch (err) {
+      if (requestId !== lastListRequestId) return;
+
       fetchError.value = errorMessage(err, 'Failed to load plugins.');
     } finally {
-      isFetchingList.value = false;
+      if (requestId === lastListRequestId) isFetchingList.value = false;
     }
   }
 
