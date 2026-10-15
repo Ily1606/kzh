@@ -7,6 +7,7 @@ use App\Enums\PluginStatus;
 use App\Models\Category;
 use App\Models\Plugin;
 use App\Models\Tag;
+use App\Support\LikeHelper;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -89,8 +90,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             // Match the keyword in either column, and nothing at all without one.
             ->when(filled($search), fn (Builder $query) => $query->where(
                 fn (Builder $matches) => $matches
-                    ->whereLike('name', "%{$search}%")
-                    ->orWhereLike('title', "%{$search}%"),
+                    ->where(fn (Builder $name) => LikeHelper::whereContains($name, 'name', $search))
+                    ->orWhere(fn (Builder $title) => LikeHelper::whereContains($title, 'title', $search)),
             ))
             ->withCount([
                 'stars as star_count',
