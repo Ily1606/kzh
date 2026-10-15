@@ -4,6 +4,7 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { computed, nextTick, onMounted, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
+import { takePendingScroll } from '@/utils/pageScroll'
 
 const route = useRoute()
 const auth = useAuth()
@@ -26,6 +27,21 @@ function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'instant' })
 }
 
+/**
+ * Back/forward hand over the position saved with the history entry, everything
+ * else starts at the top.
+ */
+function restoreScroll() {
+  const target = takePendingScroll()
+
+  if (!target) {
+    scrollToTop()
+    return
+  }
+
+  window.scrollTo({ top: target.top, left: target.left, behavior: 'instant' })
+}
+
 // Changing layout tears the transition down, so there is no after-leave to wait for.
 watch(layout, async () => {
   await nextTick()
@@ -36,7 +52,8 @@ watch(layout, async () => {
 <template>
   <component :is="layout">
     <RouterView v-slot="{ Component }">
-      <Transition name="page" mode="out-in" @after-leave="scrollToTop">
+      <!-- after-leave: old page is gone, new one has just mounted, so scrolling here moves neither of them. -->
+      <Transition name="page" mode="out-in" @after-leave="restoreScroll">
         <component :is="Component" :key="route.path" />
       </Transition>
     </RouterView>

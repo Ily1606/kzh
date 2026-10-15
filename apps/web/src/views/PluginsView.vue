@@ -27,13 +27,20 @@ const SEARCH_DEBOUNCE_MS = 300
 
 async function fetchAllPlugins(page = 1) {
   await store.fetchList(page, selectedCategory.value, searchQuery.value || null)
+}
+
+/** A new page of results is at the top of the list, so the reader goes there.
+ *  Only for changes the reader asked for: scrolling on mount would undo the
+ *  position restored when coming back to this page. */
+async function goToPage(page: number) {
+  await fetchAllPlugins(page)
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function chooseCategory(category: string | null) {
   selectedCategory.value = category
   await syncQuery()
-  await fetchAllPlugins(1)
+  await goToPage(1)
 }
 
 /** Reads the current filter state and writes it to the URL, so both filters
@@ -50,7 +57,7 @@ async function syncQuery() {
 watch(searchQuery, (_query, _previous, onCleanup) => {
   const timer = setTimeout(async () => {
     await syncQuery()
-    await fetchAllPlugins(1)
+    await goToPage(1)
   }, SEARCH_DEBOUNCE_MS)
 
   onCleanup(() => clearTimeout(timer))
@@ -205,7 +212,7 @@ onMounted(async () => {
       <Button
         variant="outline"
         :disabled="store.list.page === 1 || store.isFetchingList"
-        @click="fetchAllPlugins(store.list.page - 1)"
+        @click="goToPage(store.list.page - 1)"
       >
         Previous
       </Button>
@@ -215,7 +222,7 @@ onMounted(async () => {
       <Button
         variant="outline"
         :disabled="store.list.page === store.list.lastPage || store.isFetchingList"
-        @click="fetchAllPlugins(store.list.page + 1)"
+        @click="goToPage(store.list.page + 1)"
       >
         Next
       </Button>
