@@ -100,7 +100,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" v-bind="componentField" />
+            <Input type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -110,7 +110,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>New Password</FormLabel>
           <FormControl>
-            <Input id="password" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -120,7 +120,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Confirm New Password</FormLabel>
           <FormControl>
-            <Input id="password_confirmation" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
