@@ -60,7 +60,7 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <Card class="gap-0 overflow-hidden border-border/80 bg-card/90 py-0 shadow-xl shadow-primary/5">
+  <Card variant="glass" class="gap-0 overflow-hidden py-0 shadow-xl shadow-primary/10">
     <form class="space-y-4 p-6" @submit.prevent="onSubmit">
       <Alert v-if="errorMsg" variant="destructive">
         <AlertDescription>{{ errorMsg }}</AlertDescription>

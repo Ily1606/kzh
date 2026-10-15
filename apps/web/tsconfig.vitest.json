@@ -3,7 +3,7 @@
   "compilerOptions": {
     "composite": true,
     "lib": [],
-    "types": ["node", "jsdom", "vitest/globals"]
+    "types": ["vite/client", "node", "jsdom", "vitest/globals"]
   },
   "include": ["tests/**/*.ts", "tests/**/*.tsx", "tests/**/*.vue", "src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

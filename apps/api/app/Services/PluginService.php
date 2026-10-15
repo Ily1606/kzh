@@ -272,10 +272,11 @@ final class PluginService
      * @param  User|null  $user  Signed-in viewer, or null for a guest. Drives whether
      *                           each plugin carries the viewer-specific `is_star` flag.
      * @param  string|null  $category  Restrict to one category, or null for all of them.
+     * @param  string|null  $search  Match against plugin name and title, or null to skip the filter.
      */
-    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null, ?string $category = null): LengthAwarePaginator
+    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null, ?string $category = null, ?string $search = null): LengthAwarePaginator
     {
-        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage, $category);
+        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage, $category, $search);
 
         // A guest has no stars, so there is nothing to resolve and no flag to
         // set. Skipping here is also what keeps the public list query count at

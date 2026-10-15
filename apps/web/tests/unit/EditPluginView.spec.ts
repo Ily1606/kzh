@@ -42,10 +42,11 @@ const mockRoute = ref({
 
 const mockPush = vi.fn()
 const mockReplace = vi.fn()
+const mockBack = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRoute: () => mockRoute.value,
-  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: mockBack }),
   RouterLink: { props: ['to'], template: '<a><slot /></a>' },
 }))
 
@@ -241,6 +242,27 @@ describe('EditPluginView.vue', () => {
     })
   })
 
+  describe('the back button', () => {
+    it('pops the history rather than pushing the detail route', async () => {
+      signIn()
+      seedStore()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      const back = wrapper.findAll('button').find((button) => button.text() === 'Back to plugin')
+      expect(back).toBeDefined()
+
+      await back!.trigger('click')
+
+      expect(mockBack).toHaveBeenCalled()
+      // Pushing the detail route again would leave the edit page in the
+      // history, so the browser Back button would land on it a second time
+      // instead of returning to the list.
+      expect(mockPush).not.toHaveBeenCalled()
+    })
+  })
+
   describe('saving', () => {
     const values = {
       name: '@dsh/my-plugin',
@@ -265,10 +287,9 @@ describe('EditPluginView.vue', () => {
 
       expect(mockPluginUpdate).toHaveBeenCalledWith('plugin-123', values)
       expect(mockNotifySuccess).toHaveBeenCalledWith('Plugin updated successfully.')
-      expect(mockPush).toHaveBeenCalledWith({
-        name: 'plugin-detail',
-        params: { id: 'plugin-123' },
-      })
+      // Back, not a fresh push: pushing the detail route again would leave this
+      // page in the history and send the browser Back button straight back into it.
+      expect(mockBack).toHaveBeenCalled()
     })
 
     it('leaves the page on the plugin and shows the message when the save fails', async () => {
@@ -287,7 +308,7 @@ describe('EditPluginView.vue', () => {
 
       // Redirecting away from a form whose save failed would throw the author's
       // typing away and claim the edit went through.
-      expect(mockPush).not.toHaveBeenCalled()
+      expect(mockBack).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('Could not save the plugin.')
     })
   })

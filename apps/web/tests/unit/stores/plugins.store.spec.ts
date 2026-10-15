@@ -178,7 +178,7 @@ describe('Plugins Store', () => {
 
       await store.fetchList(2);
 
-      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 2, per_page: 9, category: undefined });
+      expect(mockPluginIndex).toHaveBeenCalledWith({ page: 2, per_page: 9, category: undefined, search: null });
       expect(store.list).toMatchObject({ page: 2, lastPage: 5, total: 42 });
       expect(store.list.ids).toEqual(['plugin-1', 'plugin-2']);
       expect(store.listPlugins).toHaveLength(2);

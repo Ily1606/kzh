@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import type { PluginResource, UpdatePluginRequest } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
 import PluginFieldsForm from '@/components/pages/plugin/PluginFieldsForm.vue'
@@ -54,7 +54,7 @@ async function save(values: PluginFields) {
 
   notifySuccess('Plugin updated successfully.')
 
-  router.push({ name: 'plugin-detail', params: { id: pluginId.value } })
+  router.back()
 }
 
 onMounted(async () => {
@@ -70,15 +70,15 @@ onMounted(async () => {
 
 <template>
   <div class="mx-auto max-w-4xl py-12 px-4 sm:px-6">
-    <div v-if="store.isFetchingPlugin && !plugin" class="text-center py-12">
-      <div class="animate-pulse flex flex-col items-center">
+    <div v-if="store.isFetchingPlugin && !plugin" class="glass animate-pulse rounded-2xl py-12 text-center">
+      <div class="flex flex-col items-center">
         <div class="h-12 w-12 bg-muted rounded-full mb-4"></div>
         <div class="h-6 w-1/3 bg-muted rounded mb-2"></div>
         <div class="h-4 w-1/4 bg-muted rounded"></div>
       </div>
     </div>
 
-    <div v-else-if="store.fetchError && !plugin" class="text-center py-12 text-destructive">
+    <div v-else-if="store.fetchError && !plugin" class="glass rounded-2xl py-12 text-center text-destructive">
       {{ store.fetchError }}
     </div>
 
@@ -92,10 +92,8 @@ onMounted(async () => {
           <p class="text-lg text-muted-foreground">{{ plugin.name }}</p>
         </div>
 
-        <Button as-child variant="outline" class="shrink-0">
-          <RouterLink :to="{ name: 'plugin-detail', params: { id: plugin.id } }">
-            Back to plugin
-          </RouterLink>
+        <Button variant="outline" class="shrink-0" @click="router.back()">
+          Back to plugin
         </Button>
       </div>
 

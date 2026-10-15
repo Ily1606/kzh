@@ -11,6 +11,11 @@ export type PluginIndexParams = {
  */
 category?: string | null;
 /**
+ * @maxLength 100
+ * @nullable
+ */
+search?: string | null;
+/**
  * @minimum 1
  * @nullable
  */

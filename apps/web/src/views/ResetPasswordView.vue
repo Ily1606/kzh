@@ -83,7 +83,7 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <Card class="gap-0 overflow-hidden border-border/80 bg-card/90 py-0 shadow-xl shadow-primary/5">
+  <Card variant="glass" class="gap-0 overflow-hidden py-0 shadow-xl shadow-primary/10">
     <div class="px-6 pt-6 pb-2">
       <h2 class="text-xl font-semibold text-foreground">Reset Password</h2>
       <p class="text-sm text-muted-foreground mt-1">Please enter your new password below.</p>
