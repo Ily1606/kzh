@@ -42,8 +42,14 @@ const onSubmit = handleSubmit(async (values) => {
       email: values.email,
       password: values.password,
     });
-    const redirectPath = route.query.redirect as string;
-    router.push(redirectPath || "/");
+    const redirect = route.query.redirect;
+    const redirectPath =
+      typeof redirect === "string" &&
+      redirect.startsWith("/") &&
+      !redirect.startsWith("//")
+        ? redirect
+        : "/";
+    router.push(redirectPath);
   } catch (e) {
     const status = (e as AxiosError).response?.status;
     errorMsg.value =
@@ -87,6 +93,6 @@ const onSubmit = handleSubmit(async (values) => {
       </FormField>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Signing in" : "Sign in" }}</Button>
     </form>
-    <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">New to the registry? <RouterLink to="/register" class="font-medium text-primary hover:underline">Create a publisher account</RouterLink></p>
+    <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">New to the registry? <RouterLink :to="{ path: '/register', query: route.query.redirect ? { redirect: route.query.redirect } : undefined }" class="font-medium text-primary hover:underline">Create a publisher account</RouterLink></p>
   </Card>
 </template>
