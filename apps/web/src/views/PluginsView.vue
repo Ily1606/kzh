@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Search, LoaderCircle, PackageOpen, ChevronDown, Check } from '@lucide/vue'
+import { pluginIndexQuerySearchMax } from '@/api/generated/zod'
 
 const store = usePluginsStore()
 const route = useRoute()
@@ -98,6 +99,7 @@ onMounted(async () => {
           <Input
             v-model="searchQuery"
             type="text"
+            :maxlength="pluginIndexQuerySearchMax"
             placeholder="Search plugins ..."
             data-test="search-input"
             class="h-11 rounded-xl pl-9"
