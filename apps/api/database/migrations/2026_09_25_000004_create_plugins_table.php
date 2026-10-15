@@ -3,6 +3,7 @@
 use App\Enums\PluginStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -26,6 +27,15 @@ return new class extends Migration
             $table->index('status');
             $table->index(['user_id', 'created_at']);
         });
+
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        // GIN Index
+        DB::statement('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+        DB::statement('CREATE INDEX plugins_name_trgm_idx ON plugins USING GIN (name gin_trgm_ops)');
+        DB::statement('CREATE INDEX plugins_title_trgm_idx ON plugins USING GIN (title gin_trgm_ops)');
     }
 
     public function down(): void
