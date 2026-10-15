@@ -65,7 +65,9 @@ async function fetchComments(page = 1, append = false) {
     const newComments = body?.data?.comments || body?.comments || (Array.isArray(body?.data) ? body.data : [])
 
     if (append) {
-      comments.value = [...comments.value, ...newComments]
+      const existingIds = new Set(comments.value.map(c => c.id))
+      const uniqueNew = newComments.filter((c: any) => !existingIds.has(c.id))
+      comments.value = [...comments.value, ...uniqueNew]
     } else {
       comments.value = newComments
     }
@@ -102,7 +104,9 @@ async function submitComment() {
     emit('commentAdded')
 
     if (createdComment) {
-      comments.value.unshift(createdComment)
+      if (!comments.value.some(c => c.id === createdComment.id)) {
+        comments.value.unshift(createdComment)
+      }
     } else {
       await fetchComments(1, false)
     }

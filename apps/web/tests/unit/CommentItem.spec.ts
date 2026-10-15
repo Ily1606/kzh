@@ -76,9 +76,10 @@ describe('CommentItem.vue', () => {
     expect(wrapper.text()).not.toContain('Reply')
   })
 
-  it('toggles reply box and submits a reply successfully', async () => {
+  it('toggles reply box and fetches existing replies so they are not hidden', async () => {
     mockIsAuthenticated.value = true
     mockCommentStore.mockResolvedValueOnce({ data: { comment: { id: 'c2', content: 'Reply content' } } })
+    mockCommentReplies.mockResolvedValueOnce({ data: { comments: [{ id: 'c3', content: 'Existing reply' }] } })
 
     const wrapper = mount(CommentItem, {
       props: { comment: { ...mockComment }, pluginId: '1', depth: 1 },
@@ -105,9 +106,72 @@ describe('CommentItem.vue', () => {
 
     // The comment replies_count should have incremented
     expect(wrapper.props('comment').replies_count).toBe('2')
-    // And the new reply is shown in place, without a refetch.
+    // Fetches existing replies so old replies are not hidden
+    expect(mockCommentReplies).toHaveBeenCalledWith('1', 'c1', { page: 1, per_page: 10 })
+    expect(wrapper.text()).toContain('Reply content')
+    expect(wrapper.text()).toContain('Existing reply')
+  })
+
+  it('submits a reply without calling commentReplies if comment has 0 replies', async () => {
+    mockIsAuthenticated.value = true
+    mockCommentStore.mockResolvedValueOnce({ data: { comment: { id: 'c2', content: 'Reply content' } } })
+
+    const wrapper = mount(CommentItem, {
+      props: { comment: { ...mockComment, replies_count: '0' }, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    const replyBtn = wrapper.findAll('button').find(b => b.text().includes('Reply'))
+    await replyBtn!.trigger('click')
+
+    await wrapper.find('textarea').setValue('My reply')
+    await wrapper.vm.$nextTick()
+
+    const submitBtn = replySubmitButton(wrapper)
+    await submitBtn.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.props('comment').replies_count).toBe('1')
     expect(mockCommentReplies).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Reply content')
+  })
+
+  it('does not re-fetch replies if replies were already loaded before submitting reply', async () => {
+    mockIsAuthenticated.value = true
+    mockCommentReplies.mockResolvedValueOnce({ data: { comments: [{ id: 'c3', content: 'Already loaded' }] } })
+    mockCommentStore.mockResolvedValueOnce({ data: { comment: { id: 'c2', content: 'New reply' } } })
+
+    const wrapper = mount(CommentItem, {
+      props: { comment: { ...mockComment, replies_count: '1' }, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    // 1. View replies first
+    const viewRepliesBtn = wrapper.findAll('button').find(b => b.text().includes('View 1 reply'))
+    await viewRepliesBtn!.trigger('click')
+    await flushPromises()
+    expect(mockCommentReplies).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('Already loaded')
+
+    // 2. Open reply form on root comment
+    const toggleReplyBtn = wrapper.findAll('button').find(b => b.text() === 'Reply')
+    await toggleReplyBtn!.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const textarea = wrapper.find('textarea')
+    expect(textarea.exists()).toBe(true)
+    await textarea.setValue('Another reply')
+    await wrapper.vm.$nextTick()
+
+    // Submit reply
+    const submitBtn = wrapper.findAll('button').find(b => b.text() === 'Reply' && b.element !== toggleReplyBtn?.element)
+    await submitBtn!.trigger('click')
+    await flushPromises()
+
+    // Does NOT call mockCommentReplies a second time because replies were already fetched
+    expect(mockCommentReplies).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('New reply')
+    expect(wrapper.text()).toContain('Already loaded')
   })
 
   it('shows alert when reply submission fails', async () => {
@@ -213,4 +277,42 @@ describe('CommentItem.vue', () => {
     await flushPromises()
     expect(wrapper.text()).not.toContain('Loaded reply')
   })
+
+  it('deduplicates replies when loading more replies (Show more replies)', async () => {
+    mockCommentReplies.mockResolvedValueOnce({
+      data: { comments: [{ id: 'r1', content: 'First reply' }, { id: 'r2', content: 'Second reply' }] },
+      meta: { current_page: 1, last_page: 2 }
+    })
+    mockCommentReplies.mockResolvedValueOnce({
+      data: { comments: [{ id: 'r2', content: 'Second reply' }, { id: 'r3', content: 'Third reply' }] },
+      meta: { current_page: 2, last_page: 2 }
+    })
+
+    const wrapper = mount(CommentItem, {
+      props: { comment: { ...mockComment, replies_count: '3' }, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    // Click "View 3 replies"
+    const viewBtn = wrapper.findAll('button').find(b => b.text().includes('View 3 replies'))
+    await viewBtn!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('First reply')
+    expect(wrapper.text()).toContain('Second reply')
+
+    // Find and click "View more replies"
+    const showMoreBtn = wrapper.findAll('button').find(b => b.text().includes('View more replies'))
+    expect(showMoreBtn).toBeDefined()
+    await showMoreBtn!.trigger('click')
+    await flushPromises()
+
+    expect(mockCommentReplies).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Third reply')
+
+    // Ensure 'Second reply' is rendered only once
+    const matches = wrapper.findAll('p').filter(p => p.text() === 'Second reply')
+    expect(matches.length).toBe(1)
+  })
 })
+
