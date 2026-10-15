@@ -29,3 +29,20 @@ export const StarStoreResponse = zod.object({
   "meta": zod.string()
 })
 
+/**
+ * @summary Get star timeline for a plugin
+ */
+export const StarTimelineParams = zod.object({
+  "pluginId": zod.string()
+})
+
+export const StarTimelineResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Request successful."),
+  "data": zod.object({
+
+}).passthrough(),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+

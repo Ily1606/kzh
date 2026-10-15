@@ -8,6 +8,7 @@ use App\Events\Star\PluginStarred;
 use App\Events\Star\PluginUnstarred;
 use App\Models\User;
 use App\Support\RequestContext;
+use Illuminate\Support\Facades\Cache;
 
 final class StarService
 {
@@ -61,5 +62,16 @@ final class StarService
             userId: (string) $user->getAuthIdentifier(),
             requestContext: $requestContext,
         );
+    }
+
+    public function getTimeline(string $pluginId)
+    {
+        return Cache::remember('plugin:star_timeline:'.$pluginId, config('plugins.star_timeline_cache_ttl'), function () use ($pluginId) {
+            $plugin = $this->pluginRepository->findById($pluginId);
+            $dateToCompare = $plugin->approved_at ?? $plugin->created_at;
+            $byMonth = $dateToCompare ? $dateToCompare->diffInMonths(now()) > 2 : false;
+
+            return $this->starRepository->getTimeline($pluginId, $byMonth);
+        });
     }
 }

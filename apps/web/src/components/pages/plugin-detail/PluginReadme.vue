@@ -46,6 +46,7 @@ function onCollapse() {
 </script>
 
 <template>
+
   <section class="space-y-4">
     <div class="flex items-center justify-between">
       <h2 class="text-xl font-semibold">About this plugin</h2>

@@ -35,4 +35,14 @@ class StarController extends Controller
 
         return ApiResponse::successResponse($result, $message);
     }
+
+    /**
+     * Get star timeline for a plugin
+     */
+    public function timeline(string $pluginId): JsonResponse
+    {
+        $timeline = $this->starService->getTimeline($pluginId);
+
+        return ApiResponse::successResponse($timeline);
+    }
 }

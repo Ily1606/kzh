@@ -21,4 +21,11 @@ interface StarRepositoryInterface
      * Remove the star, reporting whether a row was actually deleted.
      */
     public function deleteBy(string $pluginId, string $userId): bool;
+
+    /**
+     * Get star count grouped by date for a plugin.
+     * 
+     * @return \Illuminate\Support\Collection
+     */
+    public function getTimeline(string $pluginId, bool $byMonth = false);
 }

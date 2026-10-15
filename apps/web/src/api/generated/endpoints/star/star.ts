@@ -6,7 +6,8 @@
  */
 import type {
   SetStarRequest,
-  StarStore200
+  StarStore200,
+  StarTimeline200
 } from '../../model';
 
 import { customInstance } from '../../../../services/api-mutator';
@@ -30,5 +31,17 @@ const starStore = (
     },
       options);
     }
-  return {starStore}};
+  /**
+ * @summary Get star timeline for a plugin
+ */
+const starTimeline = (
+    pluginId: string,
+ options?: SecondParameter<typeof customInstance<StarTimeline200>>,) => {
+      return customInstance<StarTimeline200>(
+      {url: `/v1/plugins/${pluginId}/stars/timeline`, method: 'GET'
+    },
+      options);
+    }
+  return {starStore,starTimeline}};
 export type StarStoreResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getStar>['starStore']>>>
+export type StarTimelineResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getStar>['starTimeline']>>>

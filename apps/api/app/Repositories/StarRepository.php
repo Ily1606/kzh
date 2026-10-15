@@ -47,4 +47,24 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
             ->where('user_id', $userId)
             ->delete() === 1;
     }
+
+    public function getTimeline(string $pluginId, bool $byMonth = false)
+    {
+        $query = $this->newQuery()->where('plugin_id', $pluginId);
+
+        $driver = $query->getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            $dateFormat = $byMonth ? "TO_CHAR(created_at, 'YYYY-MM')" : "TO_CHAR(created_at, 'YYYY-MM-DD')";
+        } elseif ($driver === 'sqlite') {
+            $dateFormat = $byMonth ? "strftime('%Y-%m', created_at)" : "DATE(created_at)";
+        } else {
+            $dateFormat = $byMonth ? "DATE_FORMAT(created_at, '%Y-%m')" : "DATE(created_at)";
+        }
+
+        return $query->selectRaw("{$dateFormat} as date, count(*) as count")
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+    }
 }

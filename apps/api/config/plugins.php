@@ -18,6 +18,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Plugin Star Timeline Cache TTL
+    |--------------------------------------------------------------------------
+    |
+    | The time-to-live (in seconds) for caching the star timeline data of a plugin.
+    | Default is 900 seconds (15 minutes).
+    |
+    */
+    'star_timeline_cache_ttl' => env('PLUGIN_STAR_TIMELINE_CACHE_TTL', 900),
+
+    /*
+    |--------------------------------------------------------------------------
     | Pagination Configuration
     |--------------------------------------------------------------------------
     |
