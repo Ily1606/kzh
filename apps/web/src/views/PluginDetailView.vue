@@ -62,7 +62,11 @@ onMounted(async () => {
 
       <PluginStatusNotice :plugin="plugin" />
 
-      <StarTimeline :plugin-id="plugin.id" />
+      <StarTimeline
+        :plugin-id="plugin.id"
+        :star-count="plugin.star_count"
+        :is-starred="plugin.is_star"
+      />
 
       <PluginReadme
         :source-link="plugin.source_link"
