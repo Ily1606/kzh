@@ -90,10 +90,6 @@ export const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuth();
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    return { name: 'login' };
-  }
-
   if (to.meta.guestOnly && auth.isAuthenticated) {
     return { name: 'home' };
   }

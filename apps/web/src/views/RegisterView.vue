@@ -52,7 +52,9 @@ const onSubmit = handleSubmit(async (values) => {
     errorMsg.value =
       status === 429
         ? "Too many attempts. Please try again later."
-        : "Couldn't create your account. Please try again.";
+        : status === 422
+          ? (err.response?.data?.message || "Validation failed.")
+          : "Couldn't create your account. Please try again.";
   } finally {
     loading.value = false;
   }
@@ -69,7 +71,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Full name</FormLabel>
           <FormControl>
-            <Input id="fullName" type="text" autocomplete="name" placeholder="Jane Doe" v-bind="componentField" />
+            <Input type="text" autocomplete="name" placeholder="Jane Doe" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -78,7 +80,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+            <Input type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -87,7 +89,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Password</FormLabel>
           <FormControl>
-            <Input id="password" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -96,7 +98,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Confirm password</FormLabel>
           <FormControl>
-            <Input id="confirmPassword" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
