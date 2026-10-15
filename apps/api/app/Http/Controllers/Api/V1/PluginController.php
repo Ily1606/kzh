@@ -141,16 +141,10 @@ class PluginController extends Controller
     {
         $viewerId = (string) ($request->user()?->getAuthIdentifier() ?? 'guest:'.sha1($request->ip().'|'.$request->userAgent()));
         $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
-        $secondsInHour = 3600.0;
-
-        $ttl = (int) config('plugins.view_cache_ttl');
-        $message = $result->counted
-            ? __('api.plugin_view_counted')
-            : __('api.plugin_view_already_counted', ['hours' => max(1, (int) round($ttl / $secondsInHour))]);
 
         return ApiResponse::successResponse(
             (new PluginViewResource($result))->resolve(),
-            $message
+            $result->message
         );
     }
 

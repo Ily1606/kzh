@@ -11,8 +11,6 @@ use App\Enums\PluginStatus;
 use App\DTOs\PluginViewResult;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginUpdated;
-use App\Events\Plugin\PluginViewed;
-use App\Http\Resources\PluginResource;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -343,7 +341,9 @@ final class PluginService
         $bufferKey = config('plugins.views_buffer_key');
 
         // Retrieve TTL from configuration (default 86400 seconds / 24 hours)
-        $ttl = config('plugins.view_cache_ttl');
+        $ttl = (int) config('plugins.view_cache_ttl', 86400);
+        $secondsInHour = 3600.0;
+        $hours = max(1, (int) round($ttl / $secondsInHour));
 
         // Use Cache::add for atomic operation to prevent race conditions (VIEW-13)
         if (Cache::add($cacheKey, true, $ttl)) {
@@ -351,11 +351,20 @@ final class PluginService
 
             TrendingTracker::trackView($plugin->id);
 
-            return new PluginViewResult(true, $plugin->view_count + $bufferedViews);
+            return new PluginViewResult(
+                counted: true,
+                viewCount: $plugin->view_count + $bufferedViews,
+                message: __('api.plugin_view_counted'),
+            );
         }
 
         $bufferedViews = (int) Redis::hget($bufferKey, $plugin->id);
-        return new PluginViewResult(false, $plugin->view_count + $bufferedViews);
+
+        return new PluginViewResult(
+            counted: false,
+            viewCount: $plugin->view_count + $bufferedViews,
+            message: __('api.plugin_view_already_counted', ['hours' => $hours]),
+        );
     }
 
     /**

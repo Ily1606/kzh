@@ -9,6 +9,7 @@ use App\Events\Star\PluginUnstarred;
 use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 
 final class StarService
 {
@@ -58,13 +59,13 @@ final class StarService
     private function refreshCachedPluginStarCount(string $pluginId): void
     {
         $hashKey = config('plugins.trending.keys.objects');
-        if ($hashKey && \Illuminate\Support\Facades\Redis::hexists($hashKey, $pluginId)) {
+        if ($hashKey && Redis::hexists($hashKey, $pluginId)) {
             $fresh = $this->pluginRepository
                 ->findApprovedByIds([$pluginId])
                 ->first();
 
             if ($fresh) {
-                \Illuminate\Support\Facades\Redis::hset($hashKey, $pluginId, serialize($fresh));
+                Redis::hset($hashKey, $pluginId, serialize($fresh));
             }
         }
     }
