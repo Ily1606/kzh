@@ -9,6 +9,7 @@ use App\Services\StarService;
 use App\Support\RequestContext;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class StarServiceTest extends TestCase
@@ -164,5 +165,67 @@ class StarServiceTest extends TestCase
         $this->expectException(ModelNotFoundException::class);
 
         app(StarService::class)->setStarred($user, $plugin->id, true, new RequestContext(null, null));
+    }
+
+    // -----------------------------------------------------------------------
+    // Timeline Cache Invalidation
+    // -----------------------------------------------------------------------
+
+    public function test_starring_clears_timeline_cache_when_changed(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->approvedPlugin();
+        $service = app(StarService::class);
+
+        $cacheKey = 'plugin:star_timeline:'.$plugin->id;
+        Cache::put($cacheKey, ['sample_cached_timeline'], 900);
+        $this->assertTrue(Cache::has($cacheKey));
+
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
+
+        $this->assertFalse(Cache::has($cacheKey));
+    }
+
+    public function test_unstarring_clears_timeline_cache_when_changed(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->approvedPlugin();
+        $service = app(StarService::class);
+
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
+
+        $cacheKey = 'plugin:star_timeline:'.$plugin->id;
+        Cache::put($cacheKey, ['sample_cached_timeline'], 900);
+        $this->assertTrue(Cache::has($cacheKey));
+
+        $service->setStarred($user, $plugin->id, false, new RequestContext(null, null));
+
+        $this->assertFalse(Cache::has($cacheKey));
+    }
+
+    public function test_repeating_star_does_not_clear_timeline_cache(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->approvedPlugin();
+        $service = app(StarService::class);
+
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
+
+        $cacheKey = 'plugin:star_timeline:'.$plugin->id;
+        Cache::put($cacheKey, ['sample_cached_timeline'], 900);
+
+        // Starring again when already starred ($changed is false)
+        $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
+
+        $this->assertTrue(Cache::has($cacheKey));
+    }
+
+    public function test_get_timeline_throws_not_found_for_unapproved_plugin(): void
+    {
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Pending]);
+
+        $this->expectException(ModelNotFoundException::class);
+
+        app(StarService::class)->getTimeline($plugin->id);
     }
 }

@@ -42,6 +42,7 @@ final class StarService
 
         if ($changed) {
             $this->dispatchStarEvent($starred, $plugin->id, $user, $requestContext);
+            Cache::forget($this->timelineCacheKey($plugin->id));
         }
 
         return [
@@ -66,12 +67,17 @@ final class StarService
 
     public function getTimeline(string $pluginId)
     {
-        return Cache::remember('plugin:star_timeline:'.$pluginId, config('plugins.star_timeline_cache_ttl'), function () use ($pluginId) {
-            $plugin = $this->pluginRepository->findById($pluginId);
+        return Cache::remember($this->timelineCacheKey($pluginId), config('plugins.star_timeline_cache_ttl'), function () use ($pluginId) {
+            $plugin = $this->pluginRepository->findApprovedById($pluginId);
             $dateToCompare = $plugin->approved_at ?? $plugin->created_at;
             $byMonth = $dateToCompare ? $dateToCompare->diffInMonths(now()) > 2 : false;
 
             return $this->starRepository->getTimeline($pluginId, $byMonth);
         });
+    }
+
+    private function timelineCacheKey(string $pluginId): string
+    {
+        return 'plugin:star_timeline:'.$pluginId;
     }
 }

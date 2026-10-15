@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\V1;
 
+use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -31,8 +32,9 @@ class StarTimelineTest extends TestCase
     
     public function test_it_returns_successful_empty_timeline_if_no_stars(): void
     {
-        // This is a success case but good to ensure it doesn't break
-        $plugin = Plugin::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+        ]);
 
         $response = $this->getJson("/api/v1/plugins/{$plugin->id}/stars/timeline");
 
@@ -41,6 +43,28 @@ class StarTimelineTest extends TestCase
                      'success' => true,
                      'data' => []
                  ]);
+    }
+
+    public function test_it_returns_404_when_plugin_is_pending(): void
+    {
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Pending,
+        ]);
+
+        $response = $this->getJson("/api/v1/plugins/{$plugin->id}/stars/timeline");
+
+        $response->assertStatus(404);
+    }
+
+    public function test_it_returns_404_when_plugin_is_rejected(): void
+    {
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Rejected,
+        ]);
+
+        $response = $this->getJson("/api/v1/plugins/{$plugin->id}/stars/timeline");
+
+        $response->assertStatus(404);
     }
 }
 
