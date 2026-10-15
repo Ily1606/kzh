@@ -115,6 +115,19 @@ describe('HomeView.vue', () => {
     expect(wrapper.findAllComponents({ name: 'PluginCard' }).length).toBe(2)
   })
 
+  it('does not report API unavailable when trending plugins request fails (e.g. 429)', async () => {
+    mockPluginTrending.mockRejectedValue(new Error('Request failed with status code 429'))
+    mockV1Health.mockResolvedValue({ data: { status: 'healthy' } })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    // Health probe must still succeed and report online
+    expect(wrapper.text()).toContain('API online — healthy')
+    expect(wrapper.text()).not.toContain('API unavailable')
+    expect(wrapper.text()).toContain('No trending plugins available at the moment.')
+  })
+
   it('copies install command to clipboard', async () => {
     vi.useFakeTimers()
     const wrapper = mountView()

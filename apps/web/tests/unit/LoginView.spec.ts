@@ -4,9 +4,11 @@ import LoginView from '@/views/LoginView.vue';
 
 // Mock router
 const mockPush = vi.fn();
+let mockQuery: Record<string, string> = {};
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
-  useRoute: () => ({ query: {} })
+  useRoute: () => ({ query: mockQuery })
 }));
 
 // Mock composable useAuth
@@ -18,6 +20,7 @@ vi.mock('@/composables/useAuth', () => ({
 describe('LoginView.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockQuery = {};
   });
 
   it('renders basic input fields correctly', () => {
@@ -82,6 +85,32 @@ describe('LoginView.vue', () => {
       password: 'password123'
     });
     expect(mockPush).toHaveBeenCalledWith('/');
+  });
+
+  it('redirects to route.query.redirect on valid form submission when provided', async () => {
+    mockQuery = { redirect: '/plugins' };
+    const wrapper = mount(LoginView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockLogin.mockResolvedValueOnce(true);
+
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInput = wrapper.find('input[type="password"]');
+
+    await emailInput.setValue('test@example.com');
+    await passwordInput.setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(mockLogin).toHaveBeenCalledWith({
+      email: 'test@example.com',
+      password: 'password123'
+    });
+    expect(mockPush).toHaveBeenCalledWith('/plugins');
   });
 
   it('displays incorrect credentials error message when login fails with 401 or 422', async () => {

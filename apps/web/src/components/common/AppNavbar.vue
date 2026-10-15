@@ -1,24 +1,111 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import { useRouter } from 'vue-router'
-import { LogOut, UserRound } from "@lucide/vue"
+import {
+  LogOut,
+  UserRound,
+  Menu,
+  X,
+  Package,
+  Layers,
+  UploadCloud,
+  ChevronRight,
+} from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import ThemeToggle from "@/components/common/ThemeToggle.vue"
 
 const auth = useAuth()
 const router = useRouter()
+const route = useRoute()
+
+const loginPath = computed(() => {
+  const currentPath = route?.fullPath || ''
+  const isAuthPage =
+    route?.path === '/login' ||
+    route?.path === '/register' ||
+    route?.path === '/forgot-password' ||
+    route?.path === '/reset-password'
+
+  return !isAuthPage && currentPath && currentPath !== '/'
+    ? `/login?redirect=${encodeURIComponent(currentPath)}`
+    : '/login'
+})
+
+const registerPath = computed(() => {
+  const currentPath = route?.fullPath || ''
+  const isAuthPage =
+    route?.path === '/login' ||
+    route?.path === '/register' ||
+    route?.path === '/forgot-password' ||
+    route?.path === '/reset-password'
+
+  return !isAuthPage && currentPath && currentPath !== '/'
+    ? `/register?redirect=${encodeURIComponent(currentPath)}`
+    : '/register'
+})
+
+const isOpen = ref(false)
 
 async function handleLogout() {
+  isOpen.value = false
   await auth.logout()
   router.push('/login')
 }
+
+// Close drawer when route changes
+watch(
+  () => route.fullPath,
+  () => {
+    isOpen.value = false
+  }
+)
+
+// Prevent background body scroll when drawer is open
+watch(isOpen, (open) => {
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = open ? 'hidden' : ''
+  }
+})
+
+const onKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && isOpen.value) {
+    isOpen.value = false
+  }
+}
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', onKeydown)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', onKeydown)
+    document.body.style.overflow = ''
+  }
+})
 </script>
 
 <template>
   <nav class="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur-xl">
     <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center gap-8">
+      <!-- Left side: Mobile Hamburger + Brand Logo + Desktop Nav -->
+      <div class="flex items-center gap-2 sm:gap-8">
+        <!-- Mobile Drawer Hamburger Toggle Button -->
+        <Button
+          variant="ghost"
+          size="icon"
+          class="md:hidden size-9 -ml-2"
+          :aria-expanded="isOpen"
+          aria-label="Toggle navigation menu"
+          @click="isOpen = !isOpen"
+        >
+          <Menu v-if="!isOpen" class="size-5 text-foreground" />
+          <X v-else class="size-5 text-foreground" />
+        </Button>
+
         <RouterLink to="/" class="flex items-center gap-2 font-semibold tracking-tight text-foreground">
           <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm shadow-primary/30">D</span>
           <span>DSH</span>
@@ -28,21 +115,193 @@ async function handleLogout() {
           <RouterLink v-if="auth.isAuthenticated" to="/resources" class="nav-link">Resources</RouterLink>
         </div>
       </div>
+
+      <!-- Right side: ThemeToggle + Profile/Auth controls -->
       <div class="flex items-center gap-2 sm:gap-3">
         <ThemeToggle />
+
+        <!-- Authenticated controls -->
         <template v-if="auth.isAuthenticated">
-          <RouterLink to="/profile" class="hidden items-center gap-2 rounded-full border bg-muted/50 py-1 pl-1 pr-3 text-sm transition-colors hover:bg-muted sm:flex">
-             <img v-if="auth.user?.avatarLink" :src="auth.user.avatarLink" class="size-7 rounded-full object-cover border border-border" alt="Avatar" />
+          <!-- Desktop Profile Pill -->
+          <RouterLink
+            to="/profile"
+            class="hidden items-center gap-2 rounded-full border bg-muted/50 p-1 text-sm transition-colors hover:bg-muted sm:flex sm:py-1 sm:pl-1 sm:pr-3"
+            aria-label="Profile"
+          >
+            <img v-if="auth.user?.avatarLink" :src="auth.user.avatarLink" class="size-7 rounded-full object-cover border border-border" alt="Avatar" />
             <span v-else class="grid size-7 place-items-center rounded-full bg-primary/10 text-primary"><UserRound class="size-3.5" /></span>
             <span class="text-muted-foreground">Hello, <span class="font-medium text-foreground">{{ auth.user?.name }}</span></span>
           </RouterLink>
-          <Button variant="outline" size="sm" @click="handleLogout"><LogOut /> <span class="hidden sm:inline">Logout</span></Button>
+
+          <!-- Mobile User Avatar Link -->
+          <RouterLink
+            to="/profile"
+            class="flex sm:hidden items-center rounded-full transition-transform active:scale-95"
+            aria-label="Mobile Profile"
+          >
+            <img
+              v-if="auth.user?.avatarLink"
+              :src="auth.user.avatarLink"
+              class="size-8 rounded-full object-cover border border-border"
+              alt="Avatar"
+            />
+            <span
+              v-else
+              class="grid size-8 place-items-center rounded-full bg-primary/10 text-primary border border-border"
+            >
+              <UserRound class="size-4" />
+            </span>
+          </RouterLink>
+
+          <Button variant="outline" size="sm" class="hidden sm:inline-flex" @click="handleLogout">
+            <LogOut class="size-4" /> <span>Logout</span>
+          </Button>
         </template>
+
+        <!-- Unauthenticated controls -->
         <template v-else>
-          <Button as-child size="sm"><RouterLink to="/register">Get started</RouterLink></Button>
+          <!-- Desktop Log in button -->
+          <Button as-child variant="ghost" size="sm" class="hidden sm:inline-flex">
+            <RouterLink :to="loginPath">Log in</RouterLink>
+          </Button>
+
+          <!-- Mobile Log in button -->
+          <Button as-child variant="outline" size="sm" class="sm:hidden h-8 px-2.5 text-xs font-medium">
+            <RouterLink :to="loginPath">Log in</RouterLink>
+          </Button>
+
+          <!-- Desktop Get started button -->
+          <Button as-child size="sm" class="hidden sm:inline-flex">
+            <RouterLink :to="registerPath">Get started</RouterLink>
+          </Button>
         </template>
       </div>
     </div>
+
+    <!-- Mobile Drawer Overlay & Panel -->
+    <Teleport to="body">
+      <!-- Backdrop Overlay -->
+      <Transition
+        enter-active-class="transition-opacity duration-200 ease-out"
+        enter-from-class="opacity-0"
+        leave-active-class="transition-opacity duration-150 ease-in"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="isOpen"
+          class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs md:hidden"
+          @click="isOpen = false"
+        />
+      </Transition>
+
+      <!-- Drawer Panel -->
+      <Transition
+        enter-active-class="transition-transform duration-300 ease-out"
+        enter-from-class="-translate-x-full"
+        leave-active-class="transition-transform duration-200 ease-in"
+        leave-to-class="-translate-x-full"
+      >
+        <div
+          v-if="isOpen"
+          class="fixed inset-y-0 left-0 z-50 flex w-full max-w-xs flex-col justify-between border-r border-border bg-background p-6 shadow-2xl md:hidden"
+        >
+          <!-- Top Section: Header & Links -->
+          <div class="space-y-6">
+            <!-- Drawer Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-border">
+              <RouterLink to="/" class="flex items-center gap-2 font-semibold tracking-tight text-foreground" @click="isOpen = false">
+                <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground shadow-sm shadow-primary/30">D</span>
+                <span>DSH</span>
+              </RouterLink>
+              <Button variant="ghost" size="icon" class="size-8" @click="isOpen = false" aria-label="Close menu">
+                <X class="size-4" />
+              </Button>
+            </div>
+
+            <!-- User Profile Card (if authenticated) -->
+            <div v-if="auth.isAuthenticated">
+              <RouterLink
+                to="/profile"
+                class="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3 transition-colors hover:bg-muted"
+                @click="isOpen = false"
+              >
+                <img
+                  v-if="auth.user?.avatarLink"
+                  :src="auth.user.avatarLink"
+                  class="size-10 rounded-full object-cover border border-border shrink-0"
+                  alt="Avatar"
+                />
+                <span
+                  v-else
+                  class="grid size-10 place-items-center rounded-full bg-primary/10 text-primary shrink-0"
+                >
+                  <UserRound class="size-5" />
+                </span>
+                <div class="flex flex-col min-w-0 flex-1">
+                  <span class="text-xs text-muted-foreground">My Profile</span>
+                  <span class="font-medium text-sm truncate text-foreground">{{ auth.user?.name }}</span>
+                </div>
+                <ChevronRight class="size-4 text-muted-foreground shrink-0" />
+              </RouterLink>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="space-y-1">
+              <RouterLink
+                to="/plugins"
+                class="mobile-nav-link"
+                @click="isOpen = false"
+              >
+                <Package class="size-4" />
+                <span>Plugins</span>
+              </RouterLink>
+
+              <template v-if="auth.isAuthenticated">
+                <RouterLink
+                  to="/resources"
+                  class="mobile-nav-link"
+                  @click="isOpen = false"
+                >
+                  <Layers class="size-4" />
+                  <span>Resources</span>
+                </RouterLink>
+
+                <RouterLink
+                  to="/publish"
+                  class="mobile-nav-link"
+                  @click="isOpen = false"
+                >
+                  <UploadCloud class="size-4" />
+                  <span>Publish Plugin</span>
+                </RouterLink>
+              </template>
+            </div>
+          </div>
+
+          <!-- Bottom Section: Actions -->
+          <div class="pt-6 border-t border-border space-y-3">
+            <template v-if="auth.isAuthenticated">
+              <Button
+                variant="outline"
+                class="w-full justify-center gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                @click="handleLogout"
+              >
+                <LogOut class="size-4" />
+                <span>Log out</span>
+              </Button>
+            </template>
+            <template v-else>
+              <Button variant="outline" as-child class="w-full">
+                <RouterLink :to="loginPath" @click="isOpen = false">Log in</RouterLink>
+              </Button>
+              <Button as-child class="w-full">
+                <RouterLink :to="registerPath" @click="isOpen = false">Get started</RouterLink>
+              </Button>
+            </template>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </nav>
 </template>
 
@@ -62,6 +321,29 @@ async function handleLogout() {
 
 .nav-link.router-link-active {
   color: var(--foreground);
+  font-weight: 600;
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  transition: all 0.15s;
+}
+
+.mobile-nav-link:hover {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+.mobile-nav-link.router-link-active {
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
   font-weight: 600;
 }
 </style>
