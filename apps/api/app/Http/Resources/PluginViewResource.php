@@ -15,7 +15,7 @@ class PluginViewResource extends JsonResource
     public function toArray(Request $request): array
     {
          return [
-            'status' => $this->counted ? 'success' : 'ignored',
+            'status' => $this->status,
             'view_count' => $this->viewCount,
         ];
     }

@@ -266,8 +266,8 @@ class PluginViewTest extends TestCase
         $result1 = $service->incrementViewIfNotViewed($plugin->id, new Request);
         $result2 = $service->incrementViewIfNotViewed($plugin->id, new Request);
 
-        $this->assertEquals('success', $result1['status']);
-        $this->assertEquals('ignored', $result2['status']);
+        $this->assertEquals('success', $result1->status);
+        $this->assertEquals('ignored', $result2->status);
 
         // Should only increment Redis once
         $this->assertEquals(1, Redis::hget('plugins:views_buffer', $plugin->id));
