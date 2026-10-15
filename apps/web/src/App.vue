@@ -3,6 +3,7 @@ import { useAuth } from '@/composables/useAuth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { computed, nextTick, onMounted, watch } from 'vue'
+import { MotionConfig } from 'motion-v'
 import { RouterView, useRoute } from 'vue-router'
 import { takePendingScroll } from '@/utils/pageScroll'
 
@@ -50,14 +51,16 @@ watch(layout, async () => {
 </script>
 
 <template>
-  <component :is="layout">
-    <RouterView v-slot="{ Component }">
-      <!-- after-leave: old page is gone, new one has just mounted, so scrolling here moves neither of them. -->
-      <Transition name="page" mode="out-in" @after-leave="restoreScroll">
-        <component :is="Component" :key="route.path" />
-      </Transition>
-    </RouterView>
-  </component>
+  <MotionConfig reducedMotion="user">
+    <component :is="layout">
+      <RouterView v-slot="{ Component }">
+        <!-- after-leave: old page is gone, new one has just mounted, so scrolling here moves neither of them. -->
+        <Transition name="page" mode="out-in" @after-leave="restoreScroll">
+          <component :is="Component" :key="route.path" />
+        </Transition>
+      </RouterView>
+    </component>
+  </MotionConfig>
 </template>
 
 <style scoped>
