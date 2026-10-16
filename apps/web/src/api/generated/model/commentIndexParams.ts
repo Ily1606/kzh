@@ -8,6 +8,10 @@ import type { CommentIndexSort } from './commentIndexSort';
 
 export type CommentIndexParams = {
 /**
+ * @minimum 1
+ */
+page?: number;
+/**
  * `per_page` is intentionally not capped by a `max` rule: an oversized
  * value is clamped in perPage() instead of being rejected, the same way
  * PluginController handles its own `per_page`.

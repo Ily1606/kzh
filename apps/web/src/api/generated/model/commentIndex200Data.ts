@@ -4,7 +4,8 @@
  * DSH
  * OpenAPI spec version: 0.0.1
  */
+import type { CommentResource } from './commentResource';
 
 export type CommentIndex200Data = {
-  comments: unknown[];
+  comments: CommentResource[];
 };

@@ -24,6 +24,7 @@ class ListCommentsRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'page' => ['sometimes', 'integer', 'min:1'],
             // `per_page` is intentionally not capped by a `max` rule: an oversized
             // value is clamped in perPage() instead of being rejected, the same way
             // PluginController handles its own `per_page`.
