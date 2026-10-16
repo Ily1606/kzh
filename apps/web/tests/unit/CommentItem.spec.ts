@@ -5,18 +5,24 @@ import { ref } from 'vue'
 
 const mockCommentReplies = vi.fn()
 const mockCommentStore = vi.fn()
+const mockCommentReportStore = vi.fn()
 
 vi.mock('@/api/generated/endpoints', () => ({
   getComment: () => ({
     commentReplies: mockCommentReplies,
     commentStore: mockCommentStore
+  }),
+  getCommentReport: () => ({
+    commentReportStore: mockCommentReportStore
   })
 }))
 
 const mockIsAuthenticated = ref(true)
+const mockCurrentUser = ref<any>(null)
 vi.mock('@/composables/useAuth', () => ({
   useAuth: () => ({
-    get isAuthenticated() { return mockIsAuthenticated.value }
+    get isAuthenticated() { return mockIsAuthenticated.value },
+    get user() { return mockCurrentUser.value }
   })
 }))
 
@@ -57,6 +63,7 @@ describe('CommentItem.vue', () => {
     vi.clearAllMocks()
     vi.stubGlobal('alert', vi.fn())
     mockIsAuthenticated.value = true
+    mockCurrentUser.value = null
   })
 
   it('renders author and content correctly', () => {
@@ -149,8 +156,9 @@ describe('CommentItem.vue', () => {
   })
 
   it('submits a report and shows success alert', async () => {
-    // Override setTimeout to run immediately for the mock report
-    vi.useFakeTimers()
+    mockCommentReportStore.mockResolvedValueOnce({
+      message: 'Comment reported successfully. Our moderators will review it shortly.'
+    })
 
     const wrapper = mount(CommentItem, {
       props: { comment: mockComment, pluginId: '1', depth: 1 },
@@ -164,20 +172,88 @@ describe('CommentItem.vue', () => {
     // Modal is open
     const textarea = wrapper.find('textarea[placeholder="Reason for reporting..."]')
     expect(textarea.exists()).toBe(true)
-    await textarea.setValue('spamming')
+    await textarea.setValue('This is an inappropriate comment')
 
     // Submit report
     const submitBtn = wrapper.findAll('button').find(b => b.text().includes('Submit Report'))
     await submitBtn!.trigger('click')
 
-    // Advance timers
-    vi.runAllTimers()
     await flushPromises()
 
-    expect(window.alert).toHaveBeenCalledWith('Your report has been submitted successfully.')
-    expect(wrapper.find('textarea[placeholder="Reason for reporting..."]').exists()).toBe(false)
+    expect(mockCommentReportStore).toHaveBeenCalledWith('1', 'c1', {
+      reason: 'This is an inappropriate comment'
+    })
+    expect(wrapper.text()).toContain('Report Submitted')
+    expect(wrapper.text()).toContain('Comment reported successfully. Our moderators will review it shortly.')
 
-    vi.useRealTimers()
+    const doneBtn = wrapper.findAll('button').find(b => b.text().includes('Done'))
+    await doneBtn!.trigger('click')
+    expect(wrapper.find('textarea[placeholder="Reason for reporting..."]').exists()).toBe(false)
+  })
+
+  it('disables submit report button when reason has fewer than 10 characters', async () => {
+    const wrapper = mount(CommentItem, {
+      props: { comment: mockComment, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    const flagBtn = wrapper.find('button[title="Report this comment"]')
+    await flagBtn.trigger('click')
+
+    const submitBtn = wrapper.findAll('button').find(b => b.text().includes('Submit Report'))
+    expect(submitBtn?.attributes('disabled')).toBeDefined()
+
+    const textarea = wrapper.find('textarea[placeholder="Reason for reporting..."]')
+    await textarea.setValue('spam')
+    expect(submitBtn?.attributes('disabled')).toBeDefined()
+
+    await textarea.setValue('This is at least 10 characters')
+    expect(submitBtn?.attributes('disabled')).toBeUndefined()
+  })
+
+  it('shows error alert when report submission fails', async () => {
+    mockCommentReportStore.mockRejectedValueOnce({
+      response: { data: { message: 'You have already reported this comment.' } }
+    })
+
+    const wrapper = mount(CommentItem, {
+      props: { comment: mockComment, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    const flagBtn = wrapper.find('button[title="Report this comment"]')
+    await flagBtn.trigger('click')
+
+    const textarea = wrapper.find('textarea[placeholder="Reason for reporting..."]')
+    await textarea.setValue('This is an inappropriate comment')
+
+    const submitBtn = wrapper.findAll('button').find(b => b.text().includes('Submit Report'))
+    await submitBtn!.trigger('click')
+
+    await flushPromises()
+
+    expect(mockCommentReportStore).toHaveBeenCalledWith('1', 'c1', {
+      reason: 'This is an inappropriate comment'
+    })
+    expect(wrapper.text()).toContain('You have already reported this comment.')
+    // Modal stays open on error
+    expect(wrapper.find('textarea[placeholder="Reason for reporting..."]').exists()).toBe(true)
+  })
+
+  it('shows sign in link when unauthenticated user opens report modal', async () => {
+    mockIsAuthenticated.value = false
+    const wrapper = mount(CommentItem, {
+      props: { comment: mockComment, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    const flagBtn = wrapper.find('button[title="Report this comment"]')
+    await flagBtn.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Please sign in to report this comment')
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(mockCommentReportStore).not.toHaveBeenCalled()
   })
   it('shows sign in link when unauthenticated user tries to reply', async () => {
     mockIsAuthenticated.value = false
@@ -185,10 +261,10 @@ describe('CommentItem.vue', () => {
       props: { comment: mockComment, pluginId: '1', depth: 1 },
       global: { stubs: ['router-link'] }
     })
-    
+
     await wrapper.findAll('button').find(b => b.text().includes('Reply'))!.trigger('click')
     await flushPromises()
-    
+
     expect(wrapper.text()).toContain('Please sign in to reply')
     expect(wrapper.find('textarea').exists()).toBe(false)
     // The form area is a prompt, not an input: nothing to type into.
@@ -197,20 +273,40 @@ describe('CommentItem.vue', () => {
 
   it('hides replies when clicking view replies again', async () => {
     mockCommentReplies.mockResolvedValueOnce({ data: { comments: [{ id: 'c3', content: 'Loaded reply' }] } })
-    
+
     const wrapper = mount(CommentItem, {
       props: { comment: mockComment, pluginId: '1', depth: 1 },
       global: { stubs: ['router-link'] }
     })
-    
+
     const viewBtn = wrapper.findAll('button').find(b => b.text().includes('View 1 reply'))
     await viewBtn!.trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('Loaded reply')
-    
+
     const hideBtn = wrapper.findAll('button').find(b => b.text().includes('Hide 1 reply'))
     await hideBtn!.trigger('click')
     await flushPromises()
     expect(wrapper.text()).not.toContain('Loaded reply')
+  })
+
+  it('hides the report button when the user is the author of the comment', () => {
+    mockCurrentUser.value = { id: 'u1', name: 'Alice' }
+    const wrapper = mount(CommentItem, {
+      props: { comment: mockComment, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    expect(wrapper.find('button[title="Report this comment"]').exists()).toBe(false)
+  })
+
+  it('shows the report button when the user is not the author of the comment', () => {
+    mockCurrentUser.value = { id: 'u2', name: 'Bob' }
+    const wrapper = mount(CommentItem, {
+      props: { comment: mockComment, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    expect(wrapper.find('button[title="Report this comment"]').exists()).toBe(true)
   })
 })

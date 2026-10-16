@@ -27,6 +27,11 @@ class CommentReportController extends Controller
 
         $userId = $request->user()->id;
 
+        // Check if the user is trying to report their own comment
+        if ($comment->author_id === $userId) {
+            return ApiResponse::errorResponse('You cannot report your own comment.', 403);
+        }
+
         // Check if the user has already reported this comment
         $existingReport = CommentReport::where('user_id', $userId)
             ->where('comment_id', $comment->id)

@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Enums\PluginStatus;
 use App\Filament\Resources\Comments\Pages\ListComments;
 use App\Models\Comment;
+use App\Models\CommentReport;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -244,5 +245,41 @@ class CommentListTest extends TestCase
         Livewire::test(ListComments::class)
             ->mountTableAction('view', $comment)
             ->assertMountedActionModalDontSee(__('comment.table.modal.hidden_at'));
+    }
+
+    public function test_admin_can_cascade_delete_and_restore_comment_with_replies_and_reports(): void
+    {
+        $plugin = Plugin::factory()->create();
+        $parent = Comment::factory()->for($plugin)->create(['content' => 'Parent comment']);
+        $child = Comment::factory()->for($plugin)->create(['parent_comment_id' => $parent->id, 'content' => 'Child comment']);
+        $report = CommentReport::create([
+            'user_id' => User::factory()->create()->id,
+            'comment_id' => $parent->id,
+            'plugin_id' => $plugin->id,
+            'reason' => 'Spam comment report reason',
+        ]);
+
+        $this->assertSame(2, $plugin->comments()->visible()->count());
+
+        // Admin triggers DeleteAction on parent comment
+        Livewire::test(ListComments::class)
+            ->callTableAction('delete', $parent)
+            ->assertHasNoTableActionErrors();
+
+        $this->assertTrue($parent->fresh()->trashed());
+        $this->assertTrue($child->fresh()->trashed());
+        $this->assertTrue($report->fresh()->trashed());
+        $this->assertSame(0, $plugin->comments()->visible()->count());
+
+        // Admin triggers RestoreAction on parent comment
+        Livewire::test(ListComments::class)
+            ->filterTable('trashed', 'only')
+            ->callTableAction('restore', $parent)
+            ->assertHasNoTableActionErrors();
+
+        $this->assertFalse($parent->fresh()->trashed());
+        $this->assertFalse($child->fresh()->trashed());
+        $this->assertFalse($report->fresh()->trashed());
+        $this->assertSame(2, $plugin->comments()->visible()->count());
     }
 }
