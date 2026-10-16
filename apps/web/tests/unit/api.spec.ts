@@ -2,21 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api } from '@/services/api';
 import { setActivePinia, createPinia } from 'pinia';
 import { useAuthStore } from '@/stores/auth.store';
-import { router } from '@/router';
-
-vi.mock('@/router', () => ({
-  router: {
-    currentRoute: { value: { path: '/resources/5/edit', fullPath: '/resources/5/edit', meta: { requiresAuth: true } } },
-    push: vi.fn(),
-  }
-}));
+import { usePluginsStore } from '@/stores/plugins.store';
 
 describe('services/api interceptors', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     localStorage.clear();
-    (router.currentRoute as any).value = { path: '/resources/5/edit', fullPath: '/resources/5/edit', meta: { requiresAuth: true } };
   });
 
   it('adds Authorization header when auth_token exists in localStorage', async () => {
@@ -36,10 +28,12 @@ describe('services/api interceptors', () => {
     expect(result.headers.Authorization).toBeUndefined();
   });
 
-  it('clears auth and redirects to /login on 401 error for non-login endpoints', async () => {
+  it('clears auth and resets plugins store on 401 error for non-login endpoints', async () => {
     const store = useAuthStore();
+    const pluginsStore = usePluginsStore();
     store.setToken('valid-token');
     store.setUser({ id: '1', name: 'User' } as any);
+    pluginsStore.put([{ id: 'plugin-1', name: 'test' } as any]);
 
     const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
     const error = {
@@ -51,45 +45,10 @@ describe('services/api interceptors', () => {
 
     expect(store.token).toBeNull();
     expect(store.user).toBeNull();
-    expect(router.push).toHaveBeenCalledWith({
-      name: 'login',
-      query: { redirect: '/resources/5/edit' },
-    });
+    expect(pluginsStore.entities).toEqual({});
   });
 
-  it('does not redirect if currentRoute is already /login on 401 error', async () => {
-    (router.currentRoute as any).value = { path: '/login', fullPath: '/login' };
-    const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
-    const error = {
-      response: { status: 401 },
-      config: { url: '/v1/user/profile' },
-    };
-
-    await expect(responseErrorHandler(error)).rejects.toEqual(error);
-
-    expect(router.push).not.toHaveBeenCalled();
-  });
-
-  it('clears auth but does not redirect to /login on 401 error on a public route without requiresAuth', async () => {
-    (router.currentRoute as any).value = { path: '/plugins', fullPath: '/plugins', meta: {} };
-    const store = useAuthStore();
-    store.setToken('expired-token');
-    store.setUser({ id: '1', name: 'User' } as any);
-
-    const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
-    const error = {
-      response: { status: 401 },
-      config: { url: '/v1/user/profile' },
-    };
-
-    await expect(responseErrorHandler(error)).rejects.toEqual(error);
-
-    expect(store.token).toBeNull();
-    expect(store.user).toBeNull();
-    expect(router.push).not.toHaveBeenCalled();
-  });
-
-  it('does not clear auth or redirect to /login on 401 error from /v1/login', async () => {
+  it('does not clear auth on 401 error from /v1/login', async () => {
     const store = useAuthStore();
     store.setToken('existing-token');
 
@@ -102,10 +61,9 @@ describe('services/api interceptors', () => {
     await expect(responseErrorHandler(error)).rejects.toEqual(error);
 
     expect(store.token).toBe('existing-token');
-    expect(router.push).not.toHaveBeenCalled();
   });
 
-  it('does not clear auth or redirect on non-401 errors', async () => {
+  it('does not clear auth on non-401 errors', async () => {
     const store = useAuthStore();
     store.setToken('existing-token');
 
@@ -118,7 +76,6 @@ describe('services/api interceptors', () => {
     await expect(responseErrorHandler(error)).rejects.toEqual(error);
 
     expect(store.token).toBe('existing-token');
-    expect(router.push).not.toHaveBeenCalled();
   });
 });
 

@@ -2,15 +2,28 @@
 import { useAuth } from '@/composables/useAuth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
-import { computed, nextTick, onMounted, watch } from 'vue'
-import { RouterView, useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, toValue, watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuth()
 
 onMounted(() => {
   auth.fetchUser()
 })
+
+watch(
+  () => toValue(auth.isAuthenticated),
+  (isAuthenticated) => {
+    if (!isAuthenticated && route.meta.requiresAuth && route.name !== 'login') {
+      router.push({
+        name: 'login',
+        query: { redirect: route.fullPath || route.path },
+      })
+    }
+  }
+)
 
 const layout = computed(() => {
   if (route.meta.layout === 'auth') return AuthLayout
