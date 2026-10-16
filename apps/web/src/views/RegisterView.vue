@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import type { AxiosError } from "axios";
+import { getApiErrorMessage } from "@/utils/error";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -47,14 +47,9 @@ const onSubmit = handleSubmit(async (values) => {
     });
     router.push("/");
   } catch (e) {
-    const err = e as AxiosError<{ message?: string }>;
-    const status = err.response?.status;
-    errorMsg.value =
-      status === 429
-        ? "Too many attempts. Please try again later."
-        : status === 422
-          ? (err.response?.data?.message || "Validation failed.")
-          : "Couldn't create your account. Please try again.";
+    errorMsg.value = getApiErrorMessage(e, {
+      default: "Couldn't create your account. Please try again.",
+    });
   } finally {
     loading.value = false;
   }
