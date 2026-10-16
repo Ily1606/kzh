@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, inject } from 'vue'
+import { ref, computed, inject, type ComponentPublicInstance } from 'vue'
 import { useRoute } from 'vue-router'
-import { getComment } from '@/api/generated/endpoints'
+import { getComment, getCommentReport } from '@/api/generated/endpoints'
 import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeDate } from '@/utils/date'
 import { useAuth } from '@/composables/useAuth'
-import { CornerDownRight, ChevronDown, ChevronUp, Flag, Loader2 } from '@lucide/vue'
+import { CornerDownRight, ChevronDown, ChevronUp, Flag, Loader2, Check } from '@lucide/vue'
 import { commentConfig } from '@/config/comments'
 
 const props = withDefaults(
@@ -25,11 +26,12 @@ const auth = useAuth()
 const route = useRoute()
 const incrementCommentCount = inject<() => void>('incrementCommentCount', () => {})
 const { commentReplies, commentStore } = getComment()
+const { commentReportStore } = getCommentReport()
 
 const showReplyForm = ref(false)
 const replyContent = ref('')
 const isSubmittingReply = ref(false)
-const replyTextarea = ref<HTMLTextAreaElement | null>(null)
+const replyTextarea = ref<ComponentPublicInstance | null>(null)
 
 function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
@@ -37,9 +39,37 @@ function autoResize(e: Event) {
   el.style.height = el.scrollHeight + 'px'
 }
 
+const canReport = computed(() => {
+  if (!auth.isAuthenticated) return true
+  if (!auth.user?.id || !props.comment.author?.id) return true
+  return auth.user.id !== props.comment.author.id
+})
+
 const showReportModal = ref(false)
 const reportContent = ref('')
 const isSubmittingReport = ref(false)
+const reportErrorMessage = ref('')
+const isReportSubmitted = ref(false)
+const reportSuccessMessage = ref('')
+
+function openReportModal() {
+  if (auth.isAuthenticated && auth.user?.id && props.comment.author?.id && auth.user.id === props.comment.author.id) {
+    return
+  }
+  reportContent.value = ''
+  reportErrorMessage.value = ''
+  isReportSubmitted.value = false
+  reportSuccessMessage.value = ''
+  showReportModal.value = true
+}
+
+function closeReportModal() {
+  showReportModal.value = false
+  reportContent.value = ''
+  reportErrorMessage.value = ''
+  isReportSubmitted.value = false
+  reportSuccessMessage.value = ''
+}
 
 const showReplies = ref(false)
 const isLoadingReplies = ref(false)
@@ -52,15 +82,23 @@ function toggleReplyBox() {
 }
 
 async function submitReport() {
-  if (!reportContent.value.trim()) return
+  if (!auth.isAuthenticated) return
+  if (auth.user?.id && props.comment.author?.id && auth.user.id === props.comment.author.id) {
+    reportErrorMessage.value = 'You cannot report your own comment.'
+    return
+  }
+  const reason = reportContent.value.trim()
+  if (!reason || reason.length < 10) return
+
   isSubmittingReport.value = true
+  reportErrorMessage.value = ''
+
   try {
-    await new Promise(r => setTimeout(r, 600))
-    alert('Your report has been submitted successfully.')
-    showReportModal.value = false
-    reportContent.value = ''
-  } catch (err) {
-    alert('An error occurred while submitting the report.')
+    const res = await commentReportStore(props.pluginId, props.comment.id, { reason }) as any
+    reportSuccessMessage.value = res?.message || 'Comment reported successfully. Our moderators will review it shortly.'
+    isReportSubmitted.value = true
+  } catch (err: any) {
+    reportErrorMessage.value = err?.response?.data?.message || 'An error occurred while submitting the report.'
   } finally {
     isSubmittingReport.value = false
   }
@@ -136,7 +174,7 @@ async function submitReply() {
     props.comment.replies_count = String((Number(props.comment.replies_count) || 0) + 1)
     showReplies.value = true
     replyContent.value = ''
-    if (replyTextarea.value) replyTextarea.value.style.height = 'auto'
+    if (replyTextarea.value?.$el) (replyTextarea.value.$el as HTMLElement).style.height = 'auto'
     showReplyForm.value = false
     incrementCommentCount()
   } catch (err: any) {
@@ -215,7 +253,8 @@ const CONNECTOR_WIDTH = '30px'
         </div>
 
         <button
-          @click="showReportModal = true"
+          v-if="canReport"
+          @click="openReportModal"
           title="Report this comment"
           class="text-muted-foreground hover:text-destructive transition-colors p-1 rounded-md hover:bg-destructive/10"
         >
@@ -249,16 +288,16 @@ const CONNECTOR_WIDTH = '30px'
       <!-- ── Inline Reply Form ──────────────────────────────────── -->
       <div v-if="showReplyForm && depth < 3" class="mt-3">
         <div v-if="auth.isAuthenticated" class="space-y-2">
-          <textarea
+          <Textarea
             ref="replyTextarea"
             v-model="replyContent"
             rows="2"
             :maxlength="commentConfig.maxLength"
             placeholder="Write a reply..."
-            class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none overflow-hidden"
+            class="min-h-0 resize-none overflow-hidden"
             @input="autoResize"
             required
-          ></textarea>
+          />
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs text-muted-foreground pl-1">{{ replyContent.length }} / {{ commentConfig.maxLength }}</span>
             <div class="flex gap-2">
@@ -323,24 +362,92 @@ const CONNECTOR_WIDTH = '30px'
   </div>
 
   <!-- Report Modal -->
-  <div v-if="showReportModal" class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="bg-card w-full max-w-md p-6 rounded-xl shadow-lg border border-border flex flex-col gap-4">
-      <h3 class="text-lg font-semibold text-foreground">Report Comment</h3>
-      <p class="text-sm text-muted-foreground -mt-2">
-        Please provide a reason for reporting this comment by <strong>{{ comment.author?.name || 'this user' }}</strong>.
-      </p>
-      <textarea
-        v-model="reportContent"
-        rows="4"
-        placeholder="Reason for reporting..."
-        class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      ></textarea>
-      <div class="flex justify-end gap-3 mt-2">
-        <Button variant="ghost" @click="showReportModal = false">Cancel</Button>
-        <Button variant="destructive" :disabled="isSubmittingReport || !reportContent.trim()" @click="submitReport">
-          {{ isSubmittingReport ? 'Submitting...' : 'Submit Report' }}
+  <div
+    v-if="showReportModal"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+    @click.self="closeReportModal"
+  >
+    <div class="bg-card w-full max-w-md p-6 rounded-xl shadow-xl border border-border flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+      <!-- Success State -->
+      <div v-if="isReportSubmitted" class="py-4 flex flex-col items-center text-center gap-3">
+        <div class="size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+          <Check class="size-6" />
+        </div>
+        <div>
+          <h3 class="text-lg font-semibold text-foreground">Report Submitted</h3>
+          <p class="text-sm text-muted-foreground mt-1 max-w-xs">
+            {{ reportSuccessMessage }}
+          </p>
+        </div>
+        <Button class="mt-2 w-full sm:w-auto min-w-28" @click="closeReportModal">
+          Done
         </Button>
       </div>
+
+      <!-- Unauthenticated guard -->
+      <div v-else-if="!auth.isAuthenticated" class="space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold text-foreground">Report Comment</h3>
+          <p class="text-sm text-muted-foreground mt-1">
+            Please provide a reason for reporting this comment by <strong>{{ comment.author?.name || 'this user' }}</strong>.
+          </p>
+        </div>
+        <div class="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 border border-border/50 flex items-center justify-between gap-3">
+          <span>Please sign in to report this comment.</span>
+          <router-link
+            :to="{ name: 'login', query: { redirect: route.fullPath } }"
+            class="text-primary hover:underline font-semibold shrink-0"
+          >
+            Sign In &rarr;
+          </router-link>
+        </div>
+        <div class="flex justify-end">
+          <Button variant="ghost" @click="closeReportModal">Close</Button>
+        </div>
+      </div>
+
+      <!-- Authenticated Form -->
+      <template v-else>
+        <div>
+          <h3 class="text-lg font-semibold text-foreground">Report Comment</h3>
+          <p class="text-sm text-muted-foreground mt-1">
+            Please provide a reason for reporting this comment by <strong>{{ comment.author?.name || 'this user' }}</strong>.
+          </p>
+        </div>
+
+        <!-- Inline error alert -->
+        <div
+          v-if="reportErrorMessage"
+          class="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2"
+        >
+          <span class="font-medium flex-1">{{ reportErrorMessage }}</span>
+        </div>
+
+        <Textarea
+          v-model="reportContent"
+          rows="4"
+          maxlength="1000"
+          placeholder="Reason for reporting..."
+          class="resize-none"
+        />
+        <div class="flex items-center justify-between text-xs text-muted-foreground -mt-2">
+          <span :class="{ 'text-destructive': reportContent.trim().length > 0 && reportContent.trim().length < 10 }">
+            {{ reportContent.trim().length > 0 && reportContent.trim().length < 10 ? `Minimum 10 characters required (${reportContent.trim().length}/10)` : '' }}
+          </span>
+          <span class="ml-auto">{{ reportContent.length }}/1000</span>
+        </div>
+        <div class="flex justify-end gap-3 mt-1">
+          <Button variant="ghost" @click="closeReportModal">Cancel</Button>
+          <Button
+            variant="destructive"
+            :disabled="isSubmittingReport || reportContent.trim().length < 10"
+            @click="submitReport"
+          >
+            <Loader2 v-if="isSubmittingReport" class="size-4 mr-2 animate-spin" />
+            {{ isSubmittingReport ? 'Submitting...' : 'Submit Report' }}
+          </Button>
+        </div>
+      </template>
     </div>
   </div>
 </template>

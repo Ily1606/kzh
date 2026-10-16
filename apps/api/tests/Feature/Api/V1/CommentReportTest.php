@@ -71,6 +71,25 @@ class CommentReportTest extends TestCase
         $this->assertDatabaseCount('comment_reports', 1);
     }
 
+    public function test_user_cannot_report_their_own_comment(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create();
+        $comment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/v1/plugins/{$plugin->id}/comments/{$comment->id}/reports", [
+            'reason' => 'I want to report my own comment.',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'You cannot report your own comment.');
+
+        $this->assertDatabaseCount('comment_reports', 0);
+    }
+
     public function test_report_fails_if_reason_is_missing(): void
     {
         $user = User::factory()->create();

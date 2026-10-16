@@ -79,84 +79,70 @@ class Comment extends Model
         return array_unique($ids);
     }
 
-    public function cascadeDelete()
+    public function cascadeDelete(): void
     {
-        $ids = $this->getDescendantIds();
-        $deletedCount = 0;
+        DB::transaction(function (): void {
+            $ids = $this->getDescendantIds();
 
-        if (!empty($ids)) {
-            $deletedCount += static::whereIn('id', $ids)->delete();
-            CommentReport::whereIn('comment_id', $ids)->delete();
-        }
+            if (!empty($ids)) {
+                static::whereIn('id', $ids)->delete();
+                CommentReport::whereIn('comment_id', $ids)->delete();
+            }
 
-        $wasDeleted = $this->trashed();
-        $this->delete();
+            $this->delete();
 
-        if (!$wasDeleted) {
-            $deletedCount++;
-        }
-
-        CommentReport::where('comment_id', $this->id)->delete();
-
-        if ($deletedCount > 0) {
-            DB::table('plugins')
-                ->where('id', $this->plugin_id)
-                ->decrement('comment_count', $deletedCount);
-        }
+            CommentReport::where('comment_id', $this->id)->delete();
+        });
     }
 
-    public function cascadeRestore()
+    public function cascadeRestore(): void
     {
         $deletedAt = $this->deleted_at;
-        if (!$deletedAt) {
+        if (! $deletedAt) {
             return;
         }
 
-        $ids = $this->getDescendantIds();
-        $restoredCount = 0;
+        DB::transaction(function () use ($deletedAt): void {
+            $ids = $this->getDescendantIds();
 
-        if (!empty($ids)) {
-            $restoredCount += static::withTrashed()->whereIn('id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
-            CommentReport::withTrashed()->whereIn('comment_id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
-        }
+            if (!empty($ids)) {
+                static::withTrashed()->whereIn('id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
+                CommentReport::withTrashed()->whereIn('comment_id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
+            }
 
-        $this->restore();
-        $restoredCount++;
+            $this->restore();
 
-        CommentReport::withTrashed()->where('comment_id', $this->id)->where('deleted_at', '>=', $deletedAt)->restore();
-
-        if ($restoredCount > 0) {
-            DB::table('plugins')
-                ->where('id', $this->plugin_id)
-                ->increment('comment_count', $restoredCount);
-        }
+            CommentReport::withTrashed()->where('comment_id', $this->id)->where('deleted_at', '>=', $deletedAt)->restore();
+        });
     }
 
-    public function cascadeHide()
+    public function cascadeHide(): void
     {
-        $ids = $this->getDescendantIds();
-        if (!empty($ids)) {
-            static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => now()]);
-            // hidden_at doesn't need to delete reports?
-            // Wait, previous code had `CommentReport::whereIn('comment_id', $ids)->delete();`
-        }
+        DB::transaction(function (): void {
+            $ids = $this->getDescendantIds();
+            if (!empty($ids)) {
+                static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => now()]);
+            }
 
-        $this->update(['hidden_at' => now()]);
+            $this->update(['hidden_at' => now()]);
+        });
     }
 
-    public function cascadeUnhide()
+    public function cascadeUnhide(): void
     {
         $hiddenAt = $this->hidden_at;
-        if (!$hiddenAt) {
+        if (! $hiddenAt) {
             $this->update(['hidden_at' => null]);
             return;
         }
 
-        $ids = $this->getDescendantIds();
-        if (!empty($ids)) {
-            static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $hiddenAt)->update(['hidden_at' => null]);
-        }
+        DB::transaction(function () use ($hiddenAt): void {
+            $ids = $this->getDescendantIds();
+            if (!empty($ids)) {
+                static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $hiddenAt)->update(['hidden_at' => null]);
+            }
 
-        $this->update(['hidden_at' => null]);
+            $this->update(['hidden_at' => null]);
+        });
     }
 }
