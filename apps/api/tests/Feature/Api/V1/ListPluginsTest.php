@@ -502,25 +502,53 @@ class ListPluginsTest extends TestCase
             ->assertJsonPath('data.0.id', $match->id);
     }
 
-    /** `like` reads `%` and `_` as wildcards, so a term holding one matches broadly. */
-    public function test_a_term_holding_a_wildcard_matches_more_than_the_literal_text(): void
+    /** `%` and `_` are `like` wildcards, so an unescaped term matches broadly. */
+    public function test_a_term_holding_a_wildcard_matches_only_the_literal_text(): void
     {
-        Plugin::factory()->create([
+        $literal = Plugin::factory()->create([
             'name' => '100%-done',
             'title' => 'Hundred percent done',
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
         ]);
         Plugin::factory()->create([
-            'name' => 'almost-done',
-            'title' => 'Almost done',
+            'name' => '100x-done',
+            'title' => 'One hundred x done',
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subDay(),
         ]);
 
+        $this->getJson('/api/v1/plugins?search='.urlencode('100%'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $literal->id);
+
         $this->getJson('/api/v1/plugins?search='.urlencode('%'))
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $literal->id);
+    }
+
+    /** Same for `_`, which matches any single character. */
+    public function test_an_underscore_in_a_term_is_matched_literally(): void
+    {
+        $literal = Plugin::factory()->create([
+            'name' => 'a_b-tool',
+            'title' => 'Underscored tool',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+        Plugin::factory()->create([
+            'name' => 'axb-tool',
+            'title' => 'Any character tool',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDay(),
+        ]);
+
+        $this->getJson('/api/v1/plugins?search='.urlencode('a_b'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $literal->id);
     }
 
     public function test_search_never_reaches_unapproved_plugins(): void

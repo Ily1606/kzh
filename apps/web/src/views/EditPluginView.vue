@@ -42,6 +42,18 @@ function leave() {
   router.replace({ name: 'plugin-detail', params: { id: pluginId.value } })
 }
 
+/** A bookmark or a new tab has no earlier entry, so `router.back()` would drop
+ *  the reader out of the app. Go back only when there is somewhere to go. */
+function goBack() {
+  if (!window.history.state?.back) {
+    leave()
+
+    return
+  }
+
+  router.back()
+}
+
 async function save(values: PluginFields) {
   error.value = ''
   const saved = await store.updatePlugin(pluginId.value, values as UpdatePluginRequest)
@@ -54,7 +66,7 @@ async function save(values: PluginFields) {
 
   notifySuccess('Plugin updated successfully.')
 
-  router.back()
+  goBack()
 }
 
 onMounted(async () => {
