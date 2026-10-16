@@ -20,6 +20,8 @@ class CommentController extends Controller
 
     /**
      * Paginated list of the top-level comments of an approved plugin.
+     *
+     * @response array{success: true, message: 'Request successful.', data: array{comments: \App\Http\Resources\CommentResource[]}, errors: null, meta: array{current_page: int, from: int|null, last_page: int, per_page: int, to: int|null, total: int}}
      */
     #[Response(status: 404, description: 'Plugin not found or not approved.')]
     public function index(ListCommentsRequest $request, string $pluginId): JsonResponse
@@ -38,6 +40,8 @@ class CommentController extends Controller
 
     /**
      * Paginated list of the direct replies of a single comment.
+     *
+     * @response array{success: true, message: 'Request successful.', data: array{comments: \App\Http\Resources\CommentResource[]}, errors: null, meta: array{current_page: int, from: int|null, last_page: int, per_page: int, to: int|null, total: int}}
      */
     #[Response(status: 404, description: 'Plugin or parent comment not found or not visible')]
     public function replies(ListCommentsRequest $request, string $pluginId, string $commentId): JsonResponse

@@ -27,6 +27,7 @@ export * from './commentRepliesSort';
 export * from './commentReport';
 export * from './commentReportStore201';
 export * from './commentReportStore201Data';
+export * from './commentReportStore403';
 export * from './commentReportStore409';
 export * from './commentResource';
 export * from './commentResourceAuthor';

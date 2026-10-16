@@ -56,7 +56,9 @@ export const CommentIndexParams = zod.object({
 
 
 
+
 export const CommentIndexQueryParams = zod.object({
+  "page": zod.number().int().min(1).optional(),
   "per_page": zod.number().int().min(1).optional().describe('`per_page` is intentionally not capped by a `max` rule: an oversized\nvalue is clamped in perPage() instead of being rejected, the same way\nPluginController handles its own `per_page`.'),
   "sort": zod.enum(['newest', 'oldest']).optional()
 })
@@ -65,7 +67,20 @@ export const CommentIndexResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Request successful."),
   "data": zod.object({
-  "comments": zod.array(zod.unknown())
+  "comments": zod.array(zod.object({
+  "id": zod.string(),
+  "plugin_id": zod.string(),
+  "parent_comment_id": zod.string().nullable(),
+  "content": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
+  "replies_count": zod.union([zod.string(),zod.literal(0)]).describe('Number of visible direct replies — the client renders a "View N\n replies" affordance when this is above 0 and calls the replies\nendpoint to expand them. The list queries compute it per row, so it\nis null on the create path, where a brand-new comment cannot have\nreplies yet; the 0 fallback keeps that payload an integer too.'),
+  "created_at": zod.string().nullable(),
+  "updated_at": zod.string().nullable()
+}))
 }),
   "errors": zod.null(),
   "meta": zod.object({
@@ -89,7 +104,9 @@ export const CommentRepliesParams = zod.object({
 
 
 
+
 export const CommentRepliesQueryParams = zod.object({
+  "page": zod.number().int().min(1).optional(),
   "per_page": zod.number().int().min(1).optional().describe('`per_page` is intentionally not capped by a `max` rule: an oversized\nvalue is clamped in perPage() instead of being rejected, the same way\nPluginController handles its own `per_page`.'),
   "sort": zod.enum(['newest', 'oldest']).optional()
 })
@@ -98,7 +115,20 @@ export const CommentRepliesResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Request successful."),
   "data": zod.object({
-  "comments": zod.array(zod.unknown())
+  "comments": zod.array(zod.object({
+  "id": zod.string(),
+  "plugin_id": zod.string(),
+  "parent_comment_id": zod.string().nullable(),
+  "content": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
+  "replies_count": zod.union([zod.string(),zod.literal(0)]).describe('Number of visible direct replies — the client renders a "View N\n replies" affordance when this is above 0 and calls the replies\nendpoint to expand them. The list queries compute it per row, so it\nis null on the create path, where a brand-new comment cannot have\nreplies yet; the 0 fallback keeps that payload an integer too.'),
+  "created_at": zod.string().nullable(),
+  "updated_at": zod.string().nullable()
+}))
 }),
   "errors": zod.null(),
   "meta": zod.object({
