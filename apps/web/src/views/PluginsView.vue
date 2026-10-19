@@ -121,7 +121,7 @@ onMounted(async () => {
             <ChevronDown class="size-4 shrink-0 text-muted-foreground" />
           </PopoverTrigger>
 
-          <PopoverContent align="end" class="w-[var(--reka-popover-trigger-width)] p-1">
+          <PopoverContent align="end" class="w-(--reka-popover-trigger-width) p-1">
             <button
               type="button"
               data-test="category-option-all"
@@ -165,7 +165,7 @@ onMounted(async () => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="store.isFetchingList" class="flex flex-col items-center justify-center py-20">
+    <div v-if="store.isFetchingList && store.listPlugins.length === 0" class="flex flex-col items-center justify-center py-20">
       <LoaderCircle class="size-10 animate-spin text-primary mb-4" />
       <p class="text-muted-foreground text-sm">Loading plugins catalogue...</p>
     </div>

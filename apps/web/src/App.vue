@@ -46,7 +46,7 @@ function restoreScroll() {
 // Changing layout tears the transition down, so there is no after-leave to wait for.
 watch(layout, async () => {
   await nextTick()
-  scrollToTop()
+  restoreScroll()
 })
 </script>
 
