@@ -115,7 +115,7 @@ class UsersTable
                     ->modalDescription(__('user.table.actions.lock_modal_description'))
                     ->modalSubmitActionLabel(__('user.table.actions.lock'))
                     ->action(fn (User $record) => app(UserRepositoryInterface::class)->lock($record))
-                    ->successNotificationTitle(__('user.table.actions.lock')),
+                    ->successNotificationTitle(__('user.table.actions.lock_success')),
 
                 Action::make('unlock')
                     ->label(__('user.table.actions.unlock'))
@@ -127,7 +127,7 @@ class UsersTable
                     ->modalDescription(__('user.table.actions.unlock_modal_description'))
                     ->modalSubmitActionLabel(__('user.table.actions.unlock'))
                     ->action(fn (User $record) => app(UserRepositoryInterface::class)->unlock($record))
-                    ->successNotificationTitle(__('user.table.actions.unlock')),
+                    ->successNotificationTitle(__('user.table.actions.unlock_success')),
             ]);
     }
 }

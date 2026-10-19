@@ -109,7 +109,8 @@ class UserListTest extends TestCase
 
         Livewire::test(ListUsers::class)
             ->callTableAction('lock', $target)
-            ->assertHasNoActionErrors();
+            ->assertHasNoActionErrors()
+            ->assertNotified(__('user.table.actions.lock_success'));
 
         $this->assertNotNull($target->fresh()->locked_at);
         $this->assertDatabaseCount('personal_access_tokens', 0);
@@ -121,7 +122,8 @@ class UserListTest extends TestCase
 
         Livewire::test(ListUsers::class)
             ->callTableAction('unlock', $target)
-            ->assertHasNoActionErrors();
+            ->assertHasNoActionErrors()
+            ->assertNotified(__('user.table.actions.unlock_success'));
 
         $this->assertNull($target->fresh()->locked_at);
     }
