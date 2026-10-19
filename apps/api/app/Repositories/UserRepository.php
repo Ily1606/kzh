@@ -96,4 +96,27 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     {
         $user->tokens()->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))->delete();
     }
+
+    public function lock(User $user): User
+    {
+        return DB::transaction(function () use ($user): User {
+
+            if ($user->locked_at === null) {
+                $user->locked_at = now();
+                $user->save();
+            }
+
+            $user->tokens()->delete();
+
+            return $user->refresh();
+        });
+    }
+
+    public function unlock(User $user): User
+    {
+        $user->locked_at = null;
+        $user->save();
+
+        return $user->refresh();
+    }
 }
