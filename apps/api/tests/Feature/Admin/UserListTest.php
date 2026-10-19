@@ -147,10 +147,8 @@ class UserListTest extends TestCase
         $target = User::factory()->create();
 
         Livewire::test(ListUsers::class)
-            ->assertSee(__('user.table.columns.status_options.active'));
-
-        Livewire::test(ListUsers::class)
+            ->assertTableColumnStateSet('status', 'active', $target)
             ->callTableAction('lock', $target)
-            ->assertSee(__('user.table.columns.status_options.locked'));
+            ->assertTableColumnStateSet('status', 'locked', $target->fresh());
     }
 }
