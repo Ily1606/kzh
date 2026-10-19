@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { getStar } from '@/api/generated/endpoints/star/star'
-import { Star } from 'lucide-vue-next'
+import { Star } from '@lucide/vue';
 
 const props = defineProps<{
   pluginId: string
