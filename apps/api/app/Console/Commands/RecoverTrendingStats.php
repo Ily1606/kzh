@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Contracts\CommentRepositoryInterface;
 use App\Contracts\PluginDailyViewRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
+use App\Services\TrendingTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Redis;
@@ -25,7 +26,7 @@ class RecoverTrendingStats extends Command
 
     public function handle(): void
     {
-        $daysLimit = (int) config('plugins.trending.days_limit', 7);
+        $daysLimit = (int) config('plugins.trending.days_limit');
         $this->info("Recovering trending data for the past {$daysLimit} days...");
 
         // 1. Recover Comments
@@ -67,9 +68,9 @@ class RecoverTrendingStats extends Command
         $statKey = "trending:stats:{$type}:{$date}:{$pluginId}";
         $activeKey = "trending:active_plugins:{$date}";
 
-        Redis::setex($statKey, 86400 * 8, $count);
+        Redis::setex($statKey, TrendingTracker::ttl(), $count);
 
         Redis::sadd($activeKey, $pluginId);
-        Redis::expire($activeKey, 86400 * 8);
+        Redis::expire($activeKey, TrendingTracker::ttl());
     }
 }

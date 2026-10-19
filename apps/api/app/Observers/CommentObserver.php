@@ -17,7 +17,7 @@ class CommentObserver
         // Only track visible comments (skip moderated/hidden on creation)
         if ($comment->hidden_at === null) {
             // 1. Increment daily comment interaction count in Redis
-            TrendingTracker::trackComment($comment->plugin_id, 1);
+            TrendingTracker::trackComment($comment->plugin_id, 1, $comment->created_at);
 
             // 2. If the plugin is currently cached in trending objects, update its cached comment count
             $this->refreshCachedPluginCommentCount($comment->plugin_id);
@@ -29,7 +29,13 @@ class CommentObserver
      */
     public function deleted(Comment $comment): void
     {
-        $this->handleCommentDeleted($comment);
+        // Hidden comments were already subtracted when hidden; a force delete of an
+        // already-trashed comment was already subtracted at soft-delete time.
+        $wasAlreadyTrashed = $comment->isForceDeleting() && $comment->getOriginal('deleted_at') !== null;
+
+        if ($comment->hidden_at === null && ! $wasAlreadyTrashed) {
+            $this->handleCommentDeleted($comment);
+        }
     }
 
     /**
@@ -53,7 +59,9 @@ class CommentObserver
      */
     public function restored(Comment $comment): void
     {
-        $this->handleCommentRestored($comment);
+        if ($comment->hidden_at === null) {
+            $this->handleCommentRestored($comment);
+        }
     }
 
     /**
@@ -62,7 +70,7 @@ class CommentObserver
     private function handleCommentDeleted(Comment $comment): void
     {
         // 1. Decrement daily comment interaction count in Redis
-        TrendingTracker::trackComment($comment->plugin_id, -1);
+        TrendingTracker::trackComment($comment->plugin_id, -1, $comment->created_at);
 
         // 2. If the plugin is currently cached in trending objects, update its cached comment count
         $this->refreshCachedPluginCommentCount($comment->plugin_id);
@@ -74,7 +82,7 @@ class CommentObserver
     private function handleCommentRestored(Comment $comment): void
     {
         // 1. Re-increment daily comment interaction count in Redis
-        TrendingTracker::trackComment($comment->plugin_id, 1);
+        TrendingTracker::trackComment($comment->plugin_id, 1, $comment->created_at);
 
         // 2. If the plugin is currently cached in trending objects, update its cached comment count
         $this->refreshCachedPluginCommentCount($comment->plugin_id);

@@ -35,16 +35,18 @@ final class StarService
         // throws here, before anything is touched.
         $plugin = $this->pluginRepository->findApprovedById($pluginId);
 
+        $starCreatedAt = null;
         if ($starred) {
             $changed = $this->starRepository->insertIgnore($plugin->id, $user->getAuthIdentifier());
         } else {
-            $changed = $this->starRepository->deleteBy($plugin->id, $user->getAuthIdentifier());
+            $starCreatedAt = $this->starRepository->deleteBy($plugin->id, $user->getAuthIdentifier());
+            $changed = $starCreatedAt !== null;
         }
 
         if ($changed) {
             $this->dispatchStarEvent($starred, $plugin->id, $user, $requestContext);
             Cache::forget($this->timelineCacheKey($plugin->id));
-            TrendingTracker::trackStar($plugin->id, $starred ? 1 : -1);
+            TrendingTracker::trackStar($plugin->id, $starred ? 1 : -1, $starCreatedAt);
             $this->refreshCachedPluginStarCount($plugin->id);
         }
 

@@ -51,18 +51,6 @@ class PluginObserver
     }
 
     /**
-     * Handle the Plugin "restored" event (un-delete).
-     */
-    public function restored(Plugin $plugin): void
-    {
-        // When restored, if the plugin is approved, mark it as active today so it can be re-evaluated
-        if ($plugin->status === PluginStatus::Approved && $plugin->approved_at !== null) {
-            $todayKey = 'trending:active_plugins:' . now()->format('Y-m-d');
-            Redis::sadd($todayKey, $plugin->id);
-        }
-    }
-
-    /**
      * Remove the plugin from all trending caches in Redis.
      */
     public function cleanupTrendingCache(string $pluginId): void

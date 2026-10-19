@@ -393,7 +393,7 @@ final class PluginService
 
         $total = Redis::zcard($zsetKey);
 
-        if ($total === 0) {
+        if ($total === 0 && Cache::add('plugins:trending:refresh_attempted', true, 60)) {
             Artisan::call('plugins:refresh-trending');
             $total = Redis::zcard($zsetKey);
         }

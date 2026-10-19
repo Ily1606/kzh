@@ -100,13 +100,7 @@ class AdminPluginReviewActionsTest extends TestCase
 
         Livewire::test(ListPlugins::class)->callTableAction('approve', $plugin);
 
-        $trending = app(PluginRepositoryInterface::class)->getTrendingPlugins(
-            30,
-            ['view' => 1.0, 'comment' => 1.0, 'star' => 1.0],
-            1.8,
-            2.0,
-            10,
-        );
+        $trending = app(PluginRepositoryInterface::class)->getTopAllTimePlugins(10);
 
         $this->assertTrue(
             $trending->contains('id', $plugin->id),

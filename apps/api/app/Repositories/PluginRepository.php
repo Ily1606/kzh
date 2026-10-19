@@ -67,15 +67,17 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
 
     public function incrementViewCount(string $id, int $count): void
     {
-        $this->model->newQuery()->where('id', $id)->increment('view_count', $count);
+        DB::transaction(function () use ($id, $count): void {
+            $this->model->newQuery()->where('id', $id)->increment('view_count', $count);
 
-        PluginDailyView::upsert(
-            [
-                ['plugin_id' => $id, 'date' => now()->format('Y-m-d'), 'views_count' => $count],
-            ],
-            ['plugin_id', 'date'],
-            ['views_count' => DB::raw("plugin_daily_views.views_count + {$count}")]
-        );
+            PluginDailyView::upsert(
+                [
+                    ['plugin_id' => $id, 'date' => now()->format('Y-m-d'), 'views_count' => $count],
+                ],
+                ['plugin_id', 'date'],
+                ['views_count' => DB::raw("plugin_daily_views.views_count + {$count}")]
+            );
+        });
     }
 
     public function findById(string $id): Plugin
@@ -158,27 +160,6 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->paginate($perPage);
     }
 
-    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
-    {
-        return $this->baseQuery()
-            ->where('status', PluginStatus::Approved)
-            ->whereNotNull('approved_at')
-            ->where('approved_at', '>=', now()->subDays($daysLimit))
-            ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count, (
-                (view_count * ? + {$this->commentCountSql()} * ? + {$this->starCountSql()} * ?)
-                / POWER({$this->getAgeInSecondsSql()}/3600.0 + ?, ?)
-            ) as trending_score", [
-                $weights['view'],
-                $weights['comment'],
-                $weights['star'],
-                $ageOffset,
-                $gravity,
-            ])
-            ->orderByDesc('trending_score')
-            ->limit($limit)
-            ->get();
-    }
-
     /**
      * Shared skeleton for every query that feeds `PluginResource`.
      *
@@ -187,15 +168,6 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     private function baseQuery(): Builder
     {
         return $this->newQuery()->with(['user.profile', 'categories', 'tags']);
-    }
-
-    private function getAgeInSecondsSql(): string
-    {
-        return match ($this->model->getConnection()->getDriverName()) {
-            'sqlite' => "(strftime('%s', 'now') - strftime('%s', approved_at))",
-            'pgsql' => 'EXTRACT(EPOCH FROM (NOW() - approved_at))',
-            default => '(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(approved_at))',
-        };
     }
 
     private function starCountSql(): string

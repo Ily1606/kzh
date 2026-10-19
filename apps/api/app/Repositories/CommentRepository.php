@@ -141,7 +141,7 @@ class CommentRepository extends BaseRepository implements CommentRepositoryInter
 
     public function getDailyCommentCounts(int $daysLimit): Collection
     {
-        return $this->newQuery()
+        return $this->baseQuery()
             ->select('plugin_id', DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
             ->where('created_at', '>=', now()->subDays($daysLimit))
             ->groupBy('plugin_id', DB::raw('DATE(created_at)'))

@@ -196,7 +196,7 @@ class PluginObserverTest extends TestCase
         $this->assertEquals('After Patch', $cachedPlugin->title);
     }
 
-    public function test_restoring_plugin_marks_it_active_in_redis(): void
+    public function test_restoring_plugin_does_not_mark_it_active_without_interactions(): void
     {
         $plugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
@@ -209,8 +209,8 @@ class PluginObserverTest extends TestCase
         $plugin->delete();
         $this->assertFalse((bool) Redis::sismember($activeKey, $plugin->id));
 
-        // Restore plugin -> should be added to activeKey
+        // Restore plugin -> should NOT be added to activeKey without interaction
         $plugin->restore();
-        $this->assertTrue((bool) Redis::sismember($activeKey, $plugin->id));
+        $this->assertFalse((bool) Redis::sismember($activeKey, $plugin->id));
     }
 }

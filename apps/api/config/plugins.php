@@ -73,9 +73,6 @@ return [
     |
     */
     'trending' => [
-        // Cache duration for the trending list in seconds
-        'cache_ttl' => (int) env('PLUGIN_TRENDING_CACHE_TTL', 300),
-
         // Only consider plugins approved within the last X days
         'days_limit' => (int) env('PLUGIN_TRENDING_DAYS_LIMIT', 30),
 
@@ -91,10 +88,6 @@ return [
             'comment' => (float) env('PLUGIN_TRENDING_WEIGHT_COMMENT', 5.0),
             'star' => (float) env('PLUGIN_TRENDING_WEIGHT_STAR', 10.0),
         ],
-
-        // Time decay parameters (Hacker News algorithm)
-        'gravity' => (float) env('PLUGIN_TRENDING_GRAVITY', 1.8),
-        'age_offset' => (float) env('PLUGIN_TRENDING_AGE_OFFSET', 2.0),
 
         // Redis Cache Keys
         'keys' => [

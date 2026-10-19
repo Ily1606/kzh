@@ -4,6 +4,8 @@ namespace App\Repositories;
 
 use App\Contracts\StarRepositoryInterface;
 use App\Models\Star;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -45,12 +47,12 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
             ]) === 1;
     }
 
-    public function deleteBy(string $pluginId, string $userId): bool
+    public function deleteBy(string $pluginId, string $userId): ?CarbonInterface
     {
-        return $this->newQuery()
-            ->where('plugin_id', $pluginId)
-            ->where('user_id', $userId)
-            ->forceDelete() === 1;
+        $query = $this->newQuery()->where('plugin_id', $pluginId)->where('user_id', $userId);
+        $createdAt = (clone $query)->value('created_at');
+
+        return $query->forceDelete() === 1 ? Carbon::parse($createdAt) : null;
     }
 
     public function getTimeline(string $pluginId, bool $byMonth = false)

@@ -2,9 +2,7 @@
 
 namespace App\Observers;
 
-use App\Enums\PluginStatus;
 use App\Models\User;
-use Illuminate\Support\Facades\Redis;
 
 class UserObserver
 {
@@ -20,16 +18,6 @@ class UserObserver
                 app(PluginObserver::class)->cleanupTrendingCache($plugin->id);
             });
         }
-
-        if ($user->wasChanged('locked_at') && $user->locked_at === null) {
-            $todayKey = 'trending:active_plugins:' . now()->format('Y-m-d');
-            $user->plugins()
-                ->where('status', PluginStatus::Approved)
-                ->whereNotNull('approved_at')
-                ->each(function ($plugin) use ($todayKey) {
-                    Redis::sadd($todayKey, $plugin->id);
-                });
-        }
     }
     /**
      * Handle the User "deleted" event (soft delete).
@@ -37,22 +25,22 @@ class UserObserver
     public function deleted(User $user): void
     {
         $user->tokens()->delete();
-
-        $user->plugins()->each(fn ($plugin) => $plugin->delete());
-
-        $user->comments()->each(fn ($comment) => $comment->delete());
-
+        $user->plugins()->lazyById()->each(fn ($plugin) => $plugin->delete());
+        $user->comments()->lazyById()->each(fn ($comment) => $comment->delete());
         $user->stars()->get()->each(fn ($star) => $star->delete());
     }
 
     /**
-     * Handle the User "restored" event.
+     * Runs before the user's deleted_at is cleared, so only rows removed by the
+     * cascade (deleted at or after the user) are restored.
      */
-    public function restored(User $user): void
+    public function restoring(User $user): void
     {
-        $user->plugins()->onlyTrashed()->each(fn ($plugin) => $plugin->restore());
-        $user->comments()->onlyTrashed()->each(fn ($comment) => $comment->restore());
-        $user->stars()->onlyTrashed()->get()->each(fn ($star) => $star->restore());
+        $since = $user->deleted_at;
+
+        $user->plugins()->onlyTrashed()->where('deleted_at', '>=', $since)->lazyById()->each(fn ($p) => $p->restore());
+        $user->comments()->onlyTrashed()->where('deleted_at', '>=', $since)->lazyById()->each(fn ($c) => $c->restore());
+        $user->stars()->onlyTrashed()->where('deleted_at', '>=', $since)->get()->each(fn ($s) => $s->restore());
     }
 
     /**

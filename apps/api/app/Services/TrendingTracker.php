@@ -2,32 +2,42 @@
 
 namespace App\Services;
 
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Redis;
 
 final class TrendingTracker
 {
-    private const TTL = 86400 * 8; // 8 days
+    public static function ttl(): int
+    {
+        // +1 day so the oldest bucket in the window is still there at the end of the day
+        return 86400 * ((int) config('plugins.trending.days_limit') + 1);
+    }
 
     public static function trackView(string $pluginId): void
     {
         self::trackInteraction('views', $pluginId, 1);
     }
 
-    public static function trackComment(string $pluginId, int $increment = 1): void
+    public static function trackComment(string $pluginId, int $increment = 1, ?CarbonInterface $at = null): void
     {
-        self::trackInteraction('comments', $pluginId, $increment);
+        self::trackInteraction('comments', $pluginId, $increment, $at);
     }
 
-    public static function trackStar(string $pluginId, int $increment = 1): void
+    public static function trackStar(string $pluginId, int $increment = 1, ?CarbonInterface $at = null): void
     {
-        self::trackInteraction('stars', $pluginId, $increment);
+        self::trackInteraction('stars', $pluginId, $increment, $at);
     }
 
-    private static function trackInteraction(string $type, string $pluginId, int $increment): void
+    private static function trackInteraction(string $type, string $pluginId, int $increment, ?CarbonInterface $at = null): void
     {
-        $date = now()->format('Y-m-d');
-
+        $date = ($at ?? now())->format('Y-m-d');
         $statKey = "trending:stats:{$type}:{$date}:{$pluginId}";
+
+        // The bucket is already outside the window (expired): nothing to subtract.
+        if ($increment < 0 && ! Redis::exists($statKey)) {
+            return;
+        }
+
         $activeKey = "trending:active_plugins:{$date}";
 
         if ($increment > 0) {
@@ -40,8 +50,8 @@ final class TrendingTracker
             }
         }
 
-        Redis::expire($statKey, self::TTL);
-        Redis::expire($activeKey, self::TTL);
+        Redis::expire($statKey, self::ttl());
+        Redis::expire($activeKey, self::ttl());
     }
 
     /**
@@ -83,32 +93,41 @@ final class TrendingTracker
             $dates[] = now()->subDays($i)->format('Y-m-d');
         }
 
-        $allKeys = [];
-        // To map the flat MGET result back to plugins
-        $keyMap = [];
-
-        foreach ($pluginIds as $id) {
-            foreach ($types as $type) {
-                foreach ($dates as $date) {
-                    $key = "trending:stats:{$type}:{$date}:{$id}";
-                    $allKeys[] = $key;
-                    $keyMap[] = ['id' => $id, 'type' => $type];
-                }
-            }
-        }
-
-        $values = Redis::mget($allKeys);
-
         $results = [];
         foreach ($pluginIds as $id) {
             $results[$id] = ['views' => 0, 'comments' => 0, 'stars' => 0];
         }
 
-        foreach ($values as $index => $val) {
-            if ($val !== null) {
-                $id = $keyMap[$index]['id'];
-                $type = $keyMap[$index]['type'];
-                $results[$id][$type] += (int) $val;
+        foreach (array_chunk($pluginIds, 100) as $chunk) {
+            $keys = [];
+            // To map the flat MGET result back to plugins
+            $keyMap = [];
+
+            foreach ($chunk as $id) {
+                foreach ($types as $type) {
+                    foreach ($dates as $date) {
+                        $keys[] = "trending:stats:{$type}:{$date}:{$id}";
+                        $keyMap[] = ['id' => $id, 'type' => $type];
+                    }
+                }
+            }
+
+            if (empty($keys)) {
+                continue;
+            }
+
+            $values = Redis::mget($keys);
+
+            if (! is_array($values)) {
+                continue;
+            }
+
+            foreach ($values as $index => $val) {
+                if ($val !== null) {
+                    $id = $keyMap[$index]['id'];
+                    $type = $keyMap[$index]['type'];
+                    $results[$id][$type] += (int) $val;
+                }
             }
         }
 

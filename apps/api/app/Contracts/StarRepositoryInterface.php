@@ -2,6 +2,7 @@
 
 namespace App\Contracts;
 
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 interface StarRepositoryInterface
@@ -20,9 +21,9 @@ interface StarRepositoryInterface
     public function insertIgnore(string $pluginId, string $userId): bool;
 
     /**
-     * Remove the star, reporting whether a row was actually deleted.
+     * Remove the star, returning its created_at if a row was actually deleted, or null otherwise.
      */
-    public function deleteBy(string $pluginId, string $userId): bool;
+    public function deleteBy(string $pluginId, string $userId): ?CarbonInterface;
 
     /**
      * Get star count grouped by date for a plugin.

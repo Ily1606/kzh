@@ -219,7 +219,7 @@ class UserObserverTest extends TestCase
         $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
     }
 
-    public function test_unlocking_user_restores_active_plugin_in_trending(): void
+    public function test_unlocking_user_does_not_mark_plugins_active_without_interactions(): void
     {
         $user = User::factory()->create([
             'locked_at' => now(),
@@ -238,7 +238,113 @@ class UserObserverTest extends TestCase
         // Act: unlock user
         $user->update(['locked_at' => null]);
 
-        // Plugin marked active in today's trending set
-        $this->assertTrue((bool) Redis::sismember($todayKey, $plugin->id));
+        // Plugin should NOT be marked active without interaction
+        $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+    }
+
+    public function test_soft_deleting_user_cascades_all_comments_when_more_than_one_chunk(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $now = now();
+        $totalComments = 1050;
+        $records = [];
+        for ($i = 0; $i < $totalComments; $i++) {
+            $records[] = [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'plugin_id' => $plugin->id,
+                'author_id' => $user->id,
+                'content' => "Comment {$i}",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        // Bulk insert in chunks of 100 for SQLite parameter safety
+        foreach (array_chunk($records, 100) as $chunk) {
+            Comment::insert($chunk);
+        }
+
+        $this->assertEquals($totalComments, Comment::where('author_id', $user->id)->count());
+
+        // Act: soft delete user
+        $user->delete();
+
+        // Assert: All 1050 comments must be trashed
+        $this->assertEquals(0, Comment::where('author_id', $user->id)->count());
+        $this->assertEquals($totalComments, Comment::onlyTrashed()->where('author_id', $user->id)->count());
+    }
+
+    public function test_restoring_user_does_not_restore_comments_deleted_before_user_deletion(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        // Comment 1: active comment
+        $activeComment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+
+        // Comment 2: deleted previously 1 hour ago
+        $previouslyDeletedComment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+        $previouslyDeletedComment->delete();
+        $deletedTime = now()->subHour();
+        $previouslyDeletedComment->deleted_at = $deletedTime;
+        $previouslyDeletedComment->save();
+
+        $this->assertTrue($previouslyDeletedComment->fresh()->trashed());
+        $this->assertFalse($activeComment->fresh()->trashed());
+
+        // Advance time so user's deleted_at is strictly after comment's deleted_at
+        $this->travel(10)->seconds();
+
+        // Act 1: Soft delete the user
+        $user->delete();
+        $this->assertTrue($activeComment->fresh()->trashed());
+        $this->assertTrue($previouslyDeletedComment->fresh()->trashed());
+
+        // Act 2: Restore the user
+        $user->restore();
+
+        // Assert: Active comment that was cascaded is restored
+        $this->assertFalse($activeComment->fresh()->trashed());
+
+        // Assert: Previously deleted comment MUST remain trashed
+        $this->assertTrue($previouslyDeletedComment->fresh()->trashed());
+    }
+
+    public function test_restoring_user_does_not_restore_plugins_deleted_before_user_deletion(): void
+    {
+        $user = User::factory()->create();
+
+        $activePlugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+        ]);
+
+        $previouslyDeletedPlugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+        ]);
+        $previouslyDeletedPlugin->delete();
+        $previouslyDeletedPlugin->deleted_at = now()->subHour();
+        $previouslyDeletedPlugin->save();
+
+        $this->travel(10)->seconds();
+
+        $user->delete();
+        $user->restore();
+
+        $this->assertFalse($activePlugin->fresh()->trashed());
+        $this->assertTrue($previouslyDeletedPlugin->fresh()->trashed());
     }
 }

@@ -68,10 +68,5 @@ interface PluginRepositoryInterface
     /**
      * @return Collection<int, Plugin>
      */
-    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection;
-
-    /**
-     * @return Collection<int, Plugin>
-     */
     public function getTopAllTimePlugins(int $limit): Collection;
 }

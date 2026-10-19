@@ -31,7 +31,7 @@ class StarObserver
     private function handleStarDeleted(Star $star): void
     {
         // 1. Decrement daily star interaction count in Redis
-        TrendingTracker::trackStar($star->plugin_id, -1);
+        TrendingTracker::trackStar($star->plugin_id, -1, $star->created_at);
 
         // 2. If the plugin is currently cached in trending objects, update its cached star count
         $this->refreshCachedPluginStarCount($star->plugin_id);
@@ -43,7 +43,7 @@ class StarObserver
     private function handleStarRestored(Star $star): void
     {
         // 1. Re-increment daily star interaction count in Redis
-        TrendingTracker::trackStar($star->plugin_id, 1);
+        TrendingTracker::trackStar($star->plugin_id, 1, $star->created_at);
 
         // 2. If the plugin is currently cached in trending objects, update its cached star count
         $this->refreshCachedPluginStarCount($star->plugin_id);
