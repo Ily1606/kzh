@@ -19,6 +19,9 @@ class LikeHelper
         $wrapped = $query->getQuery()->grammar->wrap($column);
         $pattern = '%'.addcslashes($term, '\\%_').'%';
 
-        return $query->whereRaw($wrapped." LIKE ? ESCAPE '\\'", [$pattern]);
+        // PostgreSQL's LIKE is case-sensitive; ILIKE keeps search case-insensitive like whereLike() did.
+        $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
+
+        return $query->whereRaw("{$wrapped} {$operator} ? ESCAPE '\\'", [$pattern]);
     }
 }
