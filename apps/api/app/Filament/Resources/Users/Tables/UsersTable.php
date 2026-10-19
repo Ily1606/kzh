@@ -43,16 +43,7 @@ class UsersTable
                 TextColumn::make('status')
                     ->label(__('user.table.columns.status'))
                     ->badge()
-                    ->getStateUsing(function ($record) {
-                        if ($record->trashed()) {
-                            return 'deleted';
-                        }
-                        if ($record->locked_at) {
-                            return 'locked';
-                        }
-
-                        return 'active';
-                    })
+                    ->getStateUsing(fn (User $record): string => $record->status())
                     ->formatStateUsing(fn (string $state): string => __('user.table.columns.status_options.'.$state))
                     ->color(fn (string $state): string => match ($state) {
                         'deleted' => 'danger',

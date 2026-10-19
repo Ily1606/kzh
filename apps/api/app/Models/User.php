@@ -63,6 +63,15 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Comment::class, 'author_id');
     }
 
+    public function status(): string
+    {
+        return match (true) {
+            $this->trashed() => 'deleted',
+            $this->locked_at !== null => 'locked',
+            default => 'active',
+        };
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return (bool) $this->is_admin && $this->locked_at === null && $this->deleted_at === null;
