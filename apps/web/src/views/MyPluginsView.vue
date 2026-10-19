@@ -41,20 +41,26 @@ const activeTabLabel = computed(
 
 const showPagination = computed(() => store.mine.lastPage > 1)
 
-function setStatus(value?: PluginStatus) {
-  router.push({
+function resetScroll() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function setStatus(value?: PluginStatus) {
+  await router.push({
     name: 'my-plugins',
     query: value ? { status: value } : {},
   })
+  resetScroll()
 }
 
-function goToPage(page: number) {
+async function goToPage(page: number) {
   // replace, not push: paging through a list is not a history entry the Back
   // button should have to walk back through one click at a time.
-  router.replace({
+  await router.replace({
     name: 'my-plugins',
     query: { ...route.query, page: String(page) },
   })
+  resetScroll()
 }
 
 async function fetchMyPlugins(page = 1) {
@@ -180,7 +186,7 @@ watch([activeStatus, () => route.query.page], () => {
         </ul>
 
         <!-- Pagination -->
-        <div v-if="showPagination" class="pt-2 flex items-center justify-center gap-4 border-t">
+        <div v-if="showPagination" class="pt-2 flex items-center justify-center gap-4">
           <Button
             variant="outline"
             :disabled="store.isFetchingMine || store.mine.page <= 1"

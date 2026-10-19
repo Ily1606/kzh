@@ -1,9 +1,18 @@
 import { createRouter, createWebHistory } from "vue-router";
 import HomeView from "@/views/HomeView.vue";
 import { useAuth } from "@/composables/useAuth";
+import { setPendingScroll } from "@/utils/pageScroll";
 
 export const router = createRouter({
   history: createWebHistory(),
+
+  // Runs right after the route changes, before the outgoing page finishes fading out.
+  scrollBehavior(_to, _from, savedPosition) {
+    // savedPosition = the scroll position vue-router saved on the target page's
+    // history entry the last time you left it. Null on a new navigation.
+    setPendingScroll(savedPosition)
+    return false // no scroll
+  },
 
   routes: [
     {

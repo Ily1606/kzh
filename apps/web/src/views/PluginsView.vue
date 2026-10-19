@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Search, LoaderCircle, PackageOpen, ChevronDown, Check } from '@lucide/vue'
+import { pluginIndexQuerySearchMax } from '@/api/generated/zod'
 
 const store = usePluginsStore()
 const route = useRoute()
@@ -22,37 +23,48 @@ function isCategory(value: unknown): value is string {
 }
 
 const selectedCategory = ref<string | null>(isCategory(route.query.category) ? route.query.category : null)
-const searchQuery = ref(typeof route.query.search === 'string' ? route.query.search : '')
+
 const SEARCH_DEBOUNCE_MS = 300
+const searchQuery = ref(typeof route.query.search === 'string' ? route.query.search.trim() : '')
+
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 async function fetchAllPlugins(page = 1) {
-  await store.fetchList(page, selectedCategory.value, searchQuery.value || null)
+  await store.fetchList(page, selectedCategory.value, searchQuery.value.trim() || null)
+}
+
+async function goToPage(page: number) {
+  await fetchAllPlugins(page)
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function chooseCategory(category: string | null) {
+  clearTimeout(searchTimer)
   selectedCategory.value = category
   await syncQuery()
-  await fetchAllPlugins(1)
+  await goToPage(1)
 }
 
 /** Reads the current filter state and writes it to the URL, so both filters
  *  stay in step after either one changes. */
 async function syncQuery() {
+  const search = searchQuery.value.trim()
+
   await router.replace({
     query: {
       ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
-      ...(searchQuery.value.trim() ? { search: searchQuery.value.trim() } : {}),
+      ...(search ? { search } : {}),
     },
   })
 }
 
-watch(searchQuery, (_query, _previous, onCleanup) => {
+watch(() => searchQuery.value.trim(), (_query, _previous, onCleanup) => {
   const timer = setTimeout(async () => {
     await syncQuery()
-    await fetchAllPlugins(1)
+    await goToPage(1)
   }, SEARCH_DEBOUNCE_MS)
 
+  searchTimer = timer
   onCleanup(() => clearTimeout(timer))
 })
 
@@ -91,6 +103,7 @@ onMounted(async () => {
           <Input
             v-model="searchQuery"
             type="text"
+            :maxlength="pluginIndexQuerySearchMax"
             placeholder="Search plugins ..."
             data-test="search-input"
             class="h-11 rounded-xl pl-9"
@@ -205,7 +218,7 @@ onMounted(async () => {
       <Button
         variant="outline"
         :disabled="store.list.page === 1 || store.isFetchingList"
-        @click="fetchAllPlugins(store.list.page - 1)"
+        @click="goToPage(store.list.page - 1)"
       >
         Previous
       </Button>
@@ -215,7 +228,7 @@ onMounted(async () => {
       <Button
         variant="outline"
         :disabled="store.list.page === store.list.lastPage || store.isFetchingList"
-        @click="fetchAllPlugins(store.list.page + 1)"
+        @click="goToPage(store.list.page + 1)"
       >
         Next
       </Button>
