@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
+import { Textarea } from '@/components/ui/textarea'
 
 /**
  * The primitives carry no logic of their own — the point of these assertions is
@@ -151,3 +152,29 @@ describe('ui/spinner', () => {
     expect(wrapper.classes()).toContain('animate-spin')
   })
 })
+
+describe('ui/textarea', () => {
+  it('renders a textarea element', () => {
+    const wrapper = mount(Textarea)
+
+    expect(wrapper.attributes('data-slot')).toBe('textarea')
+    expect(wrapper.element.tagName).toBe('TEXTAREA')
+  })
+
+  it('is two-way bound through useVModel', async () => {
+    const wrapper = mount(Textarea, { props: { modelValue: '' } })
+
+    await wrapper.setValue('dsr-report-reason')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['dsr-report-reason'])
+  })
+
+  it('forwards attrs to the underlying textarea', () => {
+    const wrapper = mount(Textarea, { attrs: { placeholder: 'Reason for reporting...', rows: 4 } })
+
+    expect(wrapper.attributes('placeholder')).toBe('Reason for reporting...')
+    expect(wrapper.attributes('rows')).toBe('4')
+  })
+})
+

@@ -60,9 +60,8 @@ async function fetchComments(page = 1, append = false) {
     const res = await commentIndex(props.pluginId, {
       page,
       per_page: commentConfig.perPage
-    } as any)
-    const body = res as any
-    const newComments = body?.data?.comments || body?.comments || (Array.isArray(body?.data) ? body.data : [])
+    })
+    const newComments = res.data?.comments ?? []
 
     if (append) {
       const existingIds = new Set(comments.value.map(c => c.id))
@@ -72,8 +71,8 @@ async function fetchComments(page = 1, append = false) {
       comments.value = newComments
     }
 
-    currentPage.value = body?.meta?.current_page || page
-    lastPage.value = body?.meta?.last_page || 1
+    currentPage.value = res.meta?.current_page ?? page
+    lastPage.value = res.meta?.last_page ?? 1
   } catch (err) {
     error.value = 'Failed to load comments.'
   } finally {
@@ -94,8 +93,7 @@ async function submitComment() {
   isSubmitting.value = true
   try {
     const res = await commentStore(props.pluginId, { content: newComment.value })
-    const body = res as any
-    const createdComment = body?.data?.comment || body?.comment
+    const createdComment = res.data?.comment
 
     newComment.value = ''
     if (commentTextarea.value) {

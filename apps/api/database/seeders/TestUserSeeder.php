@@ -11,7 +11,7 @@ class TestUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = fake('vi_VN');
+        $faker = fake('en_US');
         $passwordHash = Hash::make('Password123!');
         $now = now();
         $runId = Str::lower(Str::random(6));
