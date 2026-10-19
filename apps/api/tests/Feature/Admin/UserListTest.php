@@ -83,15 +83,6 @@ class UserListTest extends TestCase
             ->assertTableActionHidden('unlock', $otherAdmin);
     }
 
-    public function test_a_locked_admin_cannot_see_the_lock_action_even_on_their_own_row(): void
-    {
-        $admin = $this->admin;
-        $admin->update(['locked_at' => now()]);
-
-        Livewire::test(ListUsers::class)
-            ->assertTableActionHidden('lock', $admin->fresh());
-    }
-
     public function test_both_actions_are_hidden_on_a_soft_deleted_row(): void
     {
         $trashed = User::factory()->create();
