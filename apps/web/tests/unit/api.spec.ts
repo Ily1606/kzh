@@ -2,14 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api } from '@/services/api';
 import { setActivePinia, createPinia } from 'pinia';
 import { useAuthStore } from '@/stores/auth.store';
-import { router } from '@/router';
-
-vi.mock('@/router', () => ({
-  router: {
-    currentRoute: { value: { path: '/resources' } },
-    push: vi.fn(),
-  }
-}));
+import { usePluginsStore } from '@/stores/plugins.store';
 
 describe('services/api interceptors', () => {
   beforeEach(() => {
@@ -35,10 +28,12 @@ describe('services/api interceptors', () => {
     expect(result.headers.Authorization).toBeUndefined();
   });
 
-  it('clears auth and redirects to /login on 401 error for non-login endpoints', async () => {
+  it('clears auth and resets plugins store on 401 error for non-login endpoints', async () => {
     const store = useAuthStore();
+    const pluginsStore = usePluginsStore();
     store.setToken('valid-token');
     store.setUser({ id: '1', name: 'User' } as any);
+    pluginsStore.put([{ id: 'plugin-1', name: 'test' } as any]);
 
     const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
     const error = {
@@ -50,10 +45,10 @@ describe('services/api interceptors', () => {
 
     expect(store.token).toBeNull();
     expect(store.user).toBeNull();
-    expect(router.push).toHaveBeenCalledWith('/login');
+    expect(pluginsStore.entities).toEqual({});
   });
 
-  it('does not clear auth or redirect to /login on 401 error from /v1/login', async () => {
+  it('does not clear auth on 401 error from /v1/login', async () => {
     const store = useAuthStore();
     store.setToken('existing-token');
 
@@ -66,10 +61,9 @@ describe('services/api interceptors', () => {
     await expect(responseErrorHandler(error)).rejects.toEqual(error);
 
     expect(store.token).toBe('existing-token');
-    expect(router.push).not.toHaveBeenCalled();
   });
 
-  it('does not clear auth or redirect on non-401 errors', async () => {
+  it('does not clear auth on non-401 errors', async () => {
     const store = useAuthStore();
     store.setToken('existing-token');
 
@@ -82,7 +76,6 @@ describe('services/api interceptors', () => {
     await expect(responseErrorHandler(error)).rejects.toEqual(error);
 
     expect(store.token).toBe('existing-token');
-    expect(router.push).not.toHaveBeenCalled();
   });
 });
 

@@ -1,14 +1,7 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import type { AxiosError } from "axios";
-import { useAuth } from "@/composables/useAuth";
-import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
   FormControl,
   FormField,
@@ -16,7 +9,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/composables/useAuth";
 import { registerSchema } from "@/schemas/auth.schema";
+import { getApiErrorMessage } from "@/utils/error";
+import { useForm } from "vee-validate";
+import { ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 const { handleSubmit } = useForm({
   validationSchema: registerSchema,
@@ -55,12 +55,9 @@ const onSubmit = handleSubmit(async (values) => {
         : "/";
     router.push(redirectPath);
   } catch (e) {
-    const err = e as AxiosError<{ message?: string }>;
-    const status = err.response?.status;
-    errorMsg.value =
-      status === 429
-        ? "Too many attempts. Please try again later."
-        : "Couldn't create your account. Please try again.";
+    errorMsg.value = getApiErrorMessage(e, {
+      default: "Couldn't create your account. Please try again.",
+    });
   } finally {
     loading.value = false;
   }
@@ -77,7 +74,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Full name</FormLabel>
           <FormControl>
-            <Input id="fullName" type="text" autocomplete="name" placeholder="Jane Doe" v-bind="componentField" />
+            <Input type="text" autocomplete="name" placeholder="Jane Doe" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -86,7 +83,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+            <Input type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -95,7 +92,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Password</FormLabel>
           <FormControl>
-            <Input id="password" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -104,7 +101,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Confirm password</FormLabel>
           <FormControl>
-            <Input id="confirmPassword" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>

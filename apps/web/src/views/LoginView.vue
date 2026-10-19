@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import type { AxiosError } from "axios";
+import { getApiErrorMessage } from "@/utils/error";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -51,13 +51,10 @@ const onSubmit = handleSubmit(async (values) => {
         : "/";
     router.push(redirectPath);
   } catch (e) {
-    const status = (e as AxiosError).response?.status;
-    errorMsg.value =
-      status === 429
-        ? "Too many attempts. Please try again later."
-        : status === 401 || status === 422
-          ? "Incorrect email or password."
-          : "Something went wrong. Please try again.";
+    errorMsg.value = getApiErrorMessage(e, {
+      401: "Incorrect email or password.",
+      422: "Incorrect email or password.",
+    });
   } finally {
     loading.value = false;
   }
@@ -74,7 +71,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+            <Input type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -86,7 +83,7 @@ const onSubmit = handleSubmit(async (values) => {
             <RouterLink to="/forgot-password" class="text-sm font-medium text-primary hover:underline">Forgot password?</RouterLink>
           </div>
           <FormControl>
-            <Input id="password" type="password" autocomplete="current-password" v-bind="componentField" />
+            <Input type="password" autocomplete="current-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>

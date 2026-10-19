@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { AxiosError } from "axios";
+import { getApiErrorMessage } from "@/utils/error";
 import { getPasswordReset } from "@/api/generated/endpoints";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -41,14 +41,9 @@ const onSubmit = handleSubmit(async (values) => {
     });
     successMsg.value = "We have emailed your password reset link.";
   } catch (e) {
-    const err = e as AxiosError<{ message?: string }>;
-    const status = err.response?.status;
-    errorMsg.value =
-      status === 429
-        ? "Too many attempts. Please try again later."
-        : status === 422
-          ? (err.response?.data?.message || "Validation failed.")
-          : "Failed to send reset link. Please try again.";
+    errorMsg.value = getApiErrorMessage(e, {
+      default: "Failed to send reset link. Please try again.",
+    });
   } finally {
     loading.value = false;
   }
@@ -65,14 +60,14 @@ const onSubmit = handleSubmit(async (values) => {
       <Alert v-if="errorMsg" variant="destructive">
         <AlertDescription>{{ errorMsg }}</AlertDescription>
       </Alert>
-      <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">
-        <AlertDescription class="text-inherit">{{ successMsg }}</AlertDescription>
+      <Alert v-if="successMsg" variant="success">
+        <AlertDescription>{{ successMsg }}</AlertDescription>
       </Alert>
       <FormField v-slot="{ componentField }" name="email">
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+            <Input type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>

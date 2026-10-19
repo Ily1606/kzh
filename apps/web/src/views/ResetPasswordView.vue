@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import type { AxiosError } from "axios";
+import { getApiErrorMessage } from "@/utils/error";
 import { getPasswordReset } from "@/api/generated/endpoints";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -68,14 +68,9 @@ const onSubmit = handleSubmit(async (values) => {
       router.push("/login");
     }, 2000);
   } catch (e) {
-    const err = e as AxiosError<{ message?: string }>;
-    const status = err.response?.status;
-    errorMsg.value =
-      status === 429
-        ? "Too many attempts. Please try again later."
-        : status === 422
-          ? (err.response?.data?.message || "Validation failed.")
-          : "Failed to reset password. The link might be expired or invalid.";
+    errorMsg.value = getApiErrorMessage(e, {
+      default: "Failed to reset password. The link might be expired or invalid.",
+    });
   } finally {
     loading.value = false;
   }
@@ -92,15 +87,15 @@ const onSubmit = handleSubmit(async (values) => {
       <Alert v-if="errorMsg" variant="destructive">
         <AlertDescription>{{ errorMsg }}</AlertDescription>
       </Alert>
-      <Alert v-if="successMsg" variant="default" class="border-primary/50 text-primary">
-        <AlertDescription class="text-inherit">{{ successMsg }}</AlertDescription>
+      <Alert v-if="successMsg" variant="success">
+        <AlertDescription>{{ successMsg }}</AlertDescription>
       </Alert>
 
       <FormField v-slot="{ componentField }" name="email">
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" v-bind="componentField" />
+            <Input type="email" autocomplete="email" readonly class="opacity-70 cursor-not-allowed" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -110,7 +105,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>New Password</FormLabel>
           <FormControl>
-            <Input id="password" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -120,7 +115,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Confirm New Password</FormLabel>
           <FormControl>
-            <Input id="password_confirmation" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>

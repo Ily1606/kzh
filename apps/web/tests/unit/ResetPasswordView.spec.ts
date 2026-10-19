@@ -43,6 +43,22 @@ describe('ResetPasswordView.vue', () => {
     expect(wrapper.findAll('input[type="password"]').length).toBe(2);
   });
 
+  it('associates FormLabel with Input id via FormControl', () => {
+    const wrapper = mount(ResetPasswordView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    const labels = wrapper.findAll('label');
+    expect(labels.length).toBeGreaterThan(0);
+    labels.forEach((label) => {
+      const forId = label.attributes('for');
+      expect(forId).toBeDefined();
+      expect(wrapper.find(`#${forId}`).exists()).toBe(true);
+    });
+  });
+
   it('displays error if passwords do not match', async () => {
     const wrapper = mount(ResetPasswordView, {
       global: {
@@ -50,8 +66,9 @@ describe('ResetPasswordView.vue', () => {
       }
     });
 
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('different');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('different');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -69,8 +86,9 @@ describe('ResetPasswordView.vue', () => {
       }
     });
 
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('password123');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -88,8 +106,9 @@ describe('ResetPasswordView.vue', () => {
 
     mockPasswordResetResetPassword.mockResolvedValueOnce({});
 
-    await wrapper.find('input[id="password"]').setValue('newPassword123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('newPassword123');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await passwordInputs[0].setValue('newPassword123');
+    await passwordInputs[1].setValue('newPassword123');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -122,8 +141,9 @@ describe('ResetPasswordView.vue', () => {
       }
     });
 
-    await wrapper.find('input[id="password"]').setValue('newPassword123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('newPassword123');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await passwordInputs[0].setValue('newPassword123');
+    await passwordInputs[1].setValue('newPassword123');
     
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -144,8 +164,9 @@ describe('ResetPasswordView.vue', () => {
       }
     });
 
-    await wrapper.find('input[id="password"]').setValue('newPassword123');
-    await wrapper.find('input[id="password_confirmation"]').setValue('newPassword123');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await passwordInputs[0].setValue('newPassword123');
+    await passwordInputs[1].setValue('newPassword123');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));

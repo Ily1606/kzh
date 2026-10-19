@@ -28,8 +28,18 @@ describe('ui/alert', () => {
     const wrapper = mount(Alert, { props: { variant: 'destructive' } })
 
     expect(wrapper.classes()).toContain('text-destructive')
+    expect(wrapper.classes()).toContain('bg-card')
     // Destructive recolours the card rather than replacing its background, so
     // the class the default variant contributes is gone, not the background.
+    expect(wrapper.classes()).not.toContain('text-card-foreground')
+  })
+
+  it('applies the success variant in place of the default one', () => {
+    const wrapper = mount(Alert, { props: { variant: 'success' } })
+
+    expect(wrapper.classes()).toContain('text-primary')
+    expect(wrapper.classes()).toContain('border-primary/50')
+    expect(wrapper.classes()).toContain('bg-card')
     expect(wrapper.classes()).not.toContain('text-card-foreground')
   })
 

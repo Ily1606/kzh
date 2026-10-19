@@ -37,6 +37,22 @@ describe('RegisterView.vue', () => {
     expect(wrapper.find('button[type="submit"]').text()).toContain('Create account');
   });
 
+  it('associates FormLabel with Input id via FormControl', () => {
+    const wrapper = mount(RegisterView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    const labels = wrapper.findAll('label');
+    expect(labels.length).toBeGreaterThan(0);
+    labels.forEach((label) => {
+      const forId = label.attributes('for');
+      expect(forId).toBeDefined();
+      expect(wrapper.find(`#${forId}`).exists()).toBe(true);
+    });
+  });
+
   it('displays validation errors if passwords do not match', async () => {
     const wrapper = mount(RegisterView, {
       global: {
@@ -44,15 +60,14 @@ describe('RegisterView.vue', () => {
       }
     });
 
-    const nameInput = wrapper.find('input[id="fullName"]');
-    const emailInput = wrapper.find('input[id="email"]');
-    const passwordInput = wrapper.find('input[id="password"]');
-    const confirmPasswordInput = wrapper.find('input[id="confirmPassword"]');
+    const nameInput = wrapper.find('input[type="text"]');
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
 
     await nameInput.setValue('John Doe');
     await emailInput.setValue('test@example.com');
-    await passwordInput.setValue('password123');
-    await confirmPasswordInput.setValue('differentPassword');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('differentPassword');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -70,15 +85,14 @@ describe('RegisterView.vue', () => {
 
     mockRegister.mockResolvedValueOnce(true);
 
-    const nameInput = wrapper.find('input[id="fullName"]');
-    const emailInput = wrapper.find('input[id="email"]');
-    const passwordInput = wrapper.find('input[id="password"]');
-    const confirmPasswordInput = wrapper.find('input[id="confirmPassword"]');
+    const nameInput = wrapper.find('input[type="text"]');
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
 
     await nameInput.setValue('John Doe');
     await emailInput.setValue('test@example.com');
-    await passwordInput.setValue('password123');
-    await confirmPasswordInput.setValue('password123');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -122,10 +136,11 @@ describe('RegisterView.vue', () => {
 
     mockRegister.mockRejectedValueOnce(new Error('Registration failed'));
 
-    await wrapper.find('input[id="fullName"]').setValue('John Doe');
-    await wrapper.find('input[id="email"]').setValue('test@example.com');
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="confirmPassword"]').setValue('password123');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await wrapper.find('input[type="text"]').setValue('John Doe');
+    await wrapper.find('input[type="email"]').setValue('test@example.com');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
@@ -144,14 +159,67 @@ describe('RegisterView.vue', () => {
       response: { status: 429 }
     });
 
-    await wrapper.find('input[id="fullName"]').setValue('John Doe');
-    await wrapper.find('input[id="email"]').setValue('test@example.com');
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="confirmPassword"]').setValue('password123');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await wrapper.find('input[type="text"]').setValue('John Doe');
+    await wrapper.find('input[type="email"]').setValue('test@example.com');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));
 
     expect(wrapper.text()).toContain('Too many attempts. Please try again later.');
+  });
+
+  it('displays API validation error message when API returns 422', async () => {
+    const wrapper = mount(RegisterView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockRegister.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: { message: 'The email has already been taken.' }
+      }
+    });
+
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await wrapper.find('input[type="text"]').setValue('John Doe');
+    await wrapper.find('input[type="email"]').setValue('test@example.com');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('The email has already been taken.');
+  });
+
+  it('displays fallback validation error message when 422 has no message', async () => {
+    const wrapper = mount(RegisterView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockRegister.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: {}
+      }
+    });
+
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await wrapper.find('input[type="text"]').setValue('John Doe');
+    await wrapper.find('input[type="email"]').setValue('test@example.com');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Validation failed.');
   });
 });
