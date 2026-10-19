@@ -11,7 +11,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class UsersTable
 {
@@ -22,7 +21,7 @@ class UsersTable
     */
     private static function canActOn(User $record): bool
     {
-        return !$record->trashed() && $record->isNot(Auth::user());
+        return !$record->trashed() && !$record->is_admin;
     }
 
     public static function configure(Table $table): Table
