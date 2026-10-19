@@ -276,6 +276,8 @@ describe('EditPluginView.vue', () => {
     it('sends the six editable fields and returns to the detail page', async () => {
       signIn()
       seedStore()
+      // The view only pops history when there is an earlier entry to go back to.
+      window.history.replaceState({ back: '/plugins' }, '')
 
       const wrapper = mountView()
       await flushPromises()

@@ -21,6 +21,11 @@ vi.mock('@/api/generated/endpoints', () => ({
   getProfile: () => ({ profileShow: vi.fn() })
 }))
 
+// api.ts pulls in the real router, which calls createRouter at import time.
+vi.mock('@/router', () => ({
+  router: { currentRoute: { value: { path: '/plugins/plugin-123' } }, push: vi.fn() }
+}))
+
 vi.mock('@/utils/toast', () => ({
   notifyError: (message: string) => mockNotifyError(message),
   notifySuccess: vi.fn()
