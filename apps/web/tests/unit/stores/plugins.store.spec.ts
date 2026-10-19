@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createApp } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
-import { usePluginsStore } from '@/stores/plugins.store';
+import { usePluginsStore } from '@/stores/plugins';
 import { useAuthStore } from '@/stores/auth.store';
 import type { PluginResource, UserResource } from '@/api/generated/model';
 
@@ -59,6 +59,17 @@ function signIn() {
 
 function meta(overrides: Record<string, number> = {}) {
   return { current_page: 1, last_page: 1, per_page: 9, from: 1, to: 9, total: 9, ...overrides };
+}
+
+/** A promise a test resolves by hand, to control the order responses land in. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+
+  return { promise, resolve };
 }
 
 describe('Plugins Store', () => {
@@ -194,6 +205,26 @@ describe('Plugins Store', () => {
 
       expect(mockPluginIndex).toHaveBeenCalledTimes(2);
     });
+
+    it('keeps the newest result when an earlier one resolves later', async () => {
+      const store = usePluginsStore();
+
+      const slow = deferred<any>();
+      const fast = deferred<any>();
+
+      mockPluginIndex.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
+
+      const first = store.fetchList(1, null, 'old');
+      const second = store.fetchList(2, null, 'new');
+
+      fast.resolve({ data: [makePlugin({ id: 'new' })], meta: meta({ current_page: 2 }) });
+      slow.resolve({ data: [makePlugin({ id: 'old' })], meta: meta() });
+
+      await Promise.all([first, second]);
+
+      expect(store.list.ids).toEqual(['new']);
+      expect(store.isFetchingList).toBe(false);
+    });
   });
 
   describe('fetchMine()', () => {
@@ -221,6 +252,27 @@ describe('Plugins Store', () => {
         status: 'pending',
       });
       expect(store.minePlugins).toHaveLength(1);
+    });
+
+    it('keeps the newest status when an earlier one resolves later', async () => {
+      const store = usePluginsStore();
+      signIn();
+
+      const pending = deferred<any>();
+      const rejected = deferred<any>();
+
+      mockPluginMyPlugins.mockReturnValueOnce(pending.promise).mockReturnValueOnce(rejected.promise);
+
+      const first = store.fetchMine(1, 'pending');
+      const second = store.fetchMine(1, 'rejected');
+
+      rejected.resolve({ data: [makePlugin({ id: 'rejected' })], meta: meta() });
+      pending.resolve({ data: [makePlugin({ id: 'pending' })], meta: meta() });
+
+      await Promise.all([first, second]);
+
+      expect(store.mine.ids).toEqual(['rejected']);
+      expect(store.isFetchingMine).toBe(false);
     });
   });
 

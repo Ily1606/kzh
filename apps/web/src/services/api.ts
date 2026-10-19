@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getActivePinia } from 'pinia';
 import { useAuthStore } from '@/stores/auth.store';
-import { usePluginsStore } from '@/stores/plugins.store';
+import { usePluginsStore } from '@/stores/plugins';
 import { router } from '@/router';
 
 export const api = axios.create({
