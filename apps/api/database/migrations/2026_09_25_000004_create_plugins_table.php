@@ -3,7 +3,6 @@
 use App\Enums\PluginStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -28,14 +27,22 @@ return new class extends Migration
             $table->index(['user_id', 'created_at']);
         });
 
-        if (DB::getDriverName() !== 'pgsql') {
-            return;
-        }
-
-        // GIN Index
-        DB::statement('CREATE EXTENSION IF NOT EXISTS pg_trgm');
-        DB::statement('CREATE INDEX plugins_name_trgm_idx ON plugins USING GIN (name gin_trgm_ops)');
-        DB::statement('CREATE INDEX plugins_title_trgm_idx ON plugins USING GIN (title gin_trgm_ops)');
+        // Trigram search over the plugin name and title.
+        //
+        // Disabled: `CREATE EXTENSION` needs a privilege the app's DB role does
+        // not have on a managed Postgres, so this fails at migrate time. The
+        // extension belongs to the infrastructure layer — create it in the local
+        // Postgres init script, and have the DBA run it once per staging/prod
+        // database. Until then the catalogue search scans the whole table.
+        //
+        //
+        // if (DB::getDriverName() !== 'pgsql') {
+        //     return;
+        // }
+        //
+        // DB::statement('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+        // DB::statement('CREATE INDEX plugins_name_trgm_idx ON plugins USING GIN (name gin_trgm_ops)');
+        // DB::statement('CREATE INDEX plugins_title_trgm_idx ON plugins USING GIN (title gin_trgm_ops)');
     }
 
     public function down(): void
