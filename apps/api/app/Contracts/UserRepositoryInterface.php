@@ -40,7 +40,7 @@ interface UserRepositoryInterface
     public function revokeTokensExcept(User $user, int|string|null $exceptId = null): void;
 
     /**
-    * Lock the account: stamp `locked_at` and revoke every API token the user
+     * Lock the account: stamp `locked_at` and revoke every API token the user
      * holds, so a lock takes effect on sessions that are already open rather
      * than only on the next sign-in attempt.
      */

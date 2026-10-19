@@ -15,10 +15,11 @@ use Illuminate\Database\Eloquent\Builder;
 class UsersTable
 {
 
-    /* Check to allow admin can (lock/unlock) in the row
-     * !$record->trashed() => user has been not soft-deleted
-     * $record->isNot(Auth::user()) -> user is not admin
-    */
+    /**
+     * Only rows of live, non-admin users may be acted on. Admins are off
+     * limits entirely: the panel re-checks `canAccessPanel()` on the next
+     * request, so locking one would lock every admin out.
+     */
     private static function canActOn(User $record): bool
     {
         return !$record->trashed() && !$record->is_admin;
