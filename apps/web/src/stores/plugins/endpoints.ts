@@ -30,3 +30,7 @@ export function savePlugin(id: string, payload: UpdatePluginRequest) {
 export function putStar(id: string, starred: boolean) {
   return getStar().starStore(id, { starred });
 }
+
+export function pluginTrackView(id: string) {
+  return getPlugin().pluginTrackView(id);
+}
