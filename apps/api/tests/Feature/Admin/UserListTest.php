@@ -12,18 +12,21 @@ use Tests\TestCase;
  * Covers the lock/unlock actions on the admin user list at /admin/users.
  *
  * Both actions share one precondition worth naming: an admin may never act on
- * their own row, because the panel re-checks `canAccessPanel()` on the next
- * request and a self-lock would strand the session with no way back in.
+ * any admin row, their own included — the panel re-checks `canAccessPanel()`
+ * on the next request, so locking a colleague would lock everyone out.
  */
 class UserListTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected User $admin;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create(['is_admin' => true]));
+        $this->admin = User::factory()->create(['is_admin' => true]);
+        $this->actingAs($this->admin);
     }
 
     public function test_non_admins_cannot_open_the_user_list(): void
@@ -66,20 +69,18 @@ class UserListTest extends TestCase
 
     public function test_the_lock_action_is_hidden_on_the_admins_own_row(): void
     {
-        $admin = auth()->user();
-
         Livewire::test(ListUsers::class)
-            ->assertTableActionHidden('lock', $admin)
-            ->assertTableActionHidden('unlock', $admin);
+            ->assertTableActionHidden('lock', $this->admin)
+            ->assertTableActionHidden('unlock', $this->admin);
     }
 
-    public function test_a_locked_admin_cannot_see_the_lock_action_even_on_their_own_row(): void
+    public function test_both_actions_are_hidden_on_another_admins_row(): void
     {
-        $admin = auth()->user();
-        $admin->update(['locked_at' => now()]);
+        $otherAdmin = User::factory()->create(['is_admin' => true]);
 
         Livewire::test(ListUsers::class)
-            ->assertTableActionHidden('lock', $admin->fresh());
+            ->assertTableActionHidden('lock', $otherAdmin)
+            ->assertTableActionHidden('unlock', $otherAdmin);
     }
 
     public function test_both_actions_are_hidden_on_a_soft_deleted_row(): void
@@ -99,7 +100,8 @@ class UserListTest extends TestCase
 
         Livewire::test(ListUsers::class)
             ->callTableAction('lock', $target)
-            ->assertHasNoActionErrors();
+            ->assertHasNoActionErrors()
+            ->assertNotified(__('user.table.actions.lock_success'));
 
         $this->assertNotNull($target->fresh()->locked_at);
         $this->assertDatabaseCount('personal_access_tokens', 0);
@@ -111,7 +113,8 @@ class UserListTest extends TestCase
 
         Livewire::test(ListUsers::class)
             ->callTableAction('unlock', $target)
-            ->assertHasNoActionErrors();
+            ->assertHasNoActionErrors()
+            ->assertNotified(__('user.table.actions.unlock_success'));
 
         $this->assertNull($target->fresh()->locked_at);
     }
@@ -135,10 +138,8 @@ class UserListTest extends TestCase
         $target = User::factory()->create();
 
         Livewire::test(ListUsers::class)
-            ->assertSee(__('user.table.columns.status_options.active'));
-
-        Livewire::test(ListUsers::class)
+            ->assertTableColumnStateSet('status', 'active', $target)
             ->callTableAction('lock', $target)
-            ->assertSee(__('user.table.columns.status_options.locked'));
+            ->assertTableColumnStateSet('status', 'locked', $target->fresh());
     }
 }

@@ -95,6 +95,27 @@ class UserRepositoryTest extends TestCase
         );
     }
 
+    public function test_locking_with_a_stale_model_does_not_rewrite_the_lock_timestamp(): void
+    {
+        $user = User::factory()->create();
+
+        $original = now()->subWeek();
+        User::query()->whereKey($user->getKey())->update(['locked_at' => $original]);
+
+        $repository = app(UserRepositoryInterface::class);
+
+        // $user still holds locked_at = null from before the direct write, so
+        // only a conditional UPDATE keeps the timestamp the account got locked.
+        $this->assertNull($user->locked_at);
+
+        $locked = $repository->lock($user);
+
+        $this->assertSame(
+            $original->format('Y-m-d H:i:s'),
+            $locked->locked_at?->format('Y-m-d H:i:s'),
+        );
+    }
+
     public function test_unlocking_a_user_clears_locked_at_without_restoring_tokens(): void
     {
         $user = User::factory()->create();

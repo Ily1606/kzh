@@ -11,18 +11,18 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class UsersTable
 {
 
-    /* Check to allow admin can (lock/unlock) in the row
-     * !$record->trashed() => user has been not soft-deleted
-     * $record->isNot(Auth::user()) -> user is not admin
-    */
+    /**
+     * Only rows of live, non-admin users may be acted on. Admins are off
+     * limits entirely: the panel re-checks `canAccessPanel()` on the next
+     * request, so locking one would lock every admin out.
+     */
     private static function canActOn(User $record): bool
     {
-        return !$record->trashed() && $record->isNot(Auth::user());
+        return !$record->trashed() && !$record->is_admin;
     }
 
     public static function configure(Table $table): Table
@@ -44,16 +44,7 @@ class UsersTable
                 TextColumn::make('status')
                     ->label(__('user.table.columns.status'))
                     ->badge()
-                    ->getStateUsing(function ($record) {
-                        if ($record->trashed()) {
-                            return 'deleted';
-                        }
-                        if ($record->locked_at) {
-                            return 'locked';
-                        }
-
-                        return 'active';
-                    })
+                    ->getStateUsing(fn (User $record): string => $record->status())
                     ->formatStateUsing(fn (string $state): string => __('user.table.columns.status_options.'.$state))
                     ->color(fn (string $state): string => match ($state) {
                         'deleted' => 'danger',
@@ -116,7 +107,7 @@ class UsersTable
                     ->modalDescription(__('user.table.actions.lock_modal_description'))
                     ->modalSubmitActionLabel(__('user.table.actions.lock'))
                     ->action(fn (User $record) => app(UserRepositoryInterface::class)->lock($record))
-                    ->successNotificationTitle(__('user.table.actions.lock')),
+                    ->successNotificationTitle(__('user.table.actions.lock_success')),
 
                 Action::make('unlock')
                     ->label(__('user.table.actions.unlock'))
@@ -128,7 +119,7 @@ class UsersTable
                     ->modalDescription(__('user.table.actions.unlock_modal_description'))
                     ->modalSubmitActionLabel(__('user.table.actions.unlock'))
                     ->action(fn (User $record) => app(UserRepositoryInterface::class)->unlock($record))
-                    ->successNotificationTitle(__('user.table.actions.unlock')),
+                    ->successNotificationTitle(__('user.table.actions.unlock_success')),
             ]);
     }
 }
