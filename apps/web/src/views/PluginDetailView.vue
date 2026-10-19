@@ -39,16 +39,16 @@ function onCommentAdded() {
 
 onMounted(async () => {
   if (pluginId.value) {
-    void store.trackView(pluginId.value)
     await store.ensurePlugin(pluginId.value)
+    void store.trackView(pluginId.value)
   }
   scrollToHash()
 })
 
-watch(pluginId, (newId, oldId) => {
+watch(pluginId, async (newId, oldId) => {
   if (newId && newId !== oldId) {
+    await store.ensurePlugin(newId)
     void store.trackView(newId)
-    void store.ensurePlugin(newId)
   }
 })
 </script>

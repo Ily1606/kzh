@@ -406,7 +406,7 @@ final class PluginService
 
         $serializedPlugins = Redis::hmget($hashKey, $ids);
 
-         $plugins = collect($serializedPlugins)
+        $plugins = collect($serializedPlugins)
             ->filter()
             ->map(fn ($serialized) => unserialize($serialized))
             ->values();

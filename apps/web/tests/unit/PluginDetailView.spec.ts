@@ -234,18 +234,31 @@ describe('PluginDetailView.vue', () => {
   })
 
   describe('tracking views', () => {
-    it('calls pluginTrackView when mounted and updates the displayed view count', async () => {
-      seedStore(makePlugin({ view_count: 100 }))
-      mockPluginTrackView.mockResolvedValueOnce({
-        data: { status: 'success', message: 'View counted successfully.', view_count: 101 },
+    it('calls pluginTrackView after ensurePlugin completes and updates the displayed view count with latest value', async () => {
+      const order: string[] = []
+      mockPluginShow.mockImplementation(async () => {
+        order.push('show')
+        return { data: { plugin: makePlugin({ view_count: 100 }) } }
+      })
+      mockPluginTrackView.mockImplementation(async () => {
+        order.push('trackView')
+        return {
+          data: { status: 'success', message: 'View counted successfully.', view_count: 101 },
+        }
       })
 
       const wrapper = mountView()
       await flushPromises()
       await wrapper.vm.$nextTick()
 
+      expect(order).toEqual(['show', 'trackView'])
+      expect(mockPluginShow).toHaveBeenCalledWith('plugin-123')
       expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-123')
+      expect(mockPluginShow.mock.invocationCallOrder[0]).toBeLessThan(
+        mockPluginTrackView.mock.invocationCallOrder[0]
+      )
       expect(wrapper.text()).toContain('101 views')
+      expect(wrapper.text()).not.toContain('100 views')
     })
 
     it('tracks view again when plugin route changes', async () => {

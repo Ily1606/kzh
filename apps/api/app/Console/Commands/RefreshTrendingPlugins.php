@@ -7,6 +7,7 @@ use App\Services\TrendingTracker;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Redis;
 
 #[Signature('plugins:refresh-trending')]
@@ -24,7 +25,7 @@ class RefreshTrendingPlugins extends Command
      */
     public function handle(): void
     {
-        $daysLimit = (int) config('plugins.trending.days_limit', 7);
+        $daysLimit = (int) config('plugins.trending.days_limit');
         $weightView = (float) config('plugins.trending.weights.view');
         $weightComment = (float) config('plugins.trending.weights.comment');
         $weightStar = (float) config('plugins.trending.weights.star');
@@ -36,18 +37,7 @@ class RefreshTrendingPlugins extends Command
         $hashKey = config('plugins.trending.keys.objects');
 
         if (empty($activeIds)) {
-            // Fallback to all-time top
-            $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
-
-            if ($results->isEmpty()) {
-                Redis::del($zsetKey);
-                Redis::del($hashKey);
-                $this->info("No plugins found. Cleared trending cache.");
-                return;
-            }
-
-            $this->storeResultsToRedis($results, $masterLimit, $zsetKey, $hashKey, true);
-            $this->info("Successfully refreshed {$results->count()} fallback plugins to Redis ZSET.");
+            $this->fallbackToAllTime($masterLimit, $zsetKey, $hashKey);
             return;
         }
 
@@ -66,10 +56,7 @@ class RefreshTrendingPlugins extends Command
         }
 
         if (empty($scoredPlugins)) {
-            // Unlikely, but fallback just in case
-            $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
-            $this->storeResultsToRedis($results, $masterLimit, $zsetKey, $hashKey, true);
-            $this->info("Refreshed {$results->count()} fallback plugins to Redis ZSET.");
+            $this->fallbackToAllTime($masterLimit, $zsetKey, $hashKey);
             return;
         }
 
@@ -83,15 +70,7 @@ class RefreshTrendingPlugins extends Command
         $plugins = $this->pluginRepository->findApprovedByIds($topIds);
 
         if ($plugins->isEmpty()) {
-            $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
-            if ($results->isEmpty()) {
-                Redis::del($zsetKey);
-                Redis::del($hashKey);
-                $this->info("No plugins found. Cleared trending cache.");
-                return;
-            }
-            $this->storeResultsToRedis($results, $masterLimit, $zsetKey, $hashKey, true);
-            $this->info("Refreshed {$results->count()} fallback plugins to Redis ZSET.");
+            $this->fallbackToAllTime($masterLimit, $zsetKey, $hashKey);
             return;
         }
 
@@ -100,8 +79,33 @@ class RefreshTrendingPlugins extends Command
         $this->info("Successfully refreshed {$plugins->count()} trending plugins to Redis ZSET.");
     }
 
-    private function storeResultsToRedis($plugins, $masterLimit, $zsetKey, $hashKey, $isFallback, $scoredPlugins = []): void
+    private function fallbackToAllTime(int $masterLimit, string $zsetKey, string $hashKey): void
     {
+        $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
+
+        if ($results->isEmpty()) {
+            Redis::del($zsetKey);
+            Redis::del($hashKey);
+            $this->info("No plugins found. Cleared trending cache.");
+            return;
+        }
+
+        $this->storeResultsToRedis($results, $masterLimit, $zsetKey, $hashKey, true);
+        $this->info("Successfully refreshed {$results->count()} fallback plugins to Redis ZSET.");
+    }
+
+    /**
+     * @param  Collection<int, \App\Models\Plugin>  $plugins
+     * @param  array<string, float|int>  $scoredPlugins
+     */
+    private function storeResultsToRedis(
+        Collection $plugins,
+        int $masterLimit,
+        string $zsetKey,
+        string $hashKey,
+        bool $isFallback,
+        array $scoredPlugins = []
+    ): void {
         if ($plugins->isEmpty()) {
             Redis::del($zsetKey);
             Redis::del($hashKey);
