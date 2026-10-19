@@ -100,11 +100,10 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     public function lock(User $user): User
     {
         return DB::transaction(function () use ($user): User {
-
-            if ($user->locked_at === null) {
-                $user->locked_at = now();
-                $user->save();
-            }
+            $this->newQuery()
+                ->whereKey($user->getKey())
+                ->whereNull('locked_at')
+                ->update(['locked_at' => now()]);
 
             $user->tokens()->delete();
 
