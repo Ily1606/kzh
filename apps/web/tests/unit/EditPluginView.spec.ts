@@ -100,6 +100,10 @@ describe('EditPluginView.vue', () => {
     setActivePinia(pinia)
     localStorage.clear()
 
+    // No earlier entry by default: a bookmark or a new tab has no history to
+    // pop. Tests that do have one set their own `back` below.
+    window.history.replaceState(null, '')
+
     mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin() } })
     mockPluginUpdate.mockResolvedValue({ data: { plugin: makePlugin({ title: 'Renamed' }) } })
   })
@@ -292,6 +296,21 @@ describe('EditPluginView.vue', () => {
       // Back, not a fresh push: pushing the detail route again would leave this
       // page in the history and send the browser Back button straight back into it.
       expect(mockBack).toHaveBeenCalled()
+    })
+
+    it('returns to the detail page when there is no earlier history entry', async () => {
+      signIn()
+      seedStore()
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.findComponent(PluginFieldsForm).props('submit')(values)
+      await flushPromises()
+
+      // A bookmark or a new tab: `back()` would drop the reader out of the app.
+      expect(mockBack).not.toHaveBeenCalled()
+      expect(mockReplace).toHaveBeenCalledWith({ name: 'plugin-detail', params: { id: 'plugin-123' } })
     })
 
     it('leaves the page on the plugin and shows the message when the save fails', async () => {
