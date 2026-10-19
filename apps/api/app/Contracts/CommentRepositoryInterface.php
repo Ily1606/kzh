@@ -4,6 +4,7 @@ namespace App\Contracts;
 
 use App\Models\Comment;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface CommentRepositoryInterface
 {
@@ -48,4 +49,11 @@ interface CommentRepositoryInterface
      * @param  int  $stopAt  Depth at which to stop early and return.
      */
     public function depthOf(string $id, int $stopAt): int;
+
+    /**
+     * Get daily comment counts grouped by plugin and date for the last N days.
+     *
+     * @return Collection<int, object{plugin_id: string, date: string, count: int}>
+     */
+    public function getDailyCommentCounts(int $daysLimit): Collection;
 }

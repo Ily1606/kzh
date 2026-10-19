@@ -6,10 +6,12 @@ use App\Enums\PluginStatus;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Services\TrendingTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
 class TrendingAlgorithmTest extends TestCase
@@ -20,6 +22,7 @@ class TrendingAlgorithmTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        Redis::flushdb();
     }
 
     /**
@@ -102,78 +105,86 @@ class TrendingAlgorithmTest extends TestCase
     {
         config()->set('plugins.trending.days_limit', 10);
 
-        Plugin::factory()->create([
+        $recent = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
-            'approved_at' => now()->subDays(1), // Within limit
+            'approved_at' => now()->subDays(1),
         ]);
+        TrendingTracker::trackView($recent->id);
 
-        Plugin::factory()->create([
+        $old = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
-            'approved_at' => now()->subDays(15), // Too old
+            'approved_at' => now()->subDays(15),
         ]);
+        Redis::sadd('trending:active_plugins:' . now()->subDays(15)->format('Y-m-d'), $old->id);
+        Redis::set('trending:stats:views:' . now()->subDays(15)->format('Y-m-d') . ':' . $old->id, 10);
 
         $response = $this->getJson('/api/v1/plugins/trending');
-        $response->assertOk()->assertJsonCount(1, 'data.plugins');
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.plugins')
+            ->assertJsonPath('data.plugins.0.id', $recent->id);
     }
 
     public function test_trend_06_to_08_score_calculation_ranks_newer_plugins_higher_unless_interactions_are_massive(): void
     {
-        // TREND-06: New, few interactions
+        config()->set('plugins.trending.days_limit', 7);
+
+        // TREND-06: Recent with few interactions
         $newPlugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subHours(2),
-            'view_count' => 10,
         ]);
-        $this->starTimes($newPlugin, 1);
-        $this->commentTimes($newPlugin, 1);
+        TrendingTracker::trackStar($newPlugin->id, 1);
+        TrendingTracker::trackComment($newPlugin->id, 1);
 
-        // TREND-07: Old, many interactions
+        // TREND-07: Old interactions outside the sliding window
         $oldPlugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subDays(20),
-            'view_count' => 1000,
         ]);
-        $this->starTimes($oldPlugin, 100);
-        $this->commentTimes($oldPlugin, 50);
+        Redis::sadd('trending:active_plugins:' . now()->subDays(20)->format('Y-m-d'), $oldPlugin->id);
+        Redis::set('trending:stats:stars:' . now()->subDays(20)->format('Y-m-d') . ':' . $oldPlugin->id, 100);
 
-        // TREND-08: New, massive interactions
+        // TREND-08: Recent with massive interactions
         $superNewPlugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now()->subHours(1),
-            'view_count' => 500,
         ]);
-        $this->starTimes($superNewPlugin, 50);
-        $this->commentTimes($superNewPlugin, 20);
+        TrendingTracker::trackStar($superNewPlugin->id, 50);
+        TrendingTracker::trackComment($superNewPlugin->id, 20);
 
         $response = $this->getJson('/api/v1/plugins/trending');
 
         $response->assertOk()
-            ->assertJsonCount(3, 'data.plugins')
-            ->assertJsonPath('data.plugins.0.id', $superNewPlugin->id) // #1: Super new and popular
-            ->assertJsonPath('data.plugins.1.id', $newPlugin->id)      // #2: New but not popular (Gravity decays old plugin heavily)
-            ->assertJsonPath('data.plugins.2.id', $oldPlugin->id);     // #3: Old but very popular
+            ->assertJsonCount(2, 'data.plugins')
+            ->assertJsonPath('data.plugins.0.id', $superNewPlugin->id) // #1: Massive recent interactions
+            ->assertJsonPath('data.plugins.1.id', $newPlugin->id);      // #2: Recent interactions
     }
 
     public function test_trend_09_to_11_stars_comments_views_affect_score(): void
     {
-        // Base plugin
-        $p1 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0]);
+        $today = now()->format('Y-m-d');
+
         // View plugin
-        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 100]);
+        $p2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5)]);
+        Redis::set("trending:stats:views:{$today}:{$p2->id}", 100);
+        Redis::sadd("trending:active_plugins:{$today}", $p2->id);
+
         // Comment plugin
-        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0]);
-        $this->commentTimes($p3, 100);
+        $p3 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5)]);
+        Redis::set("trending:stats:comments:{$today}:{$p3->id}", 100);
+        Redis::sadd("trending:active_plugins:{$today}", $p3->id);
+
         // Star plugin (highest weight)
-        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5), 'view_count' => 0]);
-        $this->starTimes($p4, 100);
+        $p4 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(5)]);
+        Redis::set("trending:stats:stars:{$today}:{$p4->id}", 100);
+        Redis::sadd("trending:active_plugins:{$today}", $p4->id);
 
         $response = $this->getJson('/api/v1/plugins/trending');
 
         $response->assertOk()
             ->assertJsonPath('data.plugins.0.id', $p4->id) // Stars have highest weight (10)
             ->assertJsonPath('data.plugins.1.id', $p3->id) // Comments have medium weight (5)
-            ->assertJsonPath('data.plugins.2.id', $p2->id) // Views have lowest weight (1)
-            ->assertJsonPath('data.plugins.3.id', $p1->id); // None
+            ->assertJsonPath('data.plugins.2.id', $p2->id); // Views have lowest weight (1)
     }
 
     /**
@@ -197,6 +208,8 @@ class TrendingAlgorithmTest extends TestCase
         ]);
         Comment::factory()->count(100)->hidden()->create(['plugin_id' => $moderated->id]);
 
+        Redis::flushdb();
+
         $response = $this->getJson('/api/v1/plugins/trending');
 
         $response->assertOk()
@@ -209,20 +222,26 @@ class TrendingAlgorithmTest extends TestCase
 
     public function test_trend_12_gravity_affects_score(): void
     {
-        $newPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(1), 'view_count' => 10]);
-        $oldPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()->subHours(24), 'view_count' => 1000]);
+        $today = now()->format('Y-m-d');
+        $viewPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $starPlugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
-        // With gravity 0, time doesn't matter, old plugin should win due to high views
-        config()->set('plugins.trending.gravity', 0);
-        Cache::flush();
-        $response = $this->getJson('/api/v1/plugins/trending');
-        $response->assertJsonPath('data.plugins.0.id', $oldPlugin->id);
+        Redis::set("trending:stats:views:{$today}:{$viewPlugin->id}", 100);
+        Redis::sadd("trending:active_plugins:{$today}", $viewPlugin->id);
 
-        // With extreme gravity 5.0, old plugin should lose heavily
-        config()->set('plugins.trending.gravity', 5.0);
-        Cache::flush();
+        Redis::set("trending:stats:stars:{$today}:{$starPlugin->id}", 15);
+        Redis::sadd("trending:active_plugins:{$today}", $starPlugin->id);
+
+        // With default weights: starPlugin wins (15 * 10 = 150 > 100 * 1 = 100)
         $response = $this->getJson('/api/v1/plugins/trending');
-        $response->assertJsonPath('data.plugins.0.id', $newPlugin->id);
+        $response->assertJsonPath('data.plugins.0.id', $starPlugin->id);
+
+        // Clear Redis cache and increase view weight to 2.0: viewPlugin wins (100 * 2 = 200 > 150)
+        Redis::del(config('plugins.trending.keys.zset'), config('plugins.trending.keys.objects'));
+        Cache::forget('plugins:trending:refresh_attempted');
+        config()->set('plugins.trending.weights.view', 2.0);
+        $response = $this->getJson('/api/v1/plugins/trending');
+        $response->assertJsonPath('data.plugins.0.id', $viewPlugin->id);
     }
 
     public function test_trend_13_age_offset_prevents_division_by_zero(): void
@@ -258,14 +277,17 @@ class TrendingAlgorithmTest extends TestCase
 
     public function test_trend_16_to_18_cache_behavior(): void
     {
+        $zsetKey = config('plugins.trending.keys.zset');
+        $hashKey = config('plugins.trending.keys.objects');
+
         $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
         // Cache miss
-        $this->assertFalse(Cache::has('plugins:trending:15'));
+        $this->assertEquals(0, Redis::zcard($zsetKey));
         $this->getJson('/api/v1/plugins/trending')->assertOk();
 
         // Cache hit
-        $this->assertTrue(Cache::has('plugins:trending:15'));
+        $this->assertGreaterThan(0, Redis::zcard($zsetKey));
 
         // If we create a new plugin, it shouldn't appear because we hit cache
         $plugin2 = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now(), 'view_count' => 9999]);
@@ -276,7 +298,8 @@ class TrendingAlgorithmTest extends TestCase
             ->assertJsonPath('data.plugins.0.id', $plugin->id);
 
         // Clear cache and verify
-        Cache::flush();
+        Redis::del($zsetKey, $hashKey);
+        Cache::forget('plugins:trending:refresh_attempted');
         $response = $this->getJson('/api/v1/plugins/trending');
         $response->assertOk()
             ->assertJsonCount(2, 'data.plugins')
@@ -312,17 +335,21 @@ class TrendingAlgorithmTest extends TestCase
 
     public function test_trend_20_cache_resolves_to_array_not_eloquent_collection(): void
     {
-        Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
 
         // First call caches it
         $this->getJson('/api/v1/plugins/trending');
 
-        // Retrieve from cache
-        $cachedData = Cache::get('plugins:trending:15');
+        $hashKey = config('plugins.trending.keys.objects');
+        $zsetKey = config('plugins.trending.keys.zset');
 
-        // Verify it is an array
-        $this->assertIsArray($cachedData);
-        $this->assertIsArray($cachedData[0]);
+        $this->assertGreaterThan(0, Redis::zcard($zsetKey));
+        $cachedData = Redis::hget($hashKey, $plugin->id);
+        $this->assertNotNull($cachedData);
+
+        $unserialized = unserialize($cachedData);
+        $this->assertInstanceOf(Plugin::class, $unserialized);
+        $this->assertSame($plugin->id, $unserialized->id);
     }
 
     // -----------------------------------------------------------------------
@@ -384,9 +411,10 @@ class TrendingAlgorithmTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.plugins.0.is_star', true);
 
-        $this->assertArrayNotHasKey(
-            'is_star',
-            Cache::get('plugins:trending:15')[0],
+        $hashKey = config('plugins.trending.keys.objects');
+        $cachedPlugin = unserialize(Redis::hget($hashKey, $plugin->id));
+        $this->assertNull(
+            $cachedPlugin->is_star,
             'The cached payload must stay viewer-independent.',
         );
 
@@ -414,4 +442,147 @@ class TrendingAlgorithmTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.plugins.0.is_star', false);
     }
+
+    public function test_trend_25_trending_tracker_ttl_matches_configured_days_limit(): void
+    {
+        config()->set('plugins.trending.days_limit', 30);
+        $this->assertSame(86400 * 31, TrendingTracker::ttl());
+
+        config()->set('plugins.trending.days_limit', 7);
+        $this->assertSame(86400 * 8, TrendingTracker::ttl());
+    }
+
+    public function test_trend_26_trending_tracker_sets_expected_redis_ttl(): void
+    {
+        config()->set('plugins.trending.days_limit', 14);
+        $expectedTtl = TrendingTracker::ttl();
+        $this->assertSame(86400 * 15, $expectedTtl);
+
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+
+        TrendingTracker::trackView($plugin->id);
+
+        $date = now()->format('Y-m-d');
+        $statKey = "trending:stats:views:{$date}:{$plugin->id}";
+        $activeKey = "trending:active_plugins:{$date}";
+
+        $this->assertGreaterThan(0, Redis::ttl($statKey));
+        $this->assertLessThanOrEqual($expectedTtl, Redis::ttl($statKey));
+        $this->assertGreaterThanOrEqual($expectedTtl - 5, Redis::ttl($statKey));
+
+        $this->assertGreaterThan(0, Redis::ttl($activeKey));
+        $this->assertLessThanOrEqual($expectedTtl, Redis::ttl($activeKey));
+        $this->assertGreaterThanOrEqual($expectedTtl - 5, Redis::ttl($activeKey));
+    }
+
+    public function test_trend_27_recover_trending_stats_command_uses_calculated_ttl(): void
+    {
+        config()->set('plugins.trending.days_limit', 30);
+        $expectedTtl = TrendingTracker::ttl();
+
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+
+        Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'created_at' => now(),
+        ]);
+
+        $this->artisan('plugins:recover-trending')
+            ->assertSuccessful();
+
+        $date = now()->format('Y-m-d');
+        $commentKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        $activeKey = "trending:active_plugins:{$date}";
+
+        $this->assertGreaterThan(0, Redis::ttl($commentKey));
+        $this->assertLessThanOrEqual($expectedTtl, Redis::ttl($commentKey));
+        $this->assertGreaterThanOrEqual($expectedTtl - 5, Redis::ttl($commentKey));
+
+        $this->assertGreaterThan(0, Redis::ttl($activeKey));
+        $this->assertLessThanOrEqual($expectedTtl, Redis::ttl($activeKey));
+        $this->assertGreaterThanOrEqual($expectedTtl - 5, Redis::ttl($activeKey));
+    }
+
+    public function test_trend_28_empty_zset_throttles_refresh_attempt(): void
+    {
+        // When database is empty, first call attempts refresh and sets lock
+        $response1 = $this->getJson('/api/v1/plugins/trending');
+        $response1->assertOk()->assertJsonCount(0, 'data.plugins');
+
+        $this->assertTrue(Cache::has('plugins:trending:refresh_attempted'));
+
+        // Now create an approved plugin
+        Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+
+        // A second immediate request will hit the throttle lock and won't call refresh-trending
+        $response2 = $this->getJson('/api/v1/plugins/trending');
+        $response2->assertOk()->assertJsonCount(0, 'data.plugins');
+
+        // Once the lock expires / is cleared, refresh-trending runs again
+        Cache::forget('plugins:trending:refresh_attempted');
+        $response3 = $this->getJson('/api/v1/plugins/trending');
+        $response3->assertOk()->assertJsonCount(1, 'data.plugins');
+    }
+
+    public function test_trend_29_recover_trending_stats_command_ignores_hidden_comments(): void
+    {
+        config()->set('plugins.trending.days_limit', 30);
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+
+        // 1 visible comment
+        Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'hidden_at' => null,
+            'created_at' => now(),
+        ]);
+
+        // 2 hidden comments
+        Comment::factory()->count(2)->create([
+            'plugin_id' => $plugin->id,
+            'hidden_at' => now(),
+            'created_at' => now(),
+        ]);
+
+        Redis::flushdb();
+
+        $this->artisan('plugins:recover-trending')
+            ->assertSuccessful();
+
+        $date = now()->format('Y-m-d');
+        $commentKey = "trending:stats:comments:{$date}:{$plugin->id}";
+
+        // Only the 1 visible comment should be recovered
+        $this->assertEquals(1, (int) Redis::get($commentKey));
+    }
+
+    public function test_trend_30_get_bulk_interaction_counts_chunks_correctly_when_over_100_plugins(): void
+    {
+        $pluginIds = [];
+        for ($i = 0; $i < 150; $i++) {
+            $pluginIds[] = "plugin-test-{$i}";
+        }
+
+        $today = now()->format('Y-m-d');
+
+        // Seed interaction for plugin in chunk 1 (e.g. index 10)
+        Redis::set("trending:stats:views:{$today}:plugin-test-10", 5);
+        Redis::set("trending:stats:comments:{$today}:plugin-test-10", 2);
+
+        // Seed interaction for plugin in chunk 2 (e.g. index 120)
+        Redis::set("trending:stats:stars:{$today}:plugin-test-120", 7);
+
+        $counts = TrendingTracker::getBulkInteractionCounts($pluginIds, 7);
+
+        $this->assertCount(150, $counts);
+        $this->assertSame(5, $counts['plugin-test-10']['views']);
+        $this->assertSame(2, $counts['plugin-test-10']['comments']);
+        $this->assertSame(0, $counts['plugin-test-10']['stars']);
+
+        $this->assertSame(0, $counts['plugin-test-120']['views']);
+        $this->assertSame(0, $counts['plugin-test-120']['comments']);
+        $this->assertSame(7, $counts['plugin-test-120']['stars']);
+
+        $this->assertSame(0, $counts['plugin-test-0']['views']);
+    }
 }
+

@@ -6,6 +6,7 @@ use App\Contracts\StarRepositoryInterface;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Repositories\StarRepository;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -123,29 +124,30 @@ class StarRepositoryTest extends TestCase
         $this->assertDatabaseCount('stars', 2);
     }
 
-    public function test_delete_by_returns_true_when_a_row_is_removed(): void
+    public function test_delete_by_returns_created_at_when_a_row_is_removed(): void
     {
         $plugin = Plugin::factory()->create();
         $user = User::factory()->create();
         $repository = app(StarRepositoryInterface::class);
         $repository->insertIgnore($plugin->id, $user->id);
 
-        $this->assertTrue($repository->deleteBy($plugin->id, $user->id));
+        $result = $repository->deleteBy($plugin->id, $user->id);
+        $this->assertInstanceOf(CarbonInterface::class, $result);
 
         $this->assertDatabaseCount('stars', 0);
     }
 
     /**
      * Unstarring something that was never starred is a normal outcome, not a
-     * missing resource: `false` here is what lets the endpoint answer 200 and
+     * missing resource: `null` here is what lets the endpoint answer 200 and
      * leave the counter alone.
      */
-    public function test_delete_by_returns_false_when_nothing_matched(): void
+    public function test_delete_by_returns_null_when_nothing_matched(): void
     {
         $plugin = Plugin::factory()->create();
         $user = User::factory()->create();
 
-        $this->assertFalse(app(StarRepositoryInterface::class)->deleteBy($plugin->id, $user->id));
+        $this->assertNull(app(StarRepositoryInterface::class)->deleteBy($plugin->id, $user->id));
     }
 
     public function test_delete_by_only_removes_the_calling_users_row(): void
@@ -157,7 +159,8 @@ class StarRepositoryTest extends TestCase
         $repository->insertIgnore($plugin->id, $owner->id);
         $repository->insertIgnore($plugin->id, $other->id);
 
-        $this->assertTrue($repository->deleteBy($plugin->id, $owner->id));
+        $result = $repository->deleteBy($plugin->id, $owner->id);
+        $this->assertInstanceOf(CarbonInterface::class, $result);
 
         $this->assertDatabaseMissing('stars', [
             'plugin_id' => $plugin->id,

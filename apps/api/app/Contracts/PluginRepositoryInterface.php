@@ -19,6 +19,10 @@ interface PluginRepositoryInterface
 
     public function findApprovedById(string $id): Plugin;
 
+    public function findApprovedByIds(array $ids): Collection;
+
+    public function incrementViewCount(string $id, int $count): void;
+
     /**
      * Find any plugin by ID, whatever its review status, or fail with a 404.
      */
@@ -60,11 +64,6 @@ interface PluginRepositoryInterface
      * @param  PluginStatus|null  $status  Restrict to one status, or null for all of them.
      */
     public function getPaginatedPluginsByUser(string $userId, ?PluginStatus $status, int $perPage): LengthAwarePaginator;
-
-    /**
-     * @return Collection<int, Plugin>
-     */
-    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection;
 
     /**
      * @return Collection<int, Plugin>

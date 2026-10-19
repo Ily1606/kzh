@@ -9,6 +9,7 @@ use App\Events\Star\PluginUnstarred;
 use App\Models\User;
 use App\Support\RequestContext;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 
 final class StarService
 {
@@ -34,21 +35,42 @@ final class StarService
         // throws here, before anything is touched.
         $plugin = $this->pluginRepository->findApprovedById($pluginId);
 
+        $starCreatedAt = null;
         if ($starred) {
             $changed = $this->starRepository->insertIgnore($plugin->id, $user->getAuthIdentifier());
         } else {
-            $changed = $this->starRepository->deleteBy($plugin->id, $user->getAuthIdentifier());
+            $starCreatedAt = $this->starRepository->deleteBy($plugin->id, $user->getAuthIdentifier());
+            $changed = $starCreatedAt !== null;
         }
 
         if ($changed) {
             $this->dispatchStarEvent($starred, $plugin->id, $user, $requestContext);
             Cache::forget($this->timelineCacheKey($plugin->id));
+            TrendingTracker::trackStar($plugin->id, $starred ? 1 : -1, $starCreatedAt);
+            $this->refreshCachedPluginStarCount($plugin->id);
         }
 
         return [
             'starred' => $starred,
             'star_count' => (int) $plugin->stars()->count(),
         ];
+    }
+
+    /**
+     * If the plugin is cached in Redis trending objects, update its cached star count.
+     */
+    private function refreshCachedPluginStarCount(string $pluginId): void
+    {
+        $hashKey = config('plugins.trending.keys.objects');
+        if ($hashKey && Redis::hexists($hashKey, $pluginId)) {
+            $fresh = $this->pluginRepository
+                ->findApprovedByIds([$pluginId])
+                ->first();
+
+            if ($fresh) {
+                Redis::hset($hashKey, $pluginId, serialize($fresh));
+            }
+        }
     }
 
     /**

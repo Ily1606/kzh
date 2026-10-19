@@ -6,6 +6,8 @@ use App\Contracts\CommentRepositoryInterface;
 use App\Models\Comment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @extends BaseRepository<Comment>
@@ -135,5 +137,14 @@ class CommentRepository extends BaseRepository implements CommentRepositoryInter
     private function baseQuery(): Builder
     {
         return $this->model->newQuery()->visible();
+    }
+
+    public function getDailyCommentCounts(int $daysLimit): Collection
+    {
+        return $this->baseQuery()
+            ->select('plugin_id', DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
+            ->where('created_at', '>=', now()->subDays($daysLimit))
+            ->groupBy('plugin_id', DB::raw('DATE(created_at)'))
+            ->get();
     }
 }

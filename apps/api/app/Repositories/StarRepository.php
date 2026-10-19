@@ -4,6 +4,10 @@ namespace App\Repositories;
 
 use App\Contracts\StarRepositoryInterface;
 use App\Models\Star;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @extends BaseRepository<Star>
@@ -43,12 +47,12 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
             ]) === 1;
     }
 
-    public function deleteBy(string $pluginId, string $userId): bool
+    public function deleteBy(string $pluginId, string $userId): ?CarbonInterface
     {
-        return $this->newQuery()
-            ->where('plugin_id', $pluginId)
-            ->where('user_id', $userId)
-            ->delete() === 1;
+        $query = $this->newQuery()->where('plugin_id', $pluginId)->where('user_id', $userId);
+        $createdAt = (clone $query)->value('created_at');
+
+        return $query->forceDelete() === 1 ? Carbon::parse($createdAt) : null;
     }
 
     public function getTimeline(string $pluginId, bool $byMonth = false)
@@ -75,5 +79,15 @@ final class StarRepository extends BaseRepository implements StarRepositoryInter
                 'count' => (int) $row->count,
             ])
             ->all();
+    }
+
+    public function getDailyStarCounts(int $daysLimit): Collection
+    {
+        return $this->newQuery()
+            ->select('plugin_id', DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
+            ->whereNotNull('created_at')
+            ->where('created_at', '>=', now()->subDays($daysLimit))
+            ->groupBy('plugin_id', DB::raw('DATE(created_at)'))
+            ->get();
     }
 }

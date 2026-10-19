@@ -183,4 +183,53 @@ class PluginRepositoryTest extends TestCase
         // timestamp has to follow it.
         $this->assertTrue($updated->updated_at->greaterThan($before));
     }
+
+    public function test_increment_view_count_increments_both_plugin_and_daily_views(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'view_count' => 5,
+        ]);
+
+        app(PluginRepositoryInterface::class)->incrementViewCount($plugin->id, 3);
+
+        $this->assertSame(8, $plugin->fresh()->view_count);
+        $this->assertDatabaseHas('plugin_daily_views', [
+            'plugin_id' => $plugin->id,
+            'date' => now()->format('Y-m-d'),
+            'views_count' => 3,
+        ]);
+    }
+
+    public function test_increment_view_count_is_atomic_and_rolls_back_on_failure(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $user->id,
+            'view_count' => 10,
+        ]);
+
+        $fail = true;
+        DB::listen(function ($query) use (&$fail) {
+            if ($fail && str_contains($query->sql, 'plugin_daily_views')) {
+                throw new \RuntimeException('Simulated upsert failure');
+            }
+        });
+
+        try {
+            app(PluginRepositoryInterface::class)->incrementViewCount($plugin->id, 5);
+            $this->fail('Expected exception was not thrown');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Simulated upsert failure', $e->getMessage());
+        } finally {
+            $fail = false;
+        }
+
+        // View count must have rolled back to 10
+        $this->assertSame(10, $plugin->fresh()->view_count);
+        $this->assertDatabaseMissing('plugin_daily_views', [
+            'plugin_id' => $plugin->id,
+        ]);
+    }
 }

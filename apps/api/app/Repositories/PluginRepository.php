@@ -8,10 +8,12 @@ use App\Models\Category;
 use App\Models\Plugin;
 use App\Models\Tag;
 use App\Support\LikeHelper;
+use App\Models\PluginDailyView;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @extends BaseRepository<Plugin>
@@ -39,6 +41,43 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->findOrFail($id);
+    }
+
+    /**
+     * @param  array<int, string>  $ids
+     * @return Collection<int, Plugin>
+     */
+    public function findApprovedByIds(array $ids): Collection
+    {
+        if (empty($ids)) {
+            return $this->model->newCollection();
+        }
+
+        $plugins = $this->baseQuery()
+            ->where('status', PluginStatus::Approved)
+            ->whereNotNull('approved_at')
+            ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
+            ->whereIn('id', $ids)
+            ->get();
+
+        $order = array_flip($ids);
+
+        return $plugins->sortBy(fn (Plugin $plugin) => $order[$plugin->id] ?? 9999)->values();
+    }
+
+    public function incrementViewCount(string $id, int $count): void
+    {
+        DB::transaction(function () use ($id, $count): void {
+            $this->model->newQuery()->where('id', $id)->increment('view_count', $count);
+
+            PluginDailyView::upsert(
+                [
+                    ['plugin_id' => $id, 'date' => now()->format('Y-m-d'), 'views_count' => $count],
+                ],
+                ['plugin_id', 'date'],
+                ['views_count' => DB::raw("plugin_daily_views.views_count + {$count}")]
+            );
+        });
     }
 
     public function findById(string $id): Plugin
@@ -121,27 +160,6 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->paginate($perPage);
     }
 
-    public function getTrendingPlugins(int $daysLimit, array $weights, float $gravity, float $ageOffset, int $limit): Collection
-    {
-        return $this->baseQuery()
-            ->where('status', PluginStatus::Approved)
-            ->whereNotNull('approved_at')
-            ->where('approved_at', '>=', now()->subDays($daysLimit))
-            ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count, (
-                (view_count * ? + {$this->commentCountSql()} * ? + {$this->starCountSql()} * ?)
-                / POWER({$this->getAgeInSecondsSql()}/3600.0 + ?, ?)
-            ) as trending_score", [
-                $weights['view'],
-                $weights['comment'],
-                $weights['star'],
-                $ageOffset,
-                $gravity,
-            ])
-            ->orderByDesc('trending_score')
-            ->limit($limit)
-            ->get();
-    }
-
     /**
      * Shared skeleton for every query that feeds `PluginResource`.
      *
@@ -152,20 +170,13 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->newQuery()->with(['user.profile', 'categories', 'tags']);
     }
 
-    private function getAgeInSecondsSql(): string
-    {
-        return match ($this->model->getConnection()->getDriverName()) {
-            'sqlite' => "(strftime('%s', 'now') - strftime('%s', approved_at))",
-            'pgsql' => 'EXTRACT(EPOCH FROM (NOW() - approved_at))',
-            default => '(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(approved_at))',
-        };
-    }
-
     private function starCountSql(): string
     {
         $prefix = $this->model->getConnection()->getTablePrefix();
 
-        return "(select count(*) from {$prefix}stars where {$prefix}stars.plugin_id = {$prefix}plugins.id)";
+        return "(select count(*) from {$prefix}stars
+            where {$prefix}stars.plugin_id = {$prefix}plugins.id
+            and {$prefix}stars.deleted_at is null)";
     }
 
     private function commentCountSql(): string

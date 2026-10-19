@@ -9,12 +9,14 @@ import { useAuthStore, usePluginsStore } from '@/stores'
 import type { PluginResource, UserResource } from '@/api/generated/model'
 
 const mockPluginShow = vi.fn()
+const mockPluginTrackView = vi.fn()
 const mockStarStore = vi.fn()
 const mockNotifyError = vi.fn()
 
 vi.mock('@/api/generated/endpoints', () => ({
   getPlugin: () => ({
-    pluginShow: mockPluginShow
+    pluginShow: mockPluginShow,
+    pluginTrackView: mockPluginTrackView
   }),
   getStar: () => ({ starStore: mockStarStore }),
   getAuth: () => ({ authLogout: vi.fn() }),
@@ -141,10 +143,15 @@ describe('PluginDetailView.vue', () => {
     setActivePinia(pinia)
     localStorage.clear()
 
+    mockRoute.value.params = { id: 'plugin-123' }
     mockRoute.value.hash = ''
     mockRoute.value.query = {}
+    mockRoute.value.fullPath = '/plugins/plugin-123'
 
     mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin() } })
+    mockPluginTrackView.mockResolvedValue({
+      data: { status: 'success', message: 'View counted successfully.', view_count: 100 },
+    })
     mockStarStore.mockResolvedValue({ data: { starred: true, star_count: 6 } })
     mockNotifyError.mockImplementation(() => {})
     mockFetch.mockResolvedValue({
@@ -223,6 +230,50 @@ describe('PluginDetailView.vue', () => {
       await wrapper.vm.$nextTick()
 
       expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+    })
+  })
+
+  describe('tracking views', () => {
+    it('calls pluginTrackView after ensurePlugin completes and updates the displayed view count with latest value', async () => {
+      const order: string[] = []
+      mockPluginShow.mockImplementation(async () => {
+        order.push('show')
+        return { data: { plugin: makePlugin({ view_count: 100 }) } }
+      })
+      mockPluginTrackView.mockImplementation(async () => {
+        order.push('trackView')
+        return {
+          data: { status: 'success', message: 'View counted successfully.', view_count: 101 },
+        }
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      expect(order).toEqual(['show', 'trackView'])
+      expect(mockPluginShow).toHaveBeenCalledWith('plugin-123')
+      expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-123')
+      expect(mockPluginShow.mock.invocationCallOrder[0]).toBeLessThan(
+        mockPluginTrackView.mock.invocationCallOrder[0]
+      )
+      expect(wrapper.text()).toContain('101 views')
+      expect(wrapper.text()).not.toContain('100 views')
+    })
+
+    it('tracks view again when plugin route changes', async () => {
+      seedStore(makePlugin({ id: 'plugin-123', view_count: 100 }))
+      seedStore(makePlugin({ id: 'plugin-456', view_count: 200 }))
+
+      mountView()
+      await flushPromises()
+
+      expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-123')
+
+      mockRoute.value.params.id = 'plugin-456'
+      await flushPromises()
+
+      expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-456')
     })
   })
 

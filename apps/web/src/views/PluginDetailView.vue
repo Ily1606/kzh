@@ -6,7 +6,7 @@ import PluginStatusNotice from '@/components/pages/plugin-detail/PluginStatusNot
 import StarTimeline from '@/components/pages/plugin/StarTimeline.vue'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
 import { usePluginsStore } from '@/stores'
-import { computed, nextTick, onMounted } from 'vue'
+import { computed, nextTick, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -38,8 +38,18 @@ function onCommentAdded() {
 }
 
 onMounted(async () => {
-  await store.ensurePlugin(pluginId.value)
+  if (pluginId.value) {
+    await store.ensurePlugin(pluginId.value)
+    void store.trackView(pluginId.value)
+  }
   scrollToHash()
+})
+
+watch(pluginId, async (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    await store.ensurePlugin(newId)
+    void store.trackView(newId)
+  }
 })
 </script>
 

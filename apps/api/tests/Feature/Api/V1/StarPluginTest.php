@@ -6,6 +6,7 @@ use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -260,5 +261,42 @@ class StarPluginTest extends TestCase
         $plugin = $this->approvedPlugin();
 
         $this->star($plugin)->assertOk();
+    }
+
+    public function test_unstarring_decrements_trending_stats_and_updates_redis_cache(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $plugin = $this->approvedPlugin();
+
+        $date = now()->format('Y-m-d');
+        $statKey = "trending:stats:stars:{$date}:{$plugin->id}";
+        $hashKey = config('plugins.trending.keys.objects');
+        $zsetKey = config('plugins.trending.keys.zset');
+
+        Redis::flushdb();
+
+        // 1. User stars the plugin
+        $this->star($plugin, ['starred' => true])->assertOk();
+        $this->assertEquals(1, (int) Redis::get($statKey));
+
+        // Seed into trending hash with star_count = 1
+        $plugin->star_count = 1;
+        Redis::zadd($zsetKey, 100, $plugin->id);
+        Redis::hset($hashKey, $plugin->id, serialize($plugin));
+
+        // 2. User unstars the plugin
+        $this->star($plugin, ['starred' => false])->assertOk();
+
+        // Daily stats in Redis should be decremented to 0
+        $this->assertEquals(0, (int) Redis::get($statKey));
+
+        // Cached plugin object in Redis should have star_count updated to 0
+        $cachedRaw = Redis::hget($hashKey, $plugin->id);
+        $this->assertNotEmpty($cachedRaw);
+        $cachedPlugin = unserialize($cachedRaw);
+        $this->assertEquals(0, $cachedPlugin->star_count);
+
+        Redis::flushdb();
     }
 }
