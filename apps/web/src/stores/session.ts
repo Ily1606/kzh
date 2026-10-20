@@ -1,5 +1,5 @@
 import { useAuthStore } from './auth.store';
-import { usePluginsStore } from './plugins.store';
+import { usePluginsStore } from './plugins';
 
 /**
  * Clears the user's client session across all relevant stores.
