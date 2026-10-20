@@ -17,11 +17,11 @@ class LikeHelper
     public static function whereContains(Builder $query, string $column, string $term): Builder
     {
         $wrapped = $query->getQuery()->grammar->wrap($column);
-        $pattern = '%'.addcslashes($term, '\\%_').'%';
+        $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $term).'%';
 
         // PostgreSQL's LIKE is case-sensitive; ILIKE keeps search case-insensitive like whereLike() did.
         $operator = $query->getConnection()->getDriverName() === 'pgsql' ? 'ILIKE' : 'LIKE';
 
-        return $query->whereRaw("{$wrapped} {$operator} ? ESCAPE '\\'", [$pattern]);
+        return $query->whereRaw("{$wrapped} {$operator} ? ESCAPE '!'", [$pattern]);
     }
 }
