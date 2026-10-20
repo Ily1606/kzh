@@ -273,5 +273,28 @@ describe('StarTimeline.vue', () => {
     const trendLine = wrapper.find('path[stroke="rgb(245,158,11)"]')
     expect(trendLine.attributes('d')).toContain(' 985,')
   })
+
+  it('keeps highest y-axis tick label within visible bounds when ticks exceed total stars', async () => {
+    (getStar as any).mockReturnValue({
+      starTimeline: vi.fn().mockResolvedValue({
+        data: [{ date: '2026-10-15', count: 3777 }]
+      })
+    })
+
+    const wrapper = mount(StarTimeline, {
+      props: { pluginId: '123', starCount: 3777 }
+    })
+
+    await flushPromises()
+
+    const textElements = wrapper.findAll('text.font-mono')
+    expect(textElements.length).toBeGreaterThan(0)
+
+    // The top tick (4.0k) should have y >= PAD_TOP (20), never near 0 or negative
+    const topTick = textElements.find(el => el.text() === '4.0k')
+    expect(topTick).toBeDefined()
+    const yVal = parseFloat(topTick!.attributes('y') || '0')
+    expect(yVal).toBeGreaterThanOrEqual(20)
+  })
 })
 

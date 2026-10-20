@@ -289,7 +289,7 @@ const W = 1000
 const H = 200
 const PAD_LEFT = 40
 const PAD_RIGHT = 15
-const PAD_TOP = 15
+const PAD_TOP = 20
 const PAD_BOTTOM = 0
 
 // Calculate X coordinate proportionally based on date timestamp
@@ -311,8 +311,30 @@ const toXPercent = (timestamp: number) => {
   return (x / W) * 100
 }
 
+// Y-axis grid lines — round numbers
+const yTicks = computed(() => {
+  const max = maxCount.value
+  if (max === 0) return []
+  const rawStep = max / 4
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)))
+  const step = Math.max(1, Math.ceil(rawStep / magnitude) * magnitude)
+  const ticks = []
+  for (let v = step; v <= max + step * 0.5; v += step) {
+    if (v > max * 1.15) break
+    ticks.push(v)
+  }
+  return ticks.length ? ticks : [max]
+})
+
+// Upper bound for the Y-axis scale to ensure all tick labels and data points fit cleanly within PAD_TOP
+const yScaleMax = computed(() => {
+  const max = maxCount.value
+  const lastTick = yTicks.value.length ? yTicks.value[yTicks.value.length - 1] : 0
+  return Math.max(max, lastTick, 1)
+})
+
 const toY = (val: number) =>
-  PAD_TOP + (1 - val / maxCount.value) * (H - PAD_TOP - PAD_BOTTOM)
+  PAD_TOP + (1 - val / yScaleMax.value) * (H - PAD_TOP - PAD_BOTTOM)
 
 const linePath = computed(() => {
   const data = cumulativeTimeline.value
@@ -336,21 +358,6 @@ const areaPath = computed(() => {
   const last = toX(data[data.length - 1].timestamp)
   const first = toX(data[0].timestamp)
   return `M ${first},${baseline} L ${pts} L ${last},${baseline} Z`
-})
-
-// Y-axis grid lines — round numbers
-const yTicks = computed(() => {
-  const max = maxCount.value
-  if (max === 0) return []
-  const rawStep = max / 4
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)))
-  const step = Math.max(1, Math.ceil(rawStep / magnitude) * magnitude)
-  const ticks = []
-  for (let v = step; v <= max + step * 0.5; v += step) {
-    if (v > max * 1.15) break
-    ticks.push(v)
-  }
-  return ticks.length ? ticks : [max]
 })
 
 // Responsive X-axis labels: evenly spaced to prevent overlap
@@ -462,7 +469,7 @@ const hoveredItem = computed(() =>
           <svg
             :viewBox="`0 0 ${W} ${H}`"
             preserveAspectRatio="none"
-            class="w-full"
+            class="w-full overflow-visible"
             style="height: 160px"
             @mouseleave="hoverIndex = null"
           >

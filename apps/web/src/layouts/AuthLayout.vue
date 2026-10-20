@@ -8,11 +8,21 @@ import ThemeToggle from '@/components/common/ThemeToggle.vue'
 const route = useRoute()
 const title = computed(() => route.meta.title || 'Welcome')
 
-const subtitle = computed(() =>
-  route.name === 'register'
-    ? 'Create an account to publish your plugins.'
-    : 'Sign in to publish and manage your plugins.',
-)
+const subtitle = computed(() => {
+  if (typeof route.meta.subtitle === 'string') {
+    return route.meta.subtitle
+  }
+  if (route.name === 'register') {
+    return 'Create an account to publish your plugins.'
+  }
+  if (route.name === 'forgot-password') {
+    return 'Enter your email address and we will send you a link to reset your password.'
+  }
+  if (route.name === 'reset-password') {
+    return 'Please enter your new password below.'
+  }
+  return 'Sign in to publish and manage your plugins.'
+})
 
 /** Left-panel selling points, paired with the install command below them. */
 const highlights = [

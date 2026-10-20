@@ -29,11 +29,19 @@ const searchQuery = ref(typeof route.query.search === 'string' ? route.query.sea
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
-async function fetchAllPlugins(page = 1) {
+function currentPageFromQuery(): number {
+  const raw = route.query.page
+  const parsed = Number.parseInt(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''), 10)
+
+  return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed
+}
+
+async function fetchAllPlugins(page = currentPageFromQuery()) {
   await store.fetchList(page, selectedCategory.value, searchQuery.value.trim() || null)
 }
 
 async function goToPage(page: number) {
+  await syncQuery(page)
   await fetchAllPlugins(page)
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -41,31 +49,37 @@ async function goToPage(page: number) {
 async function chooseCategory(category: string | null) {
   clearTimeout(searchTimer)
   selectedCategory.value = category
-  await syncQuery()
   await goToPage(1)
 }
 
 /** Reads the current filter state and writes it to the URL, so both filters
- *  stay in step after either one changes. */
-async function syncQuery() {
+ *  and pagination stay in step after any changes. */
+async function syncQuery(page = currentPageFromQuery()) {
   const search = searchQuery.value.trim()
 
   await router.replace({
     query: {
       ...(selectedCategory.value ? { category: selectedCategory.value } : {}),
       ...(search ? { search } : {}),
+      ...(page > 1 ? { page: String(page) } : {}),
     },
   })
 }
 
 watch(() => searchQuery.value.trim(), (_query, _previous, onCleanup) => {
   const timer = setTimeout(async () => {
-    await syncQuery()
     await goToPage(1)
   }, SEARCH_DEBOUNCE_MS)
 
   searchTimer = timer
   onCleanup(() => clearTimeout(timer))
+})
+
+watch(() => route.query.page, () => {
+  const page = currentPageFromQuery()
+  if (page !== store.list.page) {
+    fetchAllPlugins(page)
+  }
 })
 
 onMounted(async () => {
@@ -75,7 +89,7 @@ onMounted(async () => {
 
   selectedCategory.value = isCategory(route.query.category) ? route.query.category : null
 
-  fetchAllPlugins(1)
+  fetchAllPlugins(currentPageFromQuery())
 })
 </script>
 

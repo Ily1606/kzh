@@ -141,7 +141,22 @@ describe('PluginsView.vue', () => {
     await flushPromises()
 
     expect(mockPluginIndex).toHaveBeenCalledWith({ page: 2, per_page: 9, category: null, search: null })
+    expect(mockReplace).toHaveBeenCalledWith({ query: { page: '2' } })
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+  })
+
+  it('starts from the page in the URL', async () => {
+    mockRoute.value = { query: { page: '2' } }
+
+    mountView()
+    await flushPromises()
+
+    expect(mockPluginIndex).toHaveBeenCalledWith({
+      page: 2,
+      per_page: 9,
+      category: null,
+      search: null,
+    })
   })
 
   it('disables Previous on the first page', async () => {

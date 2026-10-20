@@ -59,13 +59,23 @@ export const router = createRouter({
       path: "/forgot-password",
       name: "forgot-password",
       component: () => import('@/views/ForgotPasswordView.vue'),
-      meta: { layout: 'auth', title: 'Forgot Password', guestOnly: true }
+      meta: {
+        layout: 'auth',
+        title: 'Forgot Password',
+        subtitle: 'Enter your email address and we will send you a link to reset your password.',
+        guestOnly: true,
+      }
     },
     {
       path: "/reset-password",
       name: "reset-password",
       component: () => import('@/views/ResetPasswordView.vue'),
-      meta: { layout: 'auth', title: 'Reset Password', guestOnly: true }
+      meta: {
+        layout: 'auth',
+        title: 'Reset Password',
+        subtitle: 'Please enter your new password below.',
+        guestOnly: true,
+      }
     },
     {
       path: "/plugins/:id",
