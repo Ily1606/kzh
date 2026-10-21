@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Plugins;
 
+use App\Filament\Resources\Plugins\Infolists\PluginInfolist;
 use App\Filament\Resources\Plugins\Pages\ListPlugins;
 use App\Filament\Resources\Plugins\Tables\PluginsTable;
 use App\Models\Plugin;
@@ -24,6 +25,11 @@ class PluginResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema;
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return PluginInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table

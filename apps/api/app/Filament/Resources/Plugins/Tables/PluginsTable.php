@@ -8,6 +8,7 @@ use App\Models\Plugin;
 use App\Services\PluginEventService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -23,7 +24,7 @@ class PluginsTable
     {
         return $table
             ->modifyQueryUsing(fn(Builder $query) => $query
-                ->with('user')
+                ->with(['user.profile', 'categories', 'tags'])
                 ->withCount([
                     'stars as star_count',
                     'comments as comment_count' => fn(Builder $comments) => $comments->visible(),
@@ -35,15 +36,6 @@ class PluginsTable
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
-                TextColumn::make('title')
-                    ->label(__('plugin.table.columns.title'))
-                    ->searchable()
-                    ->sortable()
-                    ->limit(50)
-                    ->tooltip(function (TextColumn $column): ?string {
-                        $state = $column->getState();
-                        return strlen($state) > 50 ? $state : null;
-                    }),
                 TextColumn::make('user.name')
                     ->label(__('plugin.table.columns.author'))
                     ->description(fn($record): string => $record->user->email ?? '')
@@ -60,21 +52,50 @@ class PluginsTable
                         PluginStatus::Rejected, 'rejected' => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('title')
+                    ->label(__('plugin.table.columns.title'))
+                    ->searchable()
+                    ->sortable()
+                    ->limit(50)
+                    ->tooltip(function (TextColumn $column): ?string {
+                        $state = $column->getState();
+                        return strlen($state) > 50 ? $state : null;
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('categories.name')
+                    ->label(__('plugin.table.columns.category'))
+                    ->badge()
+                    ->color('info')
+                    ->placeholder('—')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('tags.name')
+                    ->label(__('plugin.table.columns.tags'))
+                    ->badge()
+                    ->color('gray')
+                    ->separator(', ')
+                    ->limitList(2)
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('star_count')
                     ->label(__('plugin.table.columns.stars'))
                     ->alignCenter()
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('view_count')
                     ->label(__('plugin.table.columns.views'))
                     ->alignCenter()
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('comment_count')
                     ->label(__('plugin.table.columns.comments'))
                     ->alignCenter()
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('license')
                     ->label(__('plugin.table.columns.license'))
                     ->badge()
@@ -122,7 +143,15 @@ class PluginsTable
             ->filtersLayout(FiltersLayout::Dropdown)
             ->deferFilters()
             ->defaultSort('created_at', 'desc')
+            ->recordActionsColumnLabel('Manage')
+            ->recordAction(ViewAction::class)
             ->recordActions([
+                ViewAction::make()
+                    ->label(__('plugin.table.actions.view'))
+                    ->icon('heroicon-m-eye')
+                    ->color('gray')
+                    ->modalWidth('3xl')
+                    ->modalHeading(fn (Plugin $record): string => $record->name),
                 ActionGroup::make([
                     Action::make('reject')
                         ->label(__('plugin.table.actions.reject'))

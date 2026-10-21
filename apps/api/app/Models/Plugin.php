@@ -77,6 +77,11 @@ class Plugin extends Model
         return $this->hasMany(Star::class);
     }
 
+    public function events(): HasMany
+    {
+        return $this->hasMany(PluginEvent::class)->orderBy('created_at', 'desc');
+    }
+
     public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class);
