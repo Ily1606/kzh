@@ -19,8 +19,4 @@ export function latestOnly() {
   };
 }
 
-export function errorMessage(err: unknown, fallback: string): string {
-  const message = (err as { response?: { data?: { message?: string } } } | null)?.response?.data?.message;
-
-  return typeof message === 'string' && message.length > 0 ? message : fallback;
-}
+export { getApiErrorMessage as errorMessage } from '@/utils/error';

@@ -149,19 +149,67 @@ describe('useAuth composable', () => {
       expect(store.isLoading).toBe(false);
     });
 
-    it('clears auth in store when profileShow fails', async () => {
+    it.each([401, 403, 419])(
+      'clears auth and resets plugin store when profileShow fails with status %i',
+      async (status) => {
+        const auth = useAuth();
+        const store = useAuthStore();
+        const pluginsStore = usePluginsStore();
+
+        store.setToken('revoked-token');
+        store.setUser({ id: '42', name: 'Old User' } as any);
+        pluginsStore.put([{
+          id: 'plugin-1', name: '@dsh/x', user_id: '42', author: null, title: 't', license: 'MIT', category: null, tags: [],
+          approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
+          is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
+        }]);
+
+        const err = Object.assign(new Error('Auth failure'), { response: { status } });
+        mockProfileShow.mockRejectedValueOnce(err);
+
+        await auth.fetchUser();
+
+        expect(mockProfileShow).toHaveBeenCalled();
+        expect(store.token).toBeNull();
+        expect(store.user).toBeNull();
+        expect(pluginsStore.entities).toEqual({});
+        expect(store.isLoading).toBe(false);
+      }
+    );
+
+    it('does not clear auth or reset plugins store when profileShow fails with non-auth error', async () => {
       const auth = useAuth();
       const store = useAuthStore();
+      const pluginsStore = usePluginsStore();
 
-      store.setToken('revoked-token');
-      store.setUser({ id: '42', name: 'Old User' } as any);
-      mockProfileShow.mockRejectedValueOnce(new Error('Unauthorized'));
+      store.setToken('valid-token');
+      store.setUser({ id: '42', name: 'Valid User' } as any);
+      pluginsStore.put([{
+        id: 'plugin-1', name: '@dsh/x', user_id: '42', author: null, title: 't', license: 'MIT', category: null, tags: [],
+        approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
+        is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
+      }]);
+
+      // Network error (no response)
+      mockProfileShow.mockRejectedValueOnce(new Error('Network error'));
 
       await auth.fetchUser();
 
       expect(mockProfileShow).toHaveBeenCalled();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
+      expect(store.token).toBe('valid-token');
+      expect(store.user?.name).toBe('Valid User');
+      expect(pluginsStore.entities['plugin-1']).toBeDefined();
+      expect(store.isLoading).toBe(false);
+
+      // 500 server error
+      const serverErr = Object.assign(new Error('Internal Server Error'), { response: { status: 500 } });
+      mockProfileShow.mockRejectedValueOnce(serverErr);
+
+      await auth.fetchUser();
+
+      expect(store.token).toBe('valid-token');
+      expect(store.user?.name).toBe('Valid User');
+      expect(pluginsStore.entities['plugin-1']).toBeDefined();
       expect(store.isLoading).toBe(false);
     });
   });

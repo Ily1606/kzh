@@ -1,7 +1,8 @@
-import { createRouter, createWebHistory } from "vue-router";
-import HomeView from "@/views/HomeView.vue";
-import { useAuth } from "@/composables/useAuth";
+import { getActivePinia } from "pinia";
+import { useAuthStore } from "@/stores/auth.store";
 import { setPendingScroll } from "@/utils/pageScroll";
+import HomeView from "@/views/HomeView.vue";
+import { createRouter, createWebHistory } from "vue-router";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -101,17 +102,17 @@ export const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  const auth = useAuth();
-
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    return { name: 'login' };
+  if (!getActivePinia()) {
+    return;
   }
 
-  if (to.meta.guestOnly && auth.isAuthenticated) {
+  const authStore = useAuthStore();
+
+  if (to.meta.guestOnly && authStore.isAuthenticated) {
     return { name: 'home' };
   }
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } };
   }
 });

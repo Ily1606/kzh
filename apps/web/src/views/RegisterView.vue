@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import type { AxiosError } from "axios";
+import { getApiErrorMessage } from "@/utils/error";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { registerSchema } from "@/schemas/auth.schema";
 
-const { handleSubmit } = useForm({
+const { handleSubmit, setErrors } = useForm({
   validationSchema: registerSchema,
   initialValues: {
     name: "",
@@ -46,13 +46,27 @@ const onSubmit = handleSubmit(async (values) => {
       password_confirmation: values.confirmPassword,
     });
     router.push("/");
-  } catch (e) {
-    const err = e as AxiosError<{ message?: string }>;
-    const status = err.response?.status;
-    errorMsg.value =
-      status === 429
-        ? "Too many attempts. Please try again later."
-        : "Couldn't create your account. Please try again.";
+  } catch (e: any) {
+    const res = e?.response;
+    const fieldErrors = res?.status === 422 && res?.data?.errors;
+
+    if (fieldErrors && typeof fieldErrors === "object") {
+      const mappedErrors: Record<string, string> = {};
+      Object.entries(fieldErrors as Record<string, string[]>).forEach(([field, messages]) => {
+        const formField = field === "password_confirmation" ? "confirmPassword" : field;
+        if (messages?.[0]) {
+          mappedErrors[formField] = messages[0];
+        }
+      });
+      setErrors(mappedErrors);
+    }
+
+    errorMsg.value = getApiErrorMessage(e, {
+      422: fieldErrors && Object.keys(fieldErrors).length > 0
+        ? "Please check the highlighted fields below."
+        : undefined,
+      default: "Couldn't create your account. Please try again.",
+    });
   } finally {
     loading.value = false;
   }
@@ -69,7 +83,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Full name</FormLabel>
           <FormControl>
-            <Input id="fullName" type="text" autocomplete="name" placeholder="Jane Doe" v-bind="componentField" />
+            <Input type="text" autocomplete="name" placeholder="Jane Doe" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -78,7 +92,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Email</FormLabel>
           <FormControl>
-            <Input id="email" type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
+            <Input type="email" autocomplete="email" placeholder="you@example.com" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -87,7 +101,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Password</FormLabel>
           <FormControl>
-            <Input id="password" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -96,7 +110,7 @@ const onSubmit = handleSubmit(async (values) => {
         <FormItem>
           <FormLabel>Confirm password</FormLabel>
           <FormControl>
-            <Input id="confirmPassword" type="password" autocomplete="new-password" v-bind="componentField" />
+            <Input type="password" autocomplete="new-password" v-bind="componentField" />
           </FormControl>
           <FormMessage />
         </FormItem>

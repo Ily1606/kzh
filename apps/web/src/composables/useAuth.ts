@@ -1,11 +1,10 @@
 import { computed, reactive } from 'vue';
-import { useAuthStore, usePluginsStore } from '@/stores';
+import { useAuthStore, clearSession } from '@/stores';
 import { getAuth, getProfile } from '@/api/generated/endpoints';
 import type { LoginRequest, RegisterRequest } from '@/api/generated/model';
 
 export function useAuth() {
   const store = useAuthStore();
-  const pluginsStore = usePluginsStore();
   const { authLogin, authRegister, authLogout } = getAuth();
   const { profileShow } = getProfile();
 
@@ -38,11 +37,7 @@ export function useAuth() {
       // Swallowed: client-side session is cleared in finally,
       // so notifying the user or breaking the flow is unnecessary.
     } finally {
-      store.clearAuth();
-      // The plugin cache holds `is_star`, which belongs to whoever is signed in.
-      // Clearing the session has to clear it too, or the next user on this
-      // browser inherits the previous user's stars.
-      pluginsStore.reset();
+      clearSession();
     }
   }
 
@@ -55,8 +50,11 @@ export function useAuth() {
     try {
       const response = await profileShow();
       store.setUser(response.data || null);
-    } catch (e) {
-      store.clearAuth();
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if ([401, 403, 419].includes(status) && store.token) {
+        clearSession();
+      }
     } finally {
       store.setLoading(false);
     }

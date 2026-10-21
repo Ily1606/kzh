@@ -2,17 +2,27 @@
 import { useAuth } from '@/composables/useAuth'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
-import { computed, nextTick, onMounted, watch } from 'vue'
-import { MotionConfig } from 'motion-v'
-import { RouterView, useRoute } from 'vue-router'
 import { takePendingScroll } from '@/utils/pageScroll'
+import { MotionConfig } from 'motion-v'
+import { computed, nextTick, onMounted, watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuth()
 
 onMounted(() => {
   auth.fetchUser()
 })
+
+watch(
+  () => auth.isAuthenticated,
+  (isAuthenticated) => {
+    if (!isAuthenticated && route.meta.requiresAuth) {
+      router.replace(route.fullPath)
+    }
+  }
+)
 
 const layout = computed(() => {
   if (route.meta.layout === 'auth') return AuthLayout

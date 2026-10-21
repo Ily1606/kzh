@@ -1,8 +1,6 @@
-import axios from 'axios';
-import { getActivePinia } from 'pinia';
-import { useAuthStore } from '@/stores/auth.store';
-import { usePluginsStore } from '@/stores/plugins';
 import { router } from '@/router';
+import { clearSession } from '@/stores';
+import axios from 'axios';
 
 export const api = axios.create({
   baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:8000') + '/api',
@@ -26,18 +24,15 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const isLoginRequest = error.config?.url?.includes('/v1/login');
       if (!isLoginRequest) {
-        if (getActivePinia()) {
-          const authStore = useAuthStore();
-          authStore.clearAuth();
-          const pluginsStore = usePluginsStore();
-          pluginsStore.reset();
-        } else {
-          localStorage.removeItem('auth');
-          localStorage.removeItem('auth_token');
-        }
+        clearSession();
 
         if (router.currentRoute?.value?.path !== '/login') {
-          router.push('/login');
+          const currentPath = router.currentRoute?.value?.fullPath;
+          router.push(
+            currentPath && currentPath !== '/'
+              ? { name: 'login', query: { redirect: currentPath } }
+              : '/login'
+          ).catch(() => {});
         }
       }
     }
