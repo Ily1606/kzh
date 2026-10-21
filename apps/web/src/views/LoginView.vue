@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { loginSchema } from "@/schemas/auth.schema";
+import { safeRedirect } from "@/utils/safe-redirect";
 
 const { handleSubmit } = useForm({
   validationSchema: loginSchema,
@@ -42,9 +43,7 @@ const onSubmit = handleSubmit(async (values) => {
       email: values.email,
       password: values.password,
     });
-    const redirectPath = route.query.redirect as string;
-    const safeRedirect = redirectPath?.startsWith('/') ? redirectPath : '/';
-    router.push(safeRedirect)
+    router.push(safeRedirect(route.query.redirect));
   } catch (e) {
     errorMsg.value = getApiErrorMessage(e, {
       401: "Incorrect email or password.",

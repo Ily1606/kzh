@@ -19,30 +19,13 @@ const auth = useAuth()
 const router = useRouter()
 const route = useRoute()
 
-const loginPath = computed(() => {
+const redirectQuery = computed(() => {
   const currentPath = route?.fullPath || ''
-  const isAuthPage =
-    route?.path === '/login' ||
-    route?.path === '/register' ||
-    route?.path === '/forgot-password' ||
-    route?.path === '/reset-password'
+  const isGuestOnly = Boolean(route?.meta?.guestOnly)
 
-  return !isAuthPage && currentPath && currentPath !== '/'
-    ? `/login?redirect=${encodeURIComponent(currentPath)}`
-    : '/login'
-})
-
-const registerPath = computed(() => {
-  const currentPath = route?.fullPath || ''
-  const isAuthPage =
-    route?.path === '/login' ||
-    route?.path === '/register' ||
-    route?.path === '/forgot-password' ||
-    route?.path === '/reset-password'
-
-  return !isAuthPage && currentPath && currentPath !== '/'
-    ? `/register?redirect=${encodeURIComponent(currentPath)}`
-    : '/register'
+  return !isGuestOnly && currentPath && currentPath !== '/'
+    ? { redirect: currentPath }
+    : undefined
 })
 
 const isOpen = ref(false)
@@ -73,15 +56,42 @@ const onKeydown = (e: KeyboardEvent) => {
   }
 }
 
+let mql: MediaQueryList | null = null
+
+const handleMediaChange = (e: { matches: boolean }) => {
+  if (e.matches && isOpen.value) {
+    isOpen.value = false
+  }
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('keydown', onKeydown)
+    if (window.matchMedia) {
+      mql = window.matchMedia('(min-width: 768px)')
+      if (mql.matches && isOpen.value) {
+        isOpen.value = false
+      }
+      if (mql.addEventListener) {
+        mql.addEventListener('change', handleMediaChange)
+      } else if (mql.addListener) {
+        mql.addListener(handleMediaChange)
+      }
+    }
   }
 })
 
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', onKeydown)
+    if (mql) {
+      if (mql.removeEventListener) {
+        mql.removeEventListener('change', handleMediaChange)
+      } else if (mql.removeListener) {
+        mql.removeListener(handleMediaChange)
+      }
+      mql = null
+    }
     document.body.style.overflow = ''
   }
 })
@@ -161,17 +171,17 @@ onUnmounted(() => {
         <template v-else>
           <!-- Desktop Log in button -->
           <Button as-child variant="ghost" size="sm" class="hidden sm:inline-flex">
-            <RouterLink :to="loginPath">Log in</RouterLink>
+            <RouterLink :to="{ path: '/login', query: redirectQuery }">Log in</RouterLink>
           </Button>
 
           <!-- Mobile Log in button -->
           <Button as-child variant="outline" size="sm" class="sm:hidden h-8 px-2.5 text-xs font-medium">
-            <RouterLink :to="loginPath">Log in</RouterLink>
+            <RouterLink :to="{ path: '/login', query: redirectQuery }">Log in</RouterLink>
           </Button>
 
           <!-- Desktop Get started button -->
           <Button as-child size="sm" class="hidden sm:inline-flex">
-            <RouterLink :to="registerPath">Get started</RouterLink>
+            <RouterLink :to="{ path: '/register', query: redirectQuery }">Get started</RouterLink>
           </Button>
         </template>
       </div>
@@ -291,10 +301,10 @@ onUnmounted(() => {
             </template>
             <template v-else>
               <Button variant="outline" as-child class="w-full">
-                <RouterLink :to="loginPath" @click="isOpen = false">Log in</RouterLink>
+                <RouterLink :to="{ path: '/login', query: redirectQuery }" @click="isOpen = false">Log in</RouterLink>
               </Button>
               <Button as-child class="w-full">
-                <RouterLink :to="registerPath" @click="isOpen = false">Get started</RouterLink>
+                <RouterLink :to="{ path: '/register', query: redirectQuery }" @click="isOpen = false">Get started</RouterLink>
               </Button>
             </template>
           </div>

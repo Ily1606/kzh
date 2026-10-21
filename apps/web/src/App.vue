@@ -6,6 +6,7 @@ import { takePendingScroll } from '@/utils/pageScroll'
 import { MotionConfig } from 'motion-v'
 import { computed, nextTick, onMounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
+import { Toaster } from 'vue-sonner'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,6 +71,7 @@ watch(layout, async () => {
         </Transition>
       </RouterView>
     </component>
+    <Toaster richColors position="top-right" />
   </MotionConfig>
 </template>
 

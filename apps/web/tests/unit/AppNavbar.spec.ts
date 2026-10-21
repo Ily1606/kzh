@@ -8,12 +8,27 @@ vi.mock('@/composables/useAuth', () => ({
 }))
 
 const mockPush = vi.fn()
-let mockCurrentRoute = { path: '/', fullPath: '/' }
+let mockCurrentRoute: { path: string; fullPath: string; meta?: Record<string, any> } = { path: '/', fullPath: '/' }
 
 vi.mock('vue-router', () => ({
   RouterLink: {
     props: ['to'],
-    template: '<a :href="to"><slot /></a>',
+    computed: {
+      href() {
+        if (typeof this.to === 'string') return this.to
+        if (this.to && typeof this.to === 'object') {
+          const path = this.to.path || ''
+          const query = this.to.query
+          if (query && Object.keys(query).length > 0) {
+            const params = new URLSearchParams(query).toString()
+            return `${path}?${params}`
+          }
+          return path
+        }
+        return ''
+      }
+    },
+    template: '<a :href="href"><slot /></a>',
   },
   useRouter: () => ({
     push: mockPush,
@@ -141,6 +156,50 @@ describe('AppNavbar.vue', () => {
     wrapper.unmount()
   })
 
+  it('closes mobile drawer and restores body overflow when viewport expands to >= 768px', async () => {
+    let mediaChangeHandler: ((e: any) => void) | null = null
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn((event, handler) => {
+        if (event === 'change') {
+          mediaChangeHandler = handler
+        }
+      }),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    ;(useAuth as any).mockReturnValue({
+      isAuthenticated: true,
+      user: { name: 'User' },
+      logout: vi.fn(),
+    })
+
+    const wrapper = mount(AppNavbar, {
+      attachTo: document.body,
+    })
+
+    const menuBtn = wrapper.find('button[aria-label="Toggle navigation menu"]')
+    await menuBtn.trigger('click')
+
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(wrapper.find('button[aria-expanded="true"]').exists()).toBe(true)
+
+    // Trigger media query change event to desktop
+    expect(mediaChangeHandler).toBeDefined()
+    mediaChangeHandler!({ matches: true })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('button[aria-expanded="true"]').exists()).toBe(false)
+    expect(document.body.style.overflow).toBe('')
+
+    wrapper.unmount()
+  })
+
   it('renders guest drawer and navbar login button when unauthenticated', async () => {
     ;(useAuth as any).mockReturnValue({
       isAuthenticated: false,
@@ -186,5 +245,24 @@ describe('AppNavbar.vue', () => {
     const registerLinks = wrapper.findAll('a').filter((a) => a.text().includes('Get started'))
     expect(registerLinks.length).toBeGreaterThan(0)
     expect(registerLinks[0].attributes('href')).toBe('/register?redirect=%2Fplugins')
+  })
+
+  it('does not append redirect query parameter when unauthenticated user is on a guestOnly route', () => {
+    mockCurrentRoute = { path: '/login', fullPath: '/login', meta: { guestOnly: true } }
+    ;(useAuth as any).mockReturnValue({
+      isAuthenticated: false,
+      user: null,
+      logout: vi.fn(),
+    })
+
+    const wrapper = mount(AppNavbar)
+
+    const loginLinks = wrapper.findAll('a').filter((a) => a.text().includes('Log in'))
+    expect(loginLinks.length).toBeGreaterThan(0)
+    expect(loginLinks[0].attributes('href')).toBe('/login')
+
+    const registerLinks = wrapper.findAll('a').filter((a) => a.text().includes('Get started'))
+    expect(registerLinks.length).toBeGreaterThan(0)
+    expect(registerLinks[0].attributes('href')).toBe('/register')
   })
 })

@@ -1,20 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { router } from '@/router';
-import { useAuth } from '@/composables/useAuth';
-
-vi.mock('@/composables/useAuth', () => ({
-  useAuth: vi.fn(),
-}));
+import { useAuthStore } from '@/stores/auth.store';
 
 describe('router/index.ts navigation guards', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    const authStore = useAuthStore();
+    authStore.clearAuth();
   });
 
   it('redirects to login with query.redirect when unauthenticated user accesses requiresAuth route', async () => {
-    ;(useAuth as any).mockReturnValue({
-      isAuthenticated: false,
-    });
+    const authStore = useAuthStore();
+    authStore.clearAuth();
 
     await router.push('/publish');
 
@@ -23,9 +20,8 @@ describe('router/index.ts navigation guards', () => {
   });
 
   it('redirects to login with query.redirect for /profile when unauthenticated', async () => {
-    ;(useAuth as any).mockReturnValue({
-      isAuthenticated: false,
-    });
+    const authStore = useAuthStore();
+    authStore.clearAuth();
 
     await router.push('/profile');
 
@@ -34,9 +30,9 @@ describe('router/index.ts navigation guards', () => {
   });
 
   it('redirects to home when authenticated user accesses guestOnly route', async () => {
-    ;(useAuth as any).mockReturnValue({
-      isAuthenticated: true,
-    });
+    const authStore = useAuthStore();
+    authStore.setUser({ id: 'u1', name: 'User' } as any);
+    authStore.setToken('valid-token');
 
     await router.push('/login');
 
@@ -44,9 +40,9 @@ describe('router/index.ts navigation guards', () => {
   });
 
   it('allows access to requiresAuth route when authenticated', async () => {
-    ;(useAuth as any).mockReturnValue({
-      isAuthenticated: true,
-    });
+    const authStore = useAuthStore();
+    authStore.setUser({ id: 'u1', name: 'User' } as any);
+    authStore.setToken('valid-token');
 
     await router.push('/publish');
 
@@ -54,9 +50,8 @@ describe('router/index.ts navigation guards', () => {
   });
 
   it('allows access to public route when unauthenticated', async () => {
-    ;(useAuth as any).mockReturnValue({
-      isAuthenticated: false,
-    });
+    const authStore = useAuthStore();
+    authStore.clearAuth();
 
     await router.push('/plugins');
 

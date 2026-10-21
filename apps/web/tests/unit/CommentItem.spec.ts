@@ -5,11 +5,15 @@ import { ref } from 'vue'
 
 const mockCommentReplies = vi.fn()
 const mockCommentStore = vi.fn()
+const mockCommentReportStore = vi.fn()
 
 vi.mock('@/api/generated/endpoints', () => ({
   getComment: () => ({
     commentReplies: mockCommentReplies,
     commentStore: mockCommentStore
+  }),
+  getCommentReport: () => ({
+    commentReportStore: mockCommentReportStore
   })
 }))
 
@@ -212,9 +216,10 @@ describe('CommentItem.vue', () => {
     expect(wrapper.text()).toContain('Loaded reply')
   })
 
-  it('submits a report and shows success alert', async () => {
-    // Override setTimeout to run immediately for the mock report
-    vi.useFakeTimers()
+  it('submits a report via API and handles modal lifecycle', async () => {
+    mockCommentReportStore.mockResolvedValueOnce({
+      message: 'Comment reported successfully. Our moderators will review it shortly.'
+    })
 
     const wrapper = mount(CommentItem, {
       props: { comment: mockComment, pluginId: '1', depth: 1 },
@@ -225,23 +230,27 @@ describe('CommentItem.vue', () => {
     const flagBtn = wrapper.find('button[title="Report this comment"]')
     await flagBtn.trigger('click')
 
-    // Modal is open
-    const textarea = wrapper.find('textarea[placeholder="Reason for reporting..."]')
-    expect(textarea.exists()).toBe(true)
-    await textarea.setValue('spamming')
+    // Modal is teleported to document.body
+    const textarea = document.body.querySelector('textarea')
+    expect(textarea).not.toBeNull()
+
+    // Enter a valid reason (>= 10 chars)
+    textarea!.value = 'This comment contains abusive language and spam.'
+    textarea!.dispatchEvent(new Event('input'))
+    await wrapper.vm.$nextTick()
 
     // Submit report
-    const submitBtn = wrapper.findAll('button').find(b => b.text().includes('Submit Report'))
-    await submitBtn!.trigger('click')
-
-    // Advance timers
-    vi.runAllTimers()
+    const submitBtn = Array.from(document.body.querySelectorAll('button')).find(
+      b => b.textContent?.includes('Submit Report')
+    )
+    expect(submitBtn).toBeDefined()
+    expect(submitBtn?.hasAttribute('disabled')).toBe(false)
+    submitBtn!.click()
     await flushPromises()
 
-    expect(window.alert).toHaveBeenCalledWith('Your report has been submitted successfully.')
-    expect(wrapper.find('textarea[placeholder="Reason for reporting..."]').exists()).toBe(false)
-
-    vi.useRealTimers()
+    expect(mockCommentReportStore).toHaveBeenCalledWith('1', 'c1', {
+      reason: 'This comment contains abusive language and spam.'
+    })
   })
   it('shows sign in link when unauthenticated user tries to reply', async () => {
     mockIsAuthenticated.value = false
@@ -354,6 +363,53 @@ describe('CommentItem.vue', () => {
     // Both the newly submitted reply and the old reply must be present!
     expect(wrapper.text()).toContain('Brand new reply')
     expect(wrapper.text()).toContain('Old reply from server')
+  })
+
+  it('collapses excessive consecutive blank lines in comment text', () => {
+    const wrapper = mount(CommentItem, {
+      props: {
+        comment: {
+          ...mockComment,
+          content: 'Line 1\n\n\n\n\nLine 2'
+        },
+        pluginId: '1',
+        depth: 1
+      },
+      global: { stubs: ['router-link'] }
+    })
+
+    const p = wrapper.find('p')
+    expect(p.text()).toBe('Line 1\n\nLine 2')
+  })
+
+  it('renders Read more / Show less toggle for long comments', async () => {
+    const longContent = 'First line\nSecond line\nThird line\nFourth line\nFifth line\nSixth line'
+    const wrapper = mount(CommentItem, {
+      props: {
+        comment: {
+          ...mockComment,
+          content: longContent
+        },
+        pluginId: '1',
+        depth: 1
+      },
+      global: { stubs: ['router-link'] }
+    })
+
+    const p = wrapper.find('p')
+    expect(p.classes()).toContain('line-clamp-4')
+
+    const readMoreBtn = wrapper.findAll('button').find(b => b.text().includes('Read more'))
+    expect(readMoreBtn).toBeDefined()
+
+    await readMoreBtn!.trigger('click')
+    expect(p.classes()).not.toContain('line-clamp-4')
+    expect(wrapper.text()).toContain('Show less')
+
+    const showLessBtn = wrapper.findAll('button').find(b => b.text().includes('Show less'))
+    await showLessBtn!.trigger('click')
+    expect(p.classes()).toContain('line-clamp-4')
+    expect(wrapper.text()).toContain('Read more')
   })
 })
 

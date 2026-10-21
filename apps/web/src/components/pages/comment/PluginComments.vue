@@ -3,6 +3,7 @@ import { ref, onMounted, computed, provide } from 'vue'
 import { getComment } from '@/api/generated/endpoints'
 import type { CommentResource } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/composables/useAuth'
 import { MessageSquare, Loader2, ChevronDown } from '@lucide/vue'
 import CommentItem from '@/components/pages/comment/CommentItem.vue'
@@ -29,10 +30,11 @@ const isLoading = ref(true)
 const isSubmitting = ref(false)
 const newComment = ref('')
 const error = ref('')
-const commentTextarea = ref<HTMLTextAreaElement | null>(null)
+const commentTextarea = ref<any>(null)
 
 function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
+  if (!el) return
   el.style.height = 'auto'
   el.style.height = el.scrollHeight + 'px'
 }
@@ -89,17 +91,19 @@ function loadMore() {
 }
 
 async function submitComment() {
-  if (!newComment.value.trim()) return
+  const content = newComment.value.trim().replace(/\n{3,}/g, '\n\n')
+  if (!content) return
 
   isSubmitting.value = true
   try {
-    const res = await commentStore(props.pluginId, { content: newComment.value })
+    const res = await commentStore(props.pluginId, { content })
     const body = res as any
     const createdComment = body?.data?.comment || body?.comment
 
     newComment.value = ''
-    if (commentTextarea.value) {
-      commentTextarea.value.style.height = 'auto'
+    const el = (commentTextarea.value as any)?.$el ?? commentTextarea.value
+    if (el) {
+      el.style.height = 'auto'
     }
     emit('commentAdded')
 
@@ -137,19 +141,18 @@ onMounted(() => {
       <span class="text-sm text-muted-foreground">{{ displayCommentCount }} discussion{{ displayCommentCount === 1 ? '' : 's' }}</span>
     </div>
 
-    <!-- Form viết bình luận gốc -->
     <div v-if="auth.isAuthenticated" class="mb-8">
       <form @submit.prevent="submitComment" class="space-y-3">
-        <textarea
+        <Textarea
           ref="commentTextarea"
           v-model="newComment"
           rows="3"
           :maxlength="commentConfig.maxLength"
           placeholder="Leave a comment..."
-          class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-hidden"
+          class="min-h-20 max-h-48 resize-none overflow-y-auto"
           @input="autoResize"
           required
-        ></textarea>
+        />
         <div class="flex items-center justify-between mt-2">
           <span class="text-xs text-muted-foreground">
             {{ newComment.length }} / {{ commentConfig.maxLength }}
@@ -164,7 +167,6 @@ onMounted(() => {
       Please <router-link :to="{ name: 'login', query: { redirect: $route.path + '#comments' } }" class="text-primary hover:underline font-medium">sign in</router-link> to leave a comment.
     </div>
 
-    <!-- Danh sách bình luận -->
     <div v-if="isLoading" class="text-center py-6 text-muted-foreground">
       Loading comments...
     </div>
@@ -175,7 +177,6 @@ onMounted(() => {
       No comments yet. Be the first to share your thoughts!
     </div>
     <div v-else class="space-y-6">
-      <!-- Mỗi bình luận gốc được quản lý đệ quy qua CommentItem (Giới hạn tối đa 3 cấp) -->
       <CommentItem
         v-for="comment in comments"
         :key="comment.id"
@@ -184,8 +185,6 @@ onMounted(() => {
         :depth="1"
       />
 
-      <!-- Nút tải thêm bình luận gốc -->
-      <!-- Nút tải thêm bình luận gốc -->
       <div v-if="currentPage < lastPage" class="relative flex items-center justify-center pt-8 pb-4">
         <div class="absolute inset-x-0 top-1/2 flex items-center pt-4" aria-hidden="true">
           <div class="w-full border-t border-border/50"></div>

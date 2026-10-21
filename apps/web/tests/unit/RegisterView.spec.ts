@@ -116,10 +116,14 @@ describe('RegisterView.vue', () => {
 
     mockRegister.mockResolvedValueOnce(true);
 
-    await wrapper.find('input[id="fullName"]').setValue('John Doe');
-    await wrapper.find('input[id="email"]').setValue('test@example.com');
-    await wrapper.find('input[id="password"]').setValue('password123');
-    await wrapper.find('input[id="confirmPassword"]').setValue('password123');
+    const nameInput = wrapper.find('input[type="text"]');
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+
+    await nameInput.setValue('John Doe');
+    await emailInput.setValue('test@example.com');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
 
     await wrapper.find('form').trigger('submit');
     await new Promise(r => setTimeout(r, 10));

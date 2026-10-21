@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { registerSchema } from "@/schemas/auth.schema";
+import { safeRedirect } from "@/utils/safe-redirect";
 
 const { handleSubmit, setErrors } = useForm({
   validationSchema: registerSchema,
@@ -46,7 +47,7 @@ const onSubmit = handleSubmit(async (values) => {
       password: values.password,
       password_confirmation: values.confirmPassword,
     });
-    router.push("/");
+    router.push(safeRedirect(route.query.redirect));
   } catch (e: any) {
     const res = e?.response;
     const fieldErrors = res?.status === 422 && res?.data?.errors;

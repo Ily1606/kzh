@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref } from 'vue'
-import { toRawGithubUrls, usePluginReadme } from '@/composables/usePluginReadme'
+import {
+  toRawGithubUrls,
+  usePluginReadme,
+  resolveRelativeGithubAssetUrl,
+} from '@/composables/usePluginReadme'
 
 describe('toRawGithubUrls', () => {
   it('returns an empty array for empty, whitespace, or invalid URLs', () => {
@@ -70,7 +74,15 @@ describe('toRawGithubUrls', () => {
     ).toEqual(['https://raw.githubusercontent.com/dsh/my-plugin/main/README.md'])
 
     expect(
+      toRawGithubUrls('https://github.com/dsh/my-plugin/tree/main/')
+    ).toEqual(['https://raw.githubusercontent.com/dsh/my-plugin/main/README.md'])
+
+    expect(
       toRawGithubUrls('https://github.com/dsh/my-plugin/tree/main/packages/core')
+    ).toEqual(['https://raw.githubusercontent.com/dsh/my-plugin/main/packages/core/README.md'])
+
+    expect(
+      toRawGithubUrls('https://github.com/dsh/my-plugin/tree/main/packages/core/')
     ).toEqual(['https://raw.githubusercontent.com/dsh/my-plugin/main/packages/core/README.md'])
   })
 })
@@ -144,6 +156,60 @@ describe('usePluginReadme security', () => {
     expect(html.value).toContain(`src="${rawBase}assets/root-banner.png"`)
     // Absolute external image remains unchanged
     expect(html.value).toContain('src="https://example.com/external.png"')
+  })
+
+  it('correctly resolves repo-root relative image paths for refs/heads raw URLs', async () => {
+    const markdown = '<img src="/docs/a.png" alt="Doc image" />'
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      text: async () => markdown,
+    } as Response)
+
+    const sourceLink = ref('https://raw.githubusercontent.com/o/r/refs/heads/main/README.md')
+    const container = ref(null)
+
+    const { html, load } = usePluginReadme(sourceLink, container)
+    await load()
+
+    expect(html.value).toContain(
+      'src="https://raw.githubusercontent.com/o/r/refs/heads/main/docs/a.png"'
+    )
+  })
+})
+
+describe('resolveRelativeGithubAssetUrl', () => {
+  it('correctly resolves root-relative paths for refs/heads/ branch URLs', () => {
+    expect(
+      resolveRelativeGithubAssetUrl(
+        '/docs/a.png',
+        'https://raw.githubusercontent.com/o/r/refs/heads/main/README.md'
+      )
+    ).toBe('https://raw.githubusercontent.com/o/r/refs/heads/main/docs/a.png')
+
+    expect(
+      resolveRelativeGithubAssetUrl(
+        '/docs/a.png',
+        'https://raw.githubusercontent.com/o/r/refs/heads/main/'
+      )
+    ).toBe('https://raw.githubusercontent.com/o/r/refs/heads/main/docs/a.png')
+  })
+
+  it('correctly resolves root-relative paths for refs/tags/ URLs', () => {
+    expect(
+      resolveRelativeGithubAssetUrl(
+        '/docs/a.png',
+        'https://raw.githubusercontent.com/o/r/refs/tags/v1.0.0/README.md'
+      )
+    ).toBe('https://raw.githubusercontent.com/o/r/refs/tags/v1.0.0/docs/a.png')
+  })
+
+  it('correctly resolves root-relative paths for classic branch URLs', () => {
+    expect(
+      resolveRelativeGithubAssetUrl(
+        '/docs/a.png',
+        'https://raw.githubusercontent.com/o/r/main/README.md'
+      )
+    ).toBe('https://raw.githubusercontent.com/o/r/main/docs/a.png')
   })
 })
 

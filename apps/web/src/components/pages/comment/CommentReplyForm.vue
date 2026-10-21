@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { getComment } from '@/api/generated/endpoints'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { commentConfig } from '@/config/comments'
 import type { CommentResource } from '@/api/generated/model'
 
@@ -23,27 +24,30 @@ const { commentStore } = getComment()
 
 const replyContent = ref('')
 const isSubmittingReply = ref(false)
-const replyTextarea = ref<HTMLTextAreaElement | null>(null)
+const replyTextarea = ref<any>(null)
 
 function autoResize(e: Event) {
   const el = e.target as HTMLTextAreaElement
+  if (!el) return
   el.style.height = 'auto'
   el.style.height = el.scrollHeight + 'px'
 }
 
 async function submitReply() {
-  if (!replyContent.value.trim()) return
+  const content = replyContent.value.trim().replace(/\n{3,}/g, '\n\n')
+  if (!content) return
   isSubmittingReply.value = true
   try {
     const res = await commentStore(props.pluginId, {
-      content: replyContent.value,
+      content,
       parent_comment_id: props.commentId
     })
     const body = res as any
     const createdComment = body?.data?.comment || body?.comment || null
 
     replyContent.value = ''
-    if (replyTextarea.value) replyTextarea.value.style.height = 'auto'
+    const el = (replyTextarea.value as any)?.$el ?? replyTextarea.value
+    if (el) el.style.height = 'auto'
     emit('submitted', createdComment)
   } catch (err: any) {
     alert(err?.response?.data?.message || 'Error posting reply')
@@ -56,16 +60,16 @@ async function submitReply() {
 <template>
   <div class="mt-3">
     <div v-if="auth.isAuthenticated" class="space-y-2">
-      <textarea
+      <Textarea
         ref="replyTextarea"
         v-model="replyContent"
         rows="2"
         :maxlength="commentConfig.maxLength"
         placeholder="Write a reply..."
-        class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none overflow-hidden"
+        class="min-h-16 max-h-40 resize-none overflow-y-auto"
         @input="autoResize"
         required
-      ></textarea>
+      />
       <div class="flex items-center justify-between gap-2">
         <span class="text-xs text-muted-foreground pl-1">{{ replyContent.length }} / {{ commentConfig.maxLength }}</span>
         <div class="flex gap-2">

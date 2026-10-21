@@ -52,7 +52,8 @@ export function toRawGithubUrls(url: string): string[] {
       const treeMatch = parsed.pathname.match(/^\/([^/]+)\/([^/]+)\/tree\/([^/]+?)(?:\/(.*))?$/)
       if (treeMatch) {
         const [, owner, repo, branch, path] = treeMatch
-        const filePath = path ? (path.endsWith('.md') ? path : `${path}/README.md`) : 'README.md'
+        const cleanPath = path ? path.replace(/\/+$/, '') : ''
+        const filePath = cleanPath ? (cleanPath.endsWith('.md') ? cleanPath : `${cleanPath}/README.md`) : 'README.md'
         return [`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`]
       }
 
@@ -89,7 +90,9 @@ export function resolveRelativeGithubAssetUrl(src: string, baseUrl: string): str
   try {
     // If path starts with '/', GitHub resolves relative to the repository branch root
     if (trimmed.startsWith('/')) {
-      const match = baseUrl.match(/^(https?:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+)(?:\/|$)/)
+      const match = baseUrl.match(
+        /^(https?:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+(?:\/refs\/[^/]+\/[^/]+|\/[^/]+))(?:\/|[?#]|$)/
+      )
       if (match) {
         return `${match[1]}/${trimmed.replace(/^\/+/, '')}`
       }
