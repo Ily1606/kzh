@@ -157,8 +157,11 @@ describe('TrendingView.vue', () => {
       id: 'tester-1',
       name: 'Tester',
       email: 'tester@example.com',
-      avatarLink: null,
-      emailVerified: true
+      avatarLink: '',
+      githubName: null,
+      githubLink: null,
+      is_admin: false,
+      created_at: null
     })
     authStore.setToken('fake-token')
 

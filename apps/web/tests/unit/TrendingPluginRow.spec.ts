@@ -35,6 +35,7 @@ vi.mock('vue-router', () => ({
 const testPlugin: PluginResource = {
   id: 'plug-1',
   name: 'code-reviewer',
+  user_id: 'author-1',
   title: 'Automated pull request code review assistant',
   author: {
     id: 'author-1',
@@ -43,13 +44,16 @@ const testPlugin: PluginResource = {
   },
   category: 'Developer tools',
   tags: ['ai', 'review'],
+  license: 'MIT',
   star_count: 520,
   is_star: false,
   view_count: 3200,
   comment_count: 42,
   source_link: 'https://github.com/octocat/code-reviewer',
   approved_at: '2026-10-15T12:00:00Z',
-  status: 'approved' as const
+  created_at: '2026-10-15T12:00:00Z',
+  updated_at: '2026-10-15T12:00:00Z',
+  status: 'approved'
 }
 
 describe('TrendingPluginRow.vue', () => {
@@ -106,8 +110,11 @@ describe('TrendingPluginRow.vue', () => {
       id: 'u-1',
       name: 'User 1',
       email: 'user1@example.com',
-      avatarLink: null,
-      emailVerified: true
+      avatarLink: '',
+      githubName: null,
+      githubLink: null,
+      is_admin: false,
+      created_at: null
     })
     auth.setToken('auth-token')
 
