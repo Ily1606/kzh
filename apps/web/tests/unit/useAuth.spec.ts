@@ -149,32 +149,35 @@ describe('useAuth composable', () => {
       expect(store.isLoading).toBe(false);
     });
 
-    it('clears auth and resets plugin store when profileShow fails with 401', async () => {
-      const auth = useAuth();
-      const store = useAuthStore();
-      const pluginsStore = usePluginsStore();
+    it.each([401, 403, 419])(
+      'clears auth and resets plugin store when profileShow fails with status %i',
+      async (status) => {
+        const auth = useAuth();
+        const store = useAuthStore();
+        const pluginsStore = usePluginsStore();
 
-      store.setToken('revoked-token');
-      store.setUser({ id: '42', name: 'Old User' } as any);
-      pluginsStore.put([{
-        id: 'plugin-1', name: '@dsh/x', user_id: '42', author: null, title: 't', license: 'MIT', category: null, tags: [],
-        approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
-        is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
-      }]);
+        store.setToken('revoked-token');
+        store.setUser({ id: '42', name: 'Old User' } as any);
+        pluginsStore.put([{
+          id: 'plugin-1', name: '@dsh/x', user_id: '42', author: null, title: 't', license: 'MIT', category: null, tags: [],
+          approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
+          is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
+        }]);
 
-      const err = Object.assign(new Error('Unauthorized'), { response: { status: 401 } });
-      mockProfileShow.mockRejectedValueOnce(err);
+        const err = Object.assign(new Error('Auth failure'), { response: { status } });
+        mockProfileShow.mockRejectedValueOnce(err);
 
-      await auth.fetchUser();
+        await auth.fetchUser();
 
-      expect(mockProfileShow).toHaveBeenCalled();
-      expect(store.token).toBeNull();
-      expect(store.user).toBeNull();
-      expect(pluginsStore.entities).toEqual({});
-      expect(store.isLoading).toBe(false);
-    });
+        expect(mockProfileShow).toHaveBeenCalled();
+        expect(store.token).toBeNull();
+        expect(store.user).toBeNull();
+        expect(pluginsStore.entities).toEqual({});
+        expect(store.isLoading).toBe(false);
+      }
+    );
 
-    it('does not clear auth or reset plugins store when profileShow fails with non-401 error', async () => {
+    it('does not clear auth or reset plugins store when profileShow fails with non-auth error', async () => {
       const auth = useAuth();
       const store = useAuthStore();
       const pluginsStore = usePluginsStore();

@@ -1,3 +1,4 @@
+import { getActivePinia } from "pinia";
 import { useAuthStore } from "@/stores/auth.store";
 import { setPendingScroll } from "@/utils/pageScroll";
 import HomeView from "@/views/HomeView.vue";
@@ -101,6 +102,10 @@ export const router = createRouter({
 });
 
 router.beforeEach((to) => {
+  if (!getActivePinia()) {
+    return;
+  }
+
   const authStore = useAuthStore();
 
   if (to.meta.guestOnly && authStore.isAuthenticated) {

@@ -43,7 +43,8 @@ const onSubmit = handleSubmit(async (values) => {
       password: values.password,
     });
     const redirectPath = route.query.redirect as string;
-    router.push(redirectPath || "/");
+    const safeRedirect = redirectPath?.startsWith('/') ? redirectPath : '/';
+    router.push(safeRedirect)
   } catch (e) {
     errorMsg.value = getApiErrorMessage(e, {
       401: "Incorrect email or password.",

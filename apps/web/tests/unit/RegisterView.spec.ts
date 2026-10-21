@@ -197,4 +197,40 @@ describe('RegisterView.vue', () => {
 
     expect(wrapper.text()).toContain('Validation failed.');
   });
+
+  it('maps server field errors to form fields and shows clean banner on 422', async () => {
+    const wrapper = mount(RegisterView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockRegister.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: {
+          message: 'The email has already been taken. (and 1 more error)',
+          errors: {
+            email: ['The email has already been taken.'],
+            password_confirmation: ['The password confirmation does not match.'],
+          }
+        }
+      }
+    });
+
+    const passwordInputs = wrapper.findAll('input[type="password"]');
+    await wrapper.find('input[type="text"]').setValue('John Doe');
+    await wrapper.find('input[type="email"]').setValue('test@example.com');
+    await passwordInputs[0].setValue('password123');
+    await passwordInputs[1].setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    // Banner displays clean user-facing guidance instead of raw "(and 1 more error)"
+    expect(wrapper.text()).toContain('Please check the highlighted fields below.');
+    // Specific field errors are mapped to the form fields
+    expect(wrapper.text()).toContain('The email has already been taken.');
+    expect(wrapper.text()).toContain('The password confirmation does not match.');
+  });
 });

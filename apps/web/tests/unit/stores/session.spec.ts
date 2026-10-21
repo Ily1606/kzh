@@ -28,5 +28,15 @@ describe('clearSession', () => {
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem('auth_token')).toBeNull();
   });
+
+  it('falls back to removing auth keys from localStorage when Pinia is not active', () => {
+    setActivePinia(undefined);
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user: { id: 1 } }));
+    localStorage.setItem('auth_token', 'test-token');
+
+    expect(() => clearSession()).not.toThrow();
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem('auth_token')).toBeNull();
+  });
 });
 

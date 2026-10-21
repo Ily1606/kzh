@@ -1,3 +1,4 @@
+import { router } from '@/router';
 import { clearSession } from '@/stores';
 import axios from 'axios';
 
@@ -24,6 +25,15 @@ api.interceptors.response.use(
       const isLoginRequest = error.config?.url?.includes('/v1/login');
       if (!isLoginRequest) {
         clearSession();
+
+        if (router.currentRoute?.value?.path !== '/login') {
+          const currentPath = router.currentRoute?.value?.fullPath;
+          router.push(
+            currentPath && currentPath !== '/'
+              ? { name: 'login', query: { redirect: currentPath } }
+              : '/login'
+          ).catch(() => {});
+        }
       }
     }
     return Promise.reject(error);

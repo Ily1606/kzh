@@ -4,7 +4,7 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { takePendingScroll } from '@/utils/pageScroll'
 import { MotionConfig } from 'motion-v'
-import { computed, nextTick, onMounted, toValue, watch } from 'vue'
+import { computed, nextTick, onMounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -16,13 +16,10 @@ onMounted(() => {
 })
 
 watch(
-  () => toValue(auth.isAuthenticated),
+  () => auth.isAuthenticated,
   (isAuthenticated) => {
-    if (!isAuthenticated && route.meta.requiresAuth && route.name !== 'login') {
-      router.push({
-        name: 'login',
-        query: { redirect: route.fullPath || route.path },
-      })
+    if (!isAuthenticated && route.meta.requiresAuth) {
+      router.replace(route.fullPath)
     }
   }
 )

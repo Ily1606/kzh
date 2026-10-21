@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api } from '@/services/api';
 import { setActivePinia, createPinia } from 'pinia';
 import { useAuthStore } from '@/stores/auth.store';
-import { usePluginsStore } from '@/stores/plugins.store';
+import { usePluginsStore } from '@/stores/plugins';
+import { router } from '@/router';
 
 describe('services/api interceptors', () => {
   beforeEach(() => {
@@ -76,6 +77,36 @@ describe('services/api interceptors', () => {
     await expect(responseErrorHandler(error)).rejects.toEqual(error);
 
     expect(store.token).toBe('existing-token');
+  });
+
+  it('redirects to /login on 401 error for non-login endpoints', async () => {
+    const pushSpy = vi.spyOn(router, 'push').mockImplementation(async () => ({} as any));
+    const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
+    const error = {
+      response: { status: 401 },
+      config: { url: '/v1/plugins/1/star' },
+    };
+
+    await expect(responseErrorHandler(error)).rejects.toEqual(error);
+
+    expect(pushSpy).toHaveBeenCalled();
+    pushSpy.mockRestore();
+  });
+
+  it('handles 401 safely even when Pinia is not active without replacing AxiosError', async () => {
+    setActivePinia(undefined);
+    localStorage.setItem('auth_token', 'orphan-token');
+    localStorage.setItem('auth', '{"user":{}}');
+
+    const responseErrorHandler = (api.interceptors.response as any).handlers[0].rejected;
+    const error = {
+      response: { status: 401 },
+      config: { url: '/v1/user/profile' },
+    };
+
+    await expect(responseErrorHandler(error)).rejects.toEqual(error);
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(localStorage.getItem('auth')).toBeNull();
   });
 });
 

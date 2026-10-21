@@ -69,7 +69,7 @@ describe('getApiErrorMessage', () => {
     );
   });
 
-  it('allows overriding default/fallback message via object', () => {
+  it('allows overriding default message via object', () => {
     expect(
       getApiErrorMessage(new Error('Network error'), {
         default: "Couldn't create your account. Please try again.",
@@ -78,7 +78,7 @@ describe('getApiErrorMessage', () => {
 
     expect(
       getApiErrorMessage({ response: { status: 500 } }, {
-        fallback: 'Failed to send reset link. Please try again.',
+        default: 'Failed to send reset link. Please try again.',
       }),
     ).toBe('Failed to send reset link. Please try again.');
   });
@@ -90,6 +90,31 @@ describe('getApiErrorMessage', () => {
         'Failed to reset password.',
       ),
     ).toBe('Failed to reset password.');
+  });
+
+  it('returns server response message for other status codes or errors', () => {
+    expect(
+      getApiErrorMessage(
+        { response: { status: 500, data: { message: 'Database connection failed' } } },
+        'Default fallback',
+      ),
+    ).toBe('Database connection failed');
+
+    expect(
+      getApiErrorMessage(
+        { response: { data: { message: 'Something custom' } } },
+        'Default fallback',
+      ),
+    ).toBe('Something custom');
+  });
+
+  it('ignores whitespace-only server message and falls back', () => {
+    expect(
+      getApiErrorMessage(
+        { response: { data: { message: '   ' } } },
+        'Default fallback',
+      ),
+    ).toBe('Default fallback');
   });
 });
 

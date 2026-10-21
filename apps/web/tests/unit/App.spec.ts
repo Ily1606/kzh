@@ -4,6 +4,7 @@ import { ref, reactive } from 'vue';
 import App from '@/App.vue';
 
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 const mockRoute = reactive({
   path: '/',
   fullPath: '/',
@@ -13,7 +14,7 @@ const mockRoute = reactive({
 
 vi.mock('vue-router', () => ({
   useRoute: () => mockRoute,
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
   RouterView: {
     template: '<div><slot :Component="{}" /></div>'
   }
@@ -23,7 +24,7 @@ const mockFetchUser = vi.fn();
 const mockIsAuthenticated = ref(true);
 
 vi.mock('@/composables/useAuth', () => ({
-  useAuth: () => ({
+  useAuth: () => reactive({
     fetchUser: mockFetchUser,
     isAuthenticated: mockIsAuthenticated,
   })
@@ -53,7 +54,7 @@ describe('App.vue', () => {
     expect(mockFetchUser).toHaveBeenCalled();
   });
 
-  it('redirects to /login when user becomes unauthenticated on a requiresAuth route', async () => {
+  it('triggers router.replace with fullPath when user becomes unauthenticated on a requiresAuth route', async () => {
     mockRoute.path = '/resources/5/edit';
     mockRoute.fullPath = '/resources/5/edit';
     mockRoute.name = 'plugin-edit';
@@ -72,10 +73,7 @@ describe('App.vue', () => {
     mockIsAuthenticated.value = false;
     await new Promise(r => setTimeout(r, 10));
 
-    expect(mockPush).toHaveBeenCalledWith({
-      name: 'login',
-      query: { redirect: '/resources/5/edit' },
-    });
+    expect(mockReplace).toHaveBeenCalledWith('/resources/5/edit');
   });
 
   it('does not redirect when user becomes unauthenticated on a public route', async () => {
@@ -97,14 +95,15 @@ describe('App.vue', () => {
     mockIsAuthenticated.value = false;
     await new Promise(r => setTimeout(r, 10));
 
+    expect(mockReplace).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('does not redirect if route is already login', async () => {
+  it('does not redirect if route does not require auth (such as login)', async () => {
     mockRoute.path = '/login';
     mockRoute.fullPath = '/login';
     mockRoute.name = 'login';
-    mockRoute.meta = { requiresAuth: true };
+    mockRoute.meta = { guestOnly: true };
 
     mount(App, {
       global: {
@@ -119,6 +118,7 @@ describe('App.vue', () => {
     mockIsAuthenticated.value = false;
     await new Promise(r => setTimeout(r, 10));
 
+    expect(mockReplace).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
   });
 });

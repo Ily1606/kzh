@@ -51,7 +51,8 @@ export function useAuth() {
       const response = await profileShow();
       store.setUser(response.data || null);
     } catch (e: any) {
-      if (e?.response?.status === 401 || e?.status === 401) {
+      const status = e?.response?.status;
+      if ([401, 403, 419].includes(status) && store.token) {
         clearSession();
       }
     } finally {

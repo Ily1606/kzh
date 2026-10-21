@@ -1,5 +1,6 @@
-import { useAuthStore } from './auth.store';
-import { usePluginsStore } from './plugins.store';
+import { getActivePinia } from 'pinia';
+import { AUTH_STORAGE_KEY, useAuthStore } from './auth.store';
+import { usePluginsStore } from './plugins';
 
 /**
  * Clears the user's client session across all relevant stores.
@@ -8,10 +9,15 @@ import { usePluginsStore } from './plugins.store';
  * (such as plugins with `is_star` state).
  */
 export function clearSession(): void {
-  const authStore = useAuthStore();
-  const pluginsStore = usePluginsStore();
-
-  authStore.clearAuth();
-  pluginsStore.reset();
+ if (getActivePinia()) {
+    const authStore = useAuthStore();
+    const pluginsStore = usePluginsStore();
+    authStore.clearAuth();
+    pluginsStore.reset();
+  } else {
+    // Fallback dọn dẹp localStorage khi không có Pinia active
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem('auth_token');
+  }
 }
 

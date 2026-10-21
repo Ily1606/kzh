@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/form";
 import { registerSchema } from "@/schemas/auth.schema";
 
-const { handleSubmit } = useForm({
+const { handleSubmit, setErrors } = useForm({
   validationSchema: registerSchema,
   initialValues: {
     name: "",
@@ -46,8 +46,25 @@ const onSubmit = handleSubmit(async (values) => {
       password_confirmation: values.confirmPassword,
     });
     router.push("/");
-  } catch (e) {
+  } catch (e: any) {
+    const res = e?.response;
+    const fieldErrors = res?.status === 422 && res?.data?.errors;
+
+    if (fieldErrors && typeof fieldErrors === "object") {
+      const mappedErrors: Record<string, string> = {};
+      Object.entries(fieldErrors as Record<string, string[]>).forEach(([field, messages]) => {
+        const formField = field === "password_confirmation" ? "confirmPassword" : field;
+        if (messages?.[0]) {
+          mappedErrors[formField] = messages[0];
+        }
+      });
+      setErrors(mappedErrors);
+    }
+
     errorMsg.value = getApiErrorMessage(e, {
+      422: fieldErrors && Object.keys(fieldErrors).length > 0
+        ? "Please check the highlighted fields below."
+        : undefined,
       default: "Couldn't create your account. Please try again.",
     });
   } finally {
