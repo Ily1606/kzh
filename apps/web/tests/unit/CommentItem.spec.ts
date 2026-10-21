@@ -314,5 +314,46 @@ describe('CommentItem.vue', () => {
     const matches = wrapper.findAll('p').filter(p => p.text() === 'Second reply')
     expect(matches.length).toBe(1)
   })
+
+  it('does not lose newly submitted reply when concurrent with toggleReplies fetch', async () => {
+    let resolveFirstFetch: any
+    const firstFetchPromise = new Promise(resolve => {
+      resolveFirstFetch = resolve
+    })
+
+    // First fetch triggered by toggleReplies hangs until we manually resolve
+    mockCommentReplies.mockImplementationOnce(() => firstFetchPromise)
+    mockCommentStore.mockResolvedValueOnce({
+      data: { comment: { id: 'new-reply', content: 'Brand new reply' } }
+    })
+
+    const wrapper = mount(CommentItem, {
+      props: { comment: { ...mockComment, replies_count: '1' }, pluginId: '1', depth: 1 },
+      global: { stubs: ['router-link'] }
+    })
+
+    // 1. User clicks View replies (fetch is in-flight)
+    const viewBtn = wrapper.findAll('button').find(b => b.text().includes('View 1 reply'))
+    await viewBtn!.trigger('click')
+
+    // 2. User quickly opens reply form and submits a reply
+    const replyBtn = wrapper.findAll('button').find(b => b.text().includes('Reply'))
+    await replyBtn!.trigger('click')
+    await wrapper.find('textarea').setValue('Brand new reply')
+    await wrapper.vm.$nextTick()
+    const submitBtn = replySubmitButton(wrapper)
+    await submitBtn.trigger('click')
+
+    // 3. First fetch completes later with the old reply
+    resolveFirstFetch({
+      data: { comments: [{ id: 'old-reply', content: 'Old reply from server' }] },
+      meta: { current_page: 1, last_page: 1 }
+    })
+    await flushPromises()
+
+    // Both the newly submitted reply and the old reply must be present!
+    expect(wrapper.text()).toContain('Brand new reply')
+    expect(wrapper.text()).toContain('Old reply from server')
+  })
 })
 
