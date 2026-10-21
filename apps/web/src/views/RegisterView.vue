@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { getApiErrorMessage } from "@/utils/error";
 import { useAuth } from "@/composables/useAuth";
 import { useForm } from "vee-validate";
@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { registerSchema } from "@/schemas/auth.schema";
+import { safeRedirect } from "@/utils/safe-redirect";
 
 const { handleSubmit, setErrors } = useForm({
   validationSchema: registerSchema,
@@ -32,6 +33,7 @@ const errorMsg = ref("");
 const loading = ref(false);
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuth();
 
 const onSubmit = handleSubmit(async (values) => {
@@ -45,7 +47,7 @@ const onSubmit = handleSubmit(async (values) => {
       password: values.password,
       password_confirmation: values.confirmPassword,
     });
-    router.push("/");
+    router.push(safeRedirect(route.query.redirect));
   } catch (e: any) {
     const res = e?.response;
     const fieldErrors = res?.status === 422 && res?.data?.errors;
@@ -117,6 +119,6 @@ const onSubmit = handleSubmit(async (values) => {
       </FormField>
       <Button class="w-full" type="submit" :disabled="loading"><Spinner v-if="loading" />{{ loading ? "Creating account" : "Create account" }}</Button>
     </form>
-    <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">Already a publisher? <RouterLink to="/login" class="font-medium text-primary hover:underline">Sign in</RouterLink></p>
+    <p class="border-t px-6 py-4 text-center text-sm text-muted-foreground">Already a publisher? <RouterLink :to="{ path: '/login', query: route.query.redirect ? { redirect: route.query.redirect } : undefined }" class="font-medium text-primary hover:underline">Sign in</RouterLink></p>
   </Card>
 </template>

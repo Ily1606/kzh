@@ -34,8 +34,9 @@ const { v1Health } = getHealth();
 const store = usePluginsStore();
 
 onMounted(async () => {
-  // Independent of the health probe: a down API is already reported in the
-  // registry status card, and must not stop the trending list from loading.
+  // Independent requests: trending failures (including 429) must not mark the
+  // API as down ("API unavailable"), and a failing health probe must not block
+  // trending plugins from loading.
   store.fetchTrending();
 
   try {
