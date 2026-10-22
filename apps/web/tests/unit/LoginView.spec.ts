@@ -195,4 +195,56 @@ describe('LoginView.vue', () => {
 
     expect(wrapper.text()).toContain('Something went wrong. Please try again.');
   });
+
+  it('displays locked account error message when account is locked', async () => {
+    const wrapper = mount(LoginView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockLogin.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: { message: 'Your account has been locked. Please contact support.' }
+      }
+    });
+
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInput = wrapper.find('input[type="password"]');
+
+    await emailInput.setValue('locked@example.com');
+    await passwordInput.setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('Your account has been locked. Please contact support.');
+  });
+
+  it('displays deleted account error message when account is deleted', async () => {
+    const wrapper = mount(LoginView, {
+      global: {
+        stubs: ['RouterLink', 'Spinner']
+      }
+    });
+
+    mockLogin.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: { message: 'This account has been deleted.' }
+      }
+    });
+
+    const emailInput = wrapper.find('input[type="email"]');
+    const passwordInput = wrapper.find('input[type="password"]');
+
+    await emailInput.setValue('deleted@example.com');
+    await passwordInput.setValue('password123');
+
+    await wrapper.find('form').trigger('submit');
+    await new Promise(r => setTimeout(r, 10));
+
+    expect(wrapper.text()).toContain('This account has been deleted.');
+  });
 });

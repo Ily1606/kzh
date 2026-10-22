@@ -6,9 +6,12 @@ use App\Contracts\AuthRepositoryInterface;
 use App\Events\Auth\UserLoggedIn;
 use App\Events\Auth\UserLoggedOut;
 use App\Events\Auth\UserRegistered;
+use App\Exceptions\AccountDeletedException;
+use App\Exceptions\AccountLockedException;
 use App\Exceptions\InvalidCredentialsException;
 use App\Models\User;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use App\Support\RequestContext;
@@ -26,6 +29,7 @@ final class AuthService
      */
     public function register(array $attributes, RequestContext $requestContext): array
     {
+        $attributes['email'] = Str::lower(trim($attributes['email']));
         $result = $this->issueToken($this->authRepository->createUser($attributes));
 
         UserRegistered::dispatch($result['user'], $requestContext);
@@ -49,11 +53,21 @@ final class AuthService
             throw new ThrottleRequestsException('Too Many Attempts.');
         }
 
-        $user = $this->authRepository->findValidUser($email, $password);
+        $user = $this->authRepository->findByEmailWithTrashed($email);
 
-        if ($user === null) {
+        if ($user === null || ! Hash::check($password, $user->password)) {
             RateLimiter::hit($rateLimitKey);
             throw new InvalidCredentialsException;
+        }
+
+        if ($user->trashed()) {
+            RateLimiter::hit($rateLimitKey);
+            throw new AccountDeletedException;
+        }
+
+        if ($user->locked_at !== null) {
+            RateLimiter::hit($rateLimitKey);
+            throw new AccountLockedException;
         }
 
         RateLimiter::clear($rateLimitKey);
