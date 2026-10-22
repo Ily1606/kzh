@@ -47,7 +47,6 @@ const onSubmit = handleSubmit(async (values) => {
   } catch (e) {
     errorMsg.value = getApiErrorMessage(e, {
       401: "Incorrect email or password.",
-      422: "Incorrect email or password.",
     });
   } finally {
     loading.value = false;

@@ -6,6 +6,7 @@ use App\Contracts\AuthRepositoryInterface;
 use App\Models\User;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\NewAccessToken;
 
 /**
@@ -52,6 +53,27 @@ final class AuthRepository extends UserRepository implements AuthRepositoryInter
         return $user !== null && Hash::check($password, $user->password)
             ? $user
             : null;
+    }
+
+    public function findByEmailWithTrashed(string $email): ?User
+    {
+        $normalizedEmail = Str::lower(trim($email));
+
+        // 1. Prioritize active (non-deleted) account
+        $activeUser = $this->newQuery()
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+            ->first();
+
+        if ($activeUser !== null) {
+            return $activeUser;
+        }
+
+        // 2. If no active account exists, find the most recently deleted account
+        return $this->newQuery()
+            ->onlyTrashed()
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+            ->latest('deleted_at')
+            ->first();
     }
 
     public function createToken(User $user): NewAccessToken

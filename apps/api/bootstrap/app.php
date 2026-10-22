@@ -1,5 +1,7 @@
 <?php
 
+use App\Exceptions\AccountDeletedException;
+use App\Exceptions\AccountLockedException;
 use App\Exceptions\InvalidCredentialsException;
 use App\Support\ApiResponse;
 use Illuminate\Auth\AuthenticationException;
@@ -64,6 +66,26 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return ApiResponse::errorResponse(__('api.invalid_credentials'), 422, [
                 'email' => [__('api.invalid_credentials')],
+            ]);
+        });
+
+        $exceptions->render(function (AccountLockedException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiResponse::errorResponse(__('api.account_locked'), 422, [
+                'email' => [__('api.account_locked')],
+            ]);
+        });
+
+        $exceptions->render(function (AccountDeletedException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiResponse::errorResponse(__('api.account_deleted'), 422, [
+                'email' => [__('api.account_deleted')],
             ]);
         });
 

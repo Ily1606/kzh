@@ -54,6 +54,34 @@ class AuthSmokeTest extends TestCase
             ->assertJsonValidationErrors('email');
     }
 
+    public function test_register_allows_same_email_if_previous_account_was_soft_deleted(): void
+    {
+        $oldUser = User::factory()->create([
+            'email' => 'reuse@example.com',
+            'password' => 'old-password',
+            'deleted_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/register', [
+            'name' => 'New User',
+            'email' => 'reuse@example.com',
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ]);
+
+        $response->assertCreated();
+        $newUserId = $response->json('data.user.id');
+
+        $this->assertNotEquals($oldUser->id, $newUserId);
+
+        // Verify that the new user can log in with new password
+        $this->postJson('/api/v1/login', [
+            'email' => 'reuse@example.com',
+            'password' => 'new-password-123',
+        ])->assertOk()
+            ->assertJsonPath('data.user.id', $newUserId);
+    }
+
     public function test_register_requires_matching_password_confirmation(): void
     {
         $this->postJson('/api/v1/register', [
@@ -133,6 +161,8 @@ class AuthSmokeTest extends TestCase
             'email' => $user->email,
             'password' => 'secret-password',
         ])->assertUnprocessable()
+            ->assertJsonPath('message', 'Your account has been locked. Please contact support.')
+            ->assertJsonPath('errors.email.0', 'Your account has been locked. Please contact support.')
             ->assertJsonValidationErrors('email');
     }
 
@@ -147,7 +177,36 @@ class AuthSmokeTest extends TestCase
             'email' => $user->email,
             'password' => 'secret-password',
         ])->assertUnprocessable()
+            ->assertJsonPath('message', 'This account has been deleted.')
+            ->assertJsonPath('errors.email.0', 'This account has been deleted.')
             ->assertJsonValidationErrors('email');
+    }
+
+    public function test_login_does_not_reveal_locked_or_deleted_status_when_password_is_wrong(): void
+    {
+        $lockedUser = User::factory()->create([
+            'password' => 'secret-password',
+            'locked_at' => now(),
+        ]);
+
+        $this->postJson('/api/v1/login', [
+            'email' => $lockedUser->email,
+            'password' => 'wrong-password',
+        ])->assertUnprocessable()
+            ->assertJsonPath('message', 'Email or password is incorrect.')
+            ->assertJsonPath('errors.email.0', 'Email or password is incorrect.');
+
+        $deletedUser = User::factory()->create([
+            'password' => 'secret-password',
+            'deleted_at' => now(),
+        ]);
+
+        $this->postJson('/api/v1/login', [
+            'email' => $deletedUser->email,
+            'password' => 'wrong-password',
+        ])->assertUnprocessable()
+            ->assertJsonPath('message', 'Email or password is incorrect.')
+            ->assertJsonPath('errors.email.0', 'Email or password is incorrect.');
     }
 
     public function test_auth_endpoints_are_rate_limited_per_ip(): void
