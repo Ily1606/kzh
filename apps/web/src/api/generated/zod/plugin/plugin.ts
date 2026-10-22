@@ -264,6 +264,15 @@ export const PluginUpdateResponse = zod.object({
 /**
  * @summary Trending
  */
+
+
+
+
+export const PluginTrendingQueryParams = zod.object({
+  "page": zod.number().int().min(1).nullish(),
+  "per_page": zod.number().int().min(1).nullish()
+})
+
 export const PluginTrendingResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Request successful."),
@@ -271,7 +280,14 @@ export const PluginTrendingResponse = zod.object({
   "plugins": zod.array(zod.unknown())
 }),
   "errors": zod.null(),
-  "meta": zod.string()
+  "meta": zod.object({
+  "current_page": zod.number().int(),
+  "from": zod.number().int().nullable(),
+  "last_page": zod.number().int(),
+  "per_page": zod.number().int(),
+  "to": zod.number().int().nullable(),
+  "total": zod.number().int()
+})
 })
 
 /**
@@ -326,15 +342,7 @@ export const PluginTrackViewParams = zod.object({
 export const PluginTrackViewResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string(),
-  "data": zod.union([zod.object({
-  "status": zod.literal("ignored"),
-  "message": zod.literal("You have already viewed this plugin in the last 24 hours."),
-  "view_count": zod.number().int()
-}),zod.object({
-  "status": zod.literal("success"),
-  "message": zod.literal("View counted successfully."),
-  "view_count": zod.number().int()
-})]),
+  "data": zod.array(zod.unknown()),
   "errors": zod.null(),
   "meta": zod.string()
 })

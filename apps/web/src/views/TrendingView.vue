@@ -6,7 +6,8 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from '@lucide/vue'
 import { usePluginsStore } from '@/stores'
 import TrendingPluginRow from '@/components/pages/trending/TrendingPluginRow.vue'
@@ -19,55 +20,86 @@ const store = usePluginsStore()
 
 const PER_PAGE = pluginConfig.numberTrendingPluginPerPage
 
-const currentPage = ref(typeof route.query.page === 'string' ? Math.max(1, parseInt(route.query.page, 10) || 1) : 1)
+function parsePageQuery(): number {
+  const raw = route.query.page
+  const parsed = Number.parseInt(Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? ''), 10)
+  return Number.isNaN(parsed) || parsed < 1 ? 1 : parsed
+}
+
+const currentPage = ref(parsePageQuery())
 
 const trendingPlugins = computed(() => store.trendingPlugins)
+const totalItems = computed(() => store.trending.total || trendingPlugins.value.length)
+const totalPages = computed(() =>
+  Math.max(1, store.trending.lastPage > 1 ? store.trending.lastPage : Math.ceil(totalItems.value / PER_PAGE))
+)
 
-const totalPages = computed(() => Math.max(1, Math.ceil(trendingPlugins.value.length / PER_PAGE)))
-
+// If the list has more than PER_PAGE items (e.g. unpaginated API or mock), slice client-side.
+// Otherwise, the backend already returned the slice for this page.
 const paginatedPlugins = computed(() => {
-  const start = (currentPage.value - 1) * PER_PAGE
-  return trendingPlugins.value.slice(start, start + PER_PAGE)
+  if (trendingPlugins.value.length > PER_PAGE) {
+    const start = (currentPage.value - 1) * PER_PAGE
+    return trendingPlugins.value.slice(start, start + PER_PAGE)
+  }
+  return trendingPlugins.value
 })
 
-function syncQuery() {
-  const query: Record<string, string> = {}
-  if (currentPage.value > 1) query.page = String(currentPage.value)
+async function syncQuery(page: number) {
+  const query = { ...route.query }
+  if (page > 1) {
+    query.page = String(page)
+  } else {
+    delete query.page
+  }
 
-  router.replace({ query })
+  await router.replace({ query })
 }
 
-function goToPage(p: number) {
-  if (p < 1 || p > totalPages.value) return
+async function loadData(page = currentPage.value, force = false) {
+  await store.fetchTrending(page, force)
+}
+
+async function goToPage(p: number) {
+  if (p < 1 || (totalPages.value > 0 && p > totalPages.value)) return
   currentPage.value = p
-  syncQuery()
+  await syncQuery(p)
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  await loadData(p)
 }
 
-async function loadData(force = false) {
-  await store.fetchTrending(force)
-}
+watch(
+  () => route.query.page,
+  async () => {
+    const pageFromQuery = parsePageQuery()
+    if (pageFromQuery !== currentPage.value) {
+      currentPage.value = pageFromQuery
+      await loadData(pageFromQuery)
+    }
+  }
+)
 
 watch(totalPages, (max) => {
-  if (currentPage.value > max) {
-    currentPage.value = max
-    syncQuery()
+  if (max > 0 && currentPage.value > max) {
+    goToPage(max)
   }
 })
 
 onMounted(() => {
-  loadData(false)
+  loadData(currentPage.value, false)
 })
 </script>
 
 <template>
   <div class="py-10 sm:py-12 space-y-8 max-w-5xl mx-auto">
     <!-- Header: GitHub Trending style banner -->
-    <div class="text-center sm:text-left pb-6 border-b border-zinc-300 dark:border-zinc-700">
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
-        Trending Plugins
-      </h1>
-      <p class="mt-2 text-foreground/85 font-medium text-sm sm:text-base max-w-2xl leading-relaxed">
+    <div>
+      <div class="inline-flex items-center gap-2 py-1 text-xs font-medium mb-3">
+        <span class="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+          <Sparkles class="size-5" />
+        </span>
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">Trending Plugins</h1>
+      </div>
+      <p class="mt-2 text-muted-foreground max-w-xl">
         See what the developer community is most excited about today. Ranked by recent engagement, stars, and views.
       </p>
     </div>
@@ -79,8 +111,8 @@ onMounted(() => {
       data-test="error-banner"
     >
       <AlertCircle class="size-8 mx-auto text-destructive" />
-      <p class="text-sm font-semibold text-destructive">{{ store.fetchError }}</p>
-      <Button variant="outline" size="sm" class="font-semibold" data-test="retry-button" @click="loadData(true)">
+      <p class="text-sm font-normal text-destructive">{{ store.fetchError }}</p>
+      <Button variant="outline" size="sm" class="font-normal" data-test="retry-button" @click="loadData(currentPage, true)">
         Try again
       </Button>
     </div>
@@ -91,15 +123,15 @@ onMounted(() => {
       class="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-card text-card-foreground shadow-sm overflow-hidden"
     >
       <!-- Box Header Bar -->
-      <div class="flex items-center justify-between px-5 py-3 bg-muted/60 border-b border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-foreground">
+      <div class="flex items-center justify-between px-5 py-3 bg-muted/60 border-b border-zinc-300 dark:border-zinc-700 text-xs font-normal text-foreground">
         <div class="flex items-center gap-2">
           <Flame class="size-4 text-amber-500" />
-          <span class="font-bold text-foreground">Trending repositories</span>
+          <span class="font-normal text-foreground">Trending repositories</span>
           <span
             v-if="!store.isFetchingTrending"
-            class="rounded-full bg-muted-foreground/15 text-foreground px-2 py-0.5 text-xs font-mono font-bold"
+            class="rounded-full bg-muted-foreground/15 text-foreground px-2 py-0.5 text-xs font-mono font-normal"
           >
-            {{ trendingPlugins.length }}
+            {{ totalItems }}
           </span>
         </div>
       </div>
@@ -138,10 +170,10 @@ onMounted(() => {
         <div class="size-12 rounded-full bg-muted/60 grid place-items-center mx-auto text-muted-foreground">
           <Flame class="size-6 text-muted-foreground/60" />
         </div>
-        <h3 class="text-base font-semibold text-foreground">
+        <h3 class="text-base font-normal text-foreground">
           No trending plugins available
         </h3>
-        <p class="text-sm font-medium text-foreground/75 max-w-sm mx-auto">
+        <p class="text-sm font-normal text-foreground/75 max-w-sm mx-auto">
           There are currently no trending packages. Be the first to publish a popular package!
         </p>
         <div class="pt-2 flex justify-center gap-3">
@@ -155,7 +187,10 @@ onMounted(() => {
 
       <!-- Trending List -->
       <template v-else>
-        <ol class="divide-y divide-zinc-300 dark:divide-zinc-700">
+        <ol
+          class="divide-y divide-zinc-300 dark:divide-zinc-700 transition-opacity"
+          :class="{ 'opacity-60 pointer-events-none': store.isFetchingTrending }"
+        >
           <li v-for="(plugin, index) in paginatedPlugins" :key="plugin.id">
             <TrendingPluginRow
               :plugin="plugin"
@@ -167,16 +202,16 @@ onMounted(() => {
         <!-- Pagination Controls (10 plugins per page) -->
         <div
           v-if="totalPages > 1"
-          class="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-zinc-300 dark:border-zinc-700 bg-muted/30 text-xs"
+          class="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-zinc-300 dark:border-zinc-700 bg-muted/30 text-xs font-normal"
           data-test="pagination-bar"
         >
-          <div class="text-xs font-semibold text-foreground/80">
+          <div class="text-xs font-normal text-foreground/80">
             Showing
-            <span class="font-bold text-foreground">{{ (currentPage - 1) * PER_PAGE + 1 }}</span>
+            <span class="font-normal text-foreground">{{ totalItems > 0 ? (currentPage - 1) * PER_PAGE + 1 : 0 }}</span>
             to
-            <span class="font-bold text-foreground">{{ Math.min(currentPage * PER_PAGE, trendingPlugins.length) }}</span>
+            <span class="font-normal text-foreground">{{ Math.min(currentPage * PER_PAGE, totalItems) }}</span>
             of
-            <span class="font-bold text-foreground">{{ trendingPlugins.length }}</span>
+            <span class="font-normal text-foreground">{{ totalItems }}</span>
             plugins
           </div>
 
@@ -184,9 +219,9 @@ onMounted(() => {
             <Button
               variant="outline"
               size="sm"
-              class="h-8 gap-1 font-bold text-foreground"
+              class="h-8 gap-1 font-normal text-foreground"
               data-test="prev-page"
-              :disabled="currentPage <= 1"
+              :disabled="currentPage <= 1 || store.isFetchingTrending"
               @click="goToPage(currentPage - 1)"
             >
               <ChevronLeft class="size-3.5" />
@@ -197,25 +232,26 @@ onMounted(() => {
               <button
                 v-for="p in totalPages"
                 :key="p"
-                class="size-8 rounded-md text-xs font-bold transition-colors"
+                class="size-8 rounded-md text-xs font-normal transition-colors"
                 :class="p === currentPage ? 'bg-primary text-primary-foreground shadow-xs' : 'text-foreground hover:bg-muted'"
                 :data-test="`page-button-${p}`"
+                :disabled="store.isFetchingTrending"
                 @click="goToPage(p)"
               >
                 {{ p }}
               </button>
             </div>
 
-            <span class="sm:hidden font-bold text-foreground px-2">
+            <span class="sm:hidden font-normal text-foreground px-2">
               Page {{ currentPage }} of {{ totalPages }}
             </span>
 
             <Button
               variant="outline"
               size="sm"
-              class="h-8 gap-1 font-bold text-foreground"
+              class="h-8 gap-1 font-normal text-foreground"
               data-test="next-page"
-              :disabled="currentPage >= totalPages"
+              :disabled="currentPage >= totalPages || store.isFetchingTrending"
               @click="goToPage(currentPage + 1)"
             >
               <span>Next</span>

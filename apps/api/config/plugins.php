@@ -62,6 +62,8 @@ return [
     'trending_api' => [
         'default_limit' => env('PLUGIN_TRENDING_DEFAULT_LIMIT', 15),
         'max_limit' => env('PLUGIN_TRENDING_MAX_LIMIT', 50),
+        'default_per_page' => env('PLUGIN_TRENDING_DEFAULT_PER_PAGE', env('PLUGIN_TRENDING_DEFAULT_LIMIT', 15)),
+        'max_per_page' => env('PLUGIN_TRENDING_MAX_PER_PAGE', env('PLUGIN_TRENDING_MAX_LIMIT', 50)),
     ],
 
     /*

@@ -14,11 +14,12 @@ vi.mock('vue-router', () => ({
   RouterLink: {
     props: ['to'],
     computed: {
-      href() {
-        if (typeof this.to === 'string') return this.to
-        if (this.to && typeof this.to === 'object') {
-          const path = this.to.path || ''
-          const query = this.to.query
+      href(): string {
+        const to = (this as any).to
+        if (typeof to === 'string') return to
+        if (to && typeof to === 'object') {
+          const path = to.path || ''
+          const query = to.query
           if (query && Object.keys(query).length > 0) {
             const params = new URLSearchParams(query).toString()
             return `${path}?${params}`

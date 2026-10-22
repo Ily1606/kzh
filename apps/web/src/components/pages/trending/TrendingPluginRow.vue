@@ -27,26 +27,26 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
       <div class="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
         <!-- Rank Badge -->
         <span
-          class="inline-flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold ring-1 ring-inset"
+          class="inline-flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-normal ring-1 ring-inset"
           :class="{
-            'bg-amber-100 text-amber-900 ring-amber-500/70 dark:bg-amber-950/90 dark:text-amber-200': rank === 1,
-            'bg-slate-200 text-slate-800 ring-slate-400 dark:bg-slate-700 dark:text-slate-100': rank === 2,
-            'bg-orange-100 text-orange-900 ring-orange-500/70 dark:bg-orange-950/90 dark:text-orange-200': rank === 3,
-            'bg-muted text-foreground ring-zinc-300 dark:ring-zinc-700': rank > 3,
+            'bg-amber-100 text-amber-900 ring-amber-400 dark:bg-amber-400 dark:text-amber-950 dark:ring-amber-300': rank === 1,
+            'bg-slate-200 text-slate-800 ring-slate-400 dark:bg-slate-200 dark:text-slate-900 dark:ring-slate-100': rank === 2,
+            'bg-orange-100 text-orange-900 ring-orange-400 dark:bg-orange-400 dark:text-orange-950 dark:ring-orange-300': rank === 3,
+            'bg-muted text-muted-foreground ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700': rank > 3,
           }"
         >
           {{ rank }}
         </span>
 
         <!-- Author / Plugin Name -->
-        <h2 class="text-base sm:text-lg font-bold tracking-tight min-w-0 font-mono">
+        <h2 class="text-base sm:text-lg font-normal tracking-tight min-w-0 font-mono">
           <RouterLink
             :to="{ name: 'plugin-detail', params: { id: plugin.id } }"
-            class="inline-flex items-baseline gap-1 hover:underline text-foreground"
+            class="inline-flex items-baseline gap-1 text-foreground"
           >
-            <span class="font-semibold text-foreground/80 group-hover:text-foreground">{{ authorName }}</span>
-            <span class="text-foreground/40 font-normal">/</span>
-            <span class="font-extrabold text-foreground group-hover:text-primary underline-offset-4">{{ plugin.name }}</span>
+            <span class="font-normal text-foreground group-hover:text-primary">{{ authorName }}</span>
+            <span class="text-foreground font-normal group-hover:text-primary">/</span>
+            <span class="font-normal text-foreground group-hover:text-primary">{{ plugin.name }}</span>
           </RouterLink>
         </h2>
       </div>
@@ -68,29 +68,29 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
     <!-- Meta row: Category, Author, Stars, Views, Comments, Source, Date -->
     <div class="mt-1 flex flex-wrap items-center gap-x-4.5 gap-y-1.5 text-xs text-muted-foreground">
       <!-- Category Badge -->
-      <span v-if="plugin.category" class="inline-flex items-center gap-1.5 font-semibold text-foreground">
+      <span v-if="plugin.category" class="inline-flex items-center gap-1.5 font-normal text-foreground">
         <span class="size-2 rounded-full bg-primary shrink-0" />
         <span>{{ plugin.category }}</span>
       </span>
 
       <!-- Author -->
-      <span class="inline-flex items-center gap-1.5 text-foreground/90">
+      <span class="inline-flex items-center gap-1.5 text-foreground/90 font-normal">
         <span class="text-muted-foreground font-normal">Built by</span>
-        <Author :name="authorName" :src="authorAvatar" size="sm" class="font-bold text-foreground" />
+        <Author :name="authorName" :src="authorAvatar" size="sm" class="font-normal text-foreground" />
       </span>
 
       <!-- Star Count -->
       <span
-        class="inline-flex items-center gap-1 tabular-nums font-semibold text-foreground/90"
+        class="inline-flex items-center gap-1 tabular-nums font-normal text-foreground/90"
         title="Total stars"
       >
-        <Star class="size-3.5 text-amber-500 fill-amber-500/20 shrink-0" />
+        <Star class="size-3.5 text-foreground/70 shrink-0" />
         <span>{{ (plugin.star_count ?? 0).toLocaleString() }}</span>
       </span>
 
       <!-- View Count -->
       <span
-        class="inline-flex items-center gap-1 tabular-nums font-semibold text-foreground/90"
+        class="inline-flex items-center gap-1 tabular-nums font-normal text-foreground/90"
         title="Total views"
       >
         <Eye class="size-3.5 text-foreground/70 shrink-0" />
@@ -100,7 +100,7 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
       <!-- Comment Count -->
       <span
         v-if="plugin.comment_count !== undefined"
-        class="hidden sm:inline-flex items-center gap-1 tabular-nums font-semibold text-foreground/90"
+        class="hidden sm:inline-flex items-center gap-1 tabular-nums font-normal text-foreground/90"
         title="Total comments"
       >
         <MessageSquare class="size-3.5 text-foreground/70 shrink-0" />
@@ -113,7 +113,7 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
         :href="plugin.source_link"
         target="_blank"
         rel="noopener noreferrer"
-        class="hidden sm:inline-flex items-center gap-1 font-semibold text-foreground/90 hover:text-primary transition-colors hover:underline"
+        class="hidden sm:inline-flex items-center gap-1 font-normal text-foreground/90 hover:text-primary transition-colors hover:underline"
         title="Source code"
       >
         <ExternalLink class="size-3 shrink-0" />

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Enums\PluginStatus;
 use App\Http\Requests\Api\V1\ListMyPluginsRequest;
 use App\Http\Requests\Api\V1\ListPluginsRequest;
+use App\Http\Requests\Api\V1\ListTrendingPluginsRequest;
 use App\Http\Requests\Api\V1\SubmitPluginRequest;
 use App\Http\Requests\Api\V1\UpdatePluginRequest;
 use App\Http\Resources\PluginResource;
@@ -154,15 +155,9 @@ class PluginController extends Controller
      *
      * @unauthenticated
      */
-    public function trending(Request $request): JsonResponse
+    public function trending(ListTrendingPluginsRequest $request): JsonResponse
     {
-        $defaultLimit = config('plugins.trending_api.default_limit');
-        $maxLimit = config('plugins.trending_api.max_limit');
-
-        $limit = (int) $request->query('limit', $defaultLimit);
-        $limit = max(1, min($limit, $maxLimit));
-
-        $paginator = $this->pluginService->getTrendingPlugins($limit, $request->user());
+        $paginator = $this->pluginService->getTrendingPlugins($request->perPage(), $request->user());
 
         return ApiResponse::successResponse([
             'plugins' => PluginResource::collection($paginator->items())->resolve(),
