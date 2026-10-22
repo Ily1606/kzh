@@ -18,4 +18,12 @@ return [
         'thanks' => 'Thanks,',
         'team' => ':app Team',
     ],
+    'account_locked' => [
+        'subject' => 'Your Account Has Been Locked',
+        'greeting' => 'Hello :name,',
+        'body' => 'Your account on :app has been locked by an administrator.',
+        'info' => 'While your account is locked, you will not be able to log in or access your plugins and data. If you believe this was done in error or need assistance, please contact our support team.',
+        'thanks' => 'Thanks,',
+        'team' => ':app Team',
+    ],
 ];

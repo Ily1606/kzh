@@ -4,12 +4,14 @@ namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
 use App\Jobs\CascadeDeleteUserData;
+use App\Mail\AccountLockedMail;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\Star;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
@@ -264,6 +266,54 @@ class UserObserverTest extends TestCase
 
         // Plugin should NOT be marked active without interaction
         $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+    }
+
+    public function test_locking_user_sends_account_locked_email(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'email' => 'locked_user@example.com',
+            'locked_at' => null,
+        ]);
+
+        // Act: lock user
+        $user->update(['locked_at' => now()]);
+
+        Mail::assertSent(AccountLockedMail::class, function (AccountLockedMail $mail) use ($user) {
+            return $mail->hasTo('locked_user@example.com')
+                && $mail->user->id === $user->id;
+        });
+    }
+
+    public function test_unlocking_user_does_not_send_account_locked_email(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'user_to_unlock@example.com',
+            'locked_at' => now(),
+        ]);
+
+        Mail::fake();
+
+        // Act: unlock user
+        $user->update(['locked_at' => null]);
+
+        Mail::assertNotSent(AccountLockedMail::class);
+    }
+
+    public function test_updating_other_user_attributes_does_not_send_account_locked_email(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'normal_user@example.com',
+            'locked_at' => null,
+        ]);
+
+        Mail::fake();
+
+        // Act: update name only
+        $user->update(['name' => 'Updated Name']);
+
+        Mail::assertNotSent(AccountLockedMail::class);
     }
 
     public function test_soft_deleting_user_cascades_all_comments_when_more_than_one_chunk(): void
