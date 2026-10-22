@@ -4,12 +4,14 @@ namespace Tests\Feature\Jobs;
 
 use App\Enums\PluginStatus;
 use App\Jobs\CascadeDeleteUserData;
+use App\Mail\AccountDeletedMail;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\Star;
 use App\Models\User;
 use App\Services\TrendingTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -281,6 +283,22 @@ class CascadeDeleteUserDataTest extends TestCase
 
         $this->assertFalse((bool) Redis::sismember($activeKey, $plugin->id));
         $this->assertNull(Redis::get($statKey));
+    }
+
+    public function test_sends_account_deleted_email_to_user_upon_successful_deletion(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create(['email' => 'deleted_user@example.com']);
+        $user->delete();
+
+        $job = new CascadeDeleteUserData($user);
+        $job->handle();
+
+        Mail::assertSent(AccountDeletedMail::class, function (AccountDeletedMail $mail) use ($user) {
+            return $mail->hasTo('deleted_user@example.com')
+                && $mail->user->id === $user->id;
+        });
     }
 }
 
