@@ -63,7 +63,7 @@ onMounted(() => {
 <template>
   <div class="py-10 sm:py-12 space-y-8 max-w-5xl mx-auto">
     <!-- Header: GitHub Trending style banner -->
-    <div class="text-center sm:text-left pb-6 border-b border-border/80">
+    <div class="text-center sm:text-left pb-6 border-b border-zinc-300 dark:border-zinc-700">
       <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
         Trending Plugins
       </h1>
@@ -88,10 +88,10 @@ onMounted(() => {
     <!-- Main Trending Container Box (GitHub Box Style) -->
     <div
       v-else
-      class="rounded-xl border bg-card text-card-foreground shadow-xs overflow-hidden"
+      class="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-card text-card-foreground shadow-sm overflow-hidden"
     >
       <!-- Box Header Bar -->
-      <div class="flex items-center justify-between px-5 py-3.5 bg-muted/40 border-b text-xs font-semibold text-foreground">
+      <div class="flex items-center justify-between px-5 py-3 bg-muted/60 border-b border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-foreground">
         <div class="flex items-center gap-2">
           <Flame class="size-4 text-amber-500" />
           <span class="font-bold text-foreground">Trending repositories</span>
@@ -107,12 +107,12 @@ onMounted(() => {
       <!-- Loading Skeleton (when fetching and empty) -->
       <div
         v-if="store.isFetchingTrending && !trendingPlugins.length"
-        class="divide-y divide-border/60"
+        class="divide-y divide-zinc-300 dark:divide-zinc-700"
       >
         <div
           v-for="i in 5"
           :key="i"
-          class="p-5 sm:p-6 space-y-3 animate-pulse"
+          class="px-4 py-4.5 sm:px-6 sm:py-5 space-y-3 animate-pulse"
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3 w-2/3">
@@ -122,7 +122,7 @@ onMounted(() => {
             <div class="h-8 w-20 rounded bg-muted" />
           </div>
           <div class="h-3.5 w-4/5 rounded bg-muted/60" />
-          <div class="flex gap-4 pt-1">
+          <div class="flex gap-4 pt-0.5">
             <div class="h-3 w-16 rounded bg-muted/50" />
             <div class="h-3 w-20 rounded bg-muted/50" />
             <div class="h-3 w-14 rounded bg-muted/50" />
@@ -155,7 +155,7 @@ onMounted(() => {
 
       <!-- Trending List -->
       <template v-else>
-        <ol class="divide-y divide-border/60">
+        <ol class="divide-y divide-zinc-300 dark:divide-zinc-700">
           <li v-for="(plugin, index) in paginatedPlugins" :key="plugin.id">
             <TrendingPluginRow
               :plugin="plugin"
@@ -167,7 +167,7 @@ onMounted(() => {
         <!-- Pagination Controls (10 plugins per page) -->
         <div
           v-if="totalPages > 1"
-          class="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t bg-muted/20 text-xs"
+          class="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3.5 border-t border-zinc-300 dark:border-zinc-700 bg-muted/30 text-xs"
           data-test="pagination-bar"
         >
           <div class="text-xs font-semibold text-foreground/80">

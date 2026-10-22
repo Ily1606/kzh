@@ -394,7 +394,16 @@ final class PluginService
         $total = Redis::zcard($zsetKey);
 
         if ($total === 0 && Cache::add('plugins:trending:refresh_attempted', true, 60)) {
-            Artisan::call('plugins:refresh-trending');
+            $daysLimit = (int) config('plugins.trending.days_limit');
+            $autoRecover = (bool) config('plugins.trending.auto_recover');
+            $hasActivePlugins = ! empty(TrendingTracker::getActivePluginIds($daysLimit));
+
+            if (! $hasActivePlugins && $autoRecover) {
+                Artisan::call('plugins:recover-trending');
+            } else {
+                Artisan::call('plugins:refresh-trending');
+            }
+
             $total = Redis::zcard($zsetKey);
         }
 

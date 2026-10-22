@@ -82,6 +82,9 @@ return [
         // Cron schedule for the plugins:refresh-trending job
         'schedule' => env('PLUGIN_TRENDING_SCHEDULE', '*/15 * * * *'),
 
+        // Auto recover trending statistics from DB if Redis loses interaction data
+        'auto_recover' => (bool) env('PLUGIN_TRENDING_AUTO_RECOVER', true),
+
         // Interaction weights for calculating trending scores
         'weights' => [
             'view' => (float) env('PLUGIN_TRENDING_WEIGHT_VIEW', 1.0),

@@ -584,5 +584,35 @@ class TrendingAlgorithmTest extends TestCase
 
         $this->assertSame(0, $counts['plugin-test-0']['views']);
     }
+
+    public function test_trend_31_auto_recover_trending_when_redis_is_empty_and_enabled(): void
+    {
+        config()->set('plugins.trending.auto_recover', true);
+
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDays(1),
+        ]);
+
+        $this->commentTimes($plugin, 5);
+
+        // Simulate Redis restart / complete data loss
+        Redis::flushdb();
+        Cache::flush();
+
+        // Active plugin keys in Redis should be completely empty
+        $this->assertEmpty(TrendingTracker::getActivePluginIds(7));
+
+        // When requesting trending, auto_recover should automatically restore stats from DB
+        $response = $this->getJson('/api/v1/plugins/trending');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.plugins')
+            ->assertJsonPath('data.plugins.0.id', $plugin->id)
+            ->assertJsonPath('data.plugins.0.comment_count', 5);
+
+        // Redis active plugin keys and stats should now be populated
+        $this->assertNotEmpty(TrendingTracker::getActivePluginIds(7));
+    }
 }
 
