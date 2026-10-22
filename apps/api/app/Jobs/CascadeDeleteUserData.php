@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\Mail\AccountDeletedMail;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\Star;
@@ -10,7 +11,9 @@ use App\Models\User;
 use App\Services\TrendingTracker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
+use Throwable;
 
 class CascadeDeleteUserData implements ShouldQueue
 {
@@ -42,7 +45,8 @@ class CascadeDeleteUserData implements ShouldQueue
 
         $deletedAt = $user->deleted_at ?? now();
 
-        $user->tokens()->delete();
+        // 1. Revoke API tokens
+        $this->revokeTokens($user);
 
         // 2. Cascade delete user's own plugins (and comments/stars on them)
         $this->cascadeDeleteOwnPlugins($user, $deletedAt);
@@ -60,6 +64,33 @@ class CascadeDeleteUserData implements ShouldQueue
         )));
 
         $this->refreshCachedPluginObjects($affectedPluginIds, $pluginRepository);
+
+        // 6. Send account deletion notification email to user
+        $this->sendAccountDeletedEmail($user);
+    }
+
+    /**
+     * Revoke all personal access tokens for the user.
+     */
+    private function revokeTokens(User $user): void
+    {
+        $user->tokens()->delete();
+    }
+
+    /**
+     * Send an email notifying the user that their account has been deleted.
+     */
+    private function sendAccountDeletedEmail(User $user): void
+    {
+        if (empty($user->email)) {
+            return;
+        }
+
+        try {
+            Mail::to($user->email)->send(new AccountDeletedMail($user));
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
