@@ -140,6 +140,19 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->paginate($perPage);
     }
 
+    public function getPaginatedApprovedPluginsByUser(string $userId, int $perPage): LengthAwarePaginator
+    {
+        return $this->baseQuery()
+            ->where('user_id', $userId)
+            ->approved()
+            ->withCount([
+                'stars as star_count',
+                'comments as comment_count' => fn (Builder $comments) => $comments->visible(),
+            ])
+            ->orderByDesc('approved_at')
+            ->paginate($perPage);
+    }
+
     public function getPaginatedPluginsByUser(string $userId, ?PluginStatus $status, int $perPage): LengthAwarePaginator
     {
         $query = $this->baseQuery()

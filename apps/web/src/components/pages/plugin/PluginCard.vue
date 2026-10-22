@@ -98,7 +98,13 @@ function goToDetail(id: string | undefined) {
     <h3 class="text-base sm:text-lg font-semibold text-foreground truncate group-hover:text-primary transition-colors" :title="plugin.name">{{ plugin.name }}</h3>
     <p class="flex items-center gap-1 min-w-0 mt-1 text-xs sm:text-sm text-muted-foreground">
       <span class="shrink-0">Publisher:</span>
-      <Author :name="authorName" :src="authorAvatar" />
+      <span @click.stop>
+        <Author
+          :name="authorName"
+          :src="authorAvatar"
+          :username="plugin.author?.username"
+        />
+      </span>
     </p>
 
     <p class="mt-2 text-xs sm:text-sm leading-relaxed text-foreground min-h-11 line-clamp-2">

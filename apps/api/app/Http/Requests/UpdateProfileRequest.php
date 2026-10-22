@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\UsernameHelper;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -29,7 +30,7 @@ class UpdateProfileRequest extends FormRequest
                 'required',
                 'string',
                 'max:39',
-                'regex:/^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$/',
+                'regex:'.UsernameHelper::PATTERN,
                 // Excludes the user's own row so they can keep their username.
                 Rule::unique('users', 'username')->ignore($this->user()?->getKey()),
             ],

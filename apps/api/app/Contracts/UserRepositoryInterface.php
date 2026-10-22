@@ -14,6 +14,11 @@ interface UserRepositoryInterface
     public function findByEmail(string $email): ?User;
 
     /**
+     * The user carrying this username, or null when the username is unknown.
+     */
+    public function findByUsername(string $username): ?User;
+
+    /**
      * Return the user matching the given credentials, or null when the email
      * is unknown, the account is locked, or the password does not match.
      */

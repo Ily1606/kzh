@@ -58,6 +58,14 @@ interface PluginRepositoryInterface
     public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null): LengthAwarePaginator;
 
     /**
+     * List the published plugins of one author, newest published first.
+     *
+     * @param  string  $userId  Owner the list is scoped to.
+     * @param  int  $perPage  Page size to paginate with.
+     */
+    public function getPaginatedApprovedPluginsByUser(string $userId, int $perPage): LengthAwarePaginator;
+
+    /**
      * List one owner's plugins, whatever their review status.
      *
      * @param  string  $userId  Owner the list is scoped to.
