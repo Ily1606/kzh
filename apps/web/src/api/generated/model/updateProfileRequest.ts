@@ -9,10 +9,10 @@ export interface UpdateProfileRequest {
   /** @maxLength 255 */
   name?: string;
   /**
-     * @maxLength 255
-     * @nullable
+     * @maxLength 39
+     * @pattern ^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$
      */
-  githubName?: string | null;
+  username?: string;
   /**
      * @maxLength 255
      * @nullable

@@ -21,8 +21,11 @@ interface UserRepositoryInterface
 
     /**
      * Update user's basic profile information.
+     *
+     * @param  array<string, mixed>  $userData
+     * @param  array<string, mixed>  $profileData
      */
-    public function updateProfile(User $user, ?string $name, array $profileData): User;
+    public function updateProfile(User $user, array $userData, array $profileData): User;
 
     /**
      * Update user's avatar.

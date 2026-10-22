@@ -59,11 +59,11 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
             : null;
     }
 
-    public function updateProfile(User $user, ?string $name, array $profileData): User
+    public function updateProfile(User $user, array $userData, array $profileData): User
     {
-        return DB::transaction(function () use ($user, $name, $profileData) {
-            if ($name !== null) {
-                $user->update(['name' => $name]);
+        return DB::transaction(function () use ($user, $userData, $profileData) {
+            if (! empty($userData)) {
+                $user->update($userData);
             }
 
             if (! empty($profileData)) {

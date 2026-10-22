@@ -4,11 +4,12 @@
  * DSH
  * OpenAPI spec version: 0.0.1
  */
+import type { PluginViewResource } from './pluginViewResource';
 
 export type PluginTrackView200 = {
   success: boolean;
   message: string;
-  data: unknown[];
+  data: PluginViewResource;
   /** @nullable */
   errors: null;
   meta: string;

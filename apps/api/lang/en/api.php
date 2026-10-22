@@ -22,6 +22,7 @@ return [
     'request_failed' => 'The request could not be completed.',
     'unexpected_error' => 'An unexpected error occurred.',
     'profile_updated' => 'User profile updated successfully.',
+    'username_taken' => 'The username has already been taken.',
     'avatar_updated' => 'Avatar updated successfully.',
     'password_updated' => 'Password updated successfully.',
     'password_reset_link_sent_if_exists' => 'If your email exists in our system, we have sent a password reset link.',

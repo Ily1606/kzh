@@ -10,11 +10,14 @@ use App\Exceptions\AccountDeletedException;
 use App\Exceptions\AccountLockedException;
 use App\Exceptions\InvalidCredentialsException;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use App\Support\RequestContext;
+use App\Support\UsernameHelper;
+use Illuminate\Validation\ValidationException;
 
 final class AuthService
 {
@@ -90,6 +93,40 @@ final class AuthService
         $revokedTokens = $this->authRepository->revokeTokens($user);
 
         UserLoggedOut::dispatch($user, $requestContext, $revokedTokens);
+    }
+
+    /**
+     * Create the user with a generated username.
+     *
+     * @param  array{name: string, email: string, password: string}  $attributes
+     */
+    private function createUser(array $attributes): User
+    {
+        $attempts = max(1, (int) config('users.username_attempts'));
+
+        for ($attempt = 0; $attempt < $attempts; $attempt++) {
+            try {
+                return $this->authRepository->createUser([
+                    ...$attributes,
+                    'username' => UsernameHelper::generate(),
+                ]);
+            } catch (UniqueConstraintViolationException $e) {
+                $isUsernameViolation = in_array('username', $e->columns, true)
+                    || str_contains((string) $e->index, 'username');
+
+                if ($isUsernameViolation) {
+                    // Another registration took the username in the meantime:
+                    // try again with a new one.
+                    continue;
+                }
+
+                throw $e;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'username' => __('api.username_taken'),
+        ]);
     }
 
     /**

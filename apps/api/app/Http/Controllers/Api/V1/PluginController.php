@@ -160,7 +160,7 @@ class PluginController extends Controller
         $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
 
         return ApiResponse::successResponse(
-            (new PluginViewResource($result))->resolve(),
+            new PluginViewResource($result),
             $result->message
         );
     }

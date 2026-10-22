@@ -359,7 +359,10 @@ export const PluginTrackViewParams = zod.object({
 export const PluginTrackViewResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string(),
-  "data": zod.array(zod.unknown()),
+  "data": zod.object({
+  "status": zod.string(),
+  "view_count": zod.number().int()
+}),
   "errors": zod.null(),
   "meta": zod.string()
 })

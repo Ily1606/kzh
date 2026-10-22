@@ -76,6 +76,7 @@ export * from './pluginTrending200Meta';
 export * from './pluginTrendingParams';
 export * from './pluginUpdate200';
 export * from './pluginUpdate200Data';
+export * from './pluginViewResource';
 export * from './profileShow200';
 export * from './profileUpdateAvatar200';
 export * from './profileUpdatePassword200';

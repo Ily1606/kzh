@@ -8,7 +8,9 @@ use App\Events\Profile\UserPasswordUpdated;
 use App\Events\Profile\UserProfileUpdated;
 use App\Models\User;
 use App\Models\UserProfile;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -35,17 +37,21 @@ class ProfileService
      */
     public function updateProfile(User $user, array $data): User
     {
-        $name = $data['name'] ?? null;
+        $userData = Arr::only($data, ['name', 'username']);
 
         $profileData = [];
-        if (array_key_exists('githubName', $data)) {
-            $profileData['github_name'] = $data['githubName'];
-        }
         if (array_key_exists('githubLink', $data)) {
             $profileData['github_link'] = $data['githubLink'];
         }
 
-        $user = $this->userRepository->updateProfile($user, $name, $profileData);
+        try {
+            $user = $this->userRepository->updateProfile($user, $userData, $profileData);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'username' => __('api.username_taken'),
+            ]);
+        }
+
         UserProfileUpdated::dispatch($user);
 
         return $user;

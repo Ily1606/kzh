@@ -5,10 +5,11 @@ namespace Tests\Feature;
 use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use App\Models\UserProfile;
+use Exception;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Exception;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -40,12 +41,78 @@ class ProfileUpdateTest extends TestCase
         $response->assertStatus(200)->assertJsonPath('data.avatarLink', null);
     }
 
-    public function test_authenticated_user_can_update_github_name(): void
+    public function test_authenticated_user_can_update_username(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
-        $response = $this->patchJson('/api/v1/user', ['githubName' => 'giapnguyen']);
-        $response->assertStatus(200)->assertJsonPath('data.githubName', 'giapnguyen');
+        $response = $this->patchJson('/api/v1/user', ['username' => 'giapnguyen']);
+        $response->assertStatus(200)->assertJsonPath('data.username', 'giapnguyen');
+    }
+
+    public function test_username_is_stored_in_lowercase(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user', ['username' => 'GiapNguyen']);
+        $response->assertStatus(200)->assertJsonPath('data.username', 'giapnguyen');
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'username' => 'giapnguyen']);
+    }
+
+    public function test_authenticated_user_can_keep_their_own_username(): void
+    {
+        $user = User::factory()->create(['username' => 'giapnguyen']);
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user', ['username' => 'giapnguyen']);
+        $response->assertStatus(200)->assertJsonPath('data.username', 'giapnguyen');
+    }
+
+    public function test_cannot_take_another_users_username(): void
+    {
+        User::factory()->create(['username' => 'taken-name']);
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user', ['username' => 'Taken-Name']);
+        $response->assertStatus(422)->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_username_cannot_be_empty(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user', ['username' => '']);
+        $response->assertStatus(422)->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_validation_fails_if_username_has_invalid_format(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user', ['username' => '-giapnguyen-']);
+        $response->assertStatus(422)->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_validation_fails_if_username_is_too_long(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user', ['username' => Str::repeat('a', 40)]);
+        $response->assertStatus(422)->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_unique_violation_is_reported_as_a_validation_error(): void
+    {
+        $user = User::factory()->create();
+
+        $this->mock(UserRepositoryInterface::class, function ($mock) {
+            $mock->shouldReceive('updateProfile')
+                ->andThrow(new UniqueConstraintViolationException('sqlite', 'update users', [], new Exception('unique')));
+        });
+
+        Sanctum::actingAs($user);
+        $response = $this->patchJson('/api/v1/user', ['username' => 'giapnguyen']);
+        $response->assertStatus(422)
+            ->assertJsonPath('errors.username.0', 'The username has already been taken.');
     }
 
     public function test_authenticated_user_can_update_github_link(): void
@@ -71,11 +138,13 @@ class ProfileUpdateTest extends TestCase
         Sanctum::actingAs($user);
         $response = $this->patchJson('/api/v1/user', [
             'name' => 'Nguyen Van Giap',
-            'githubName' => 'giapnguyen',
+            'username' => 'giapnguyen',
             'githubLink' => 'https://github.com/giapnguyen',
         ]);
         $response->assertStatus(200)
-            ->assertJsonPath('data.name', 'Nguyen Van Giap');
+            ->assertJsonPath('data.name', 'Nguyen Van Giap')
+            ->assertJsonPath('data.username', 'giapnguyen')
+            ->assertJsonPath('data.githubLink', 'https://github.com/giapnguyen');
     }
 
     public function test_sending_empty_payload_does_not_change_anything(): void
@@ -108,14 +177,6 @@ class ProfileUpdateTest extends TestCase
         Sanctum::actingAs($user);
         $response = $this->patchJson('/api/v1/user', ['githubLink' => 'github.com/user']);
         $response->assertStatus(422)->assertJsonValidationErrors(['githubLink']);
-    }
-
-    public function test_validation_fails_if_github_name_is_too_long(): void
-    {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
-        $response = $this->patchJson('/api/v1/user', ['githubName' => Str::random(256)]);
-        $response->assertStatus(422)->assertJsonValidationErrors(['githubName']);
     }
 
     public function test_user_cannot_update_unauthorized_fields(): void
