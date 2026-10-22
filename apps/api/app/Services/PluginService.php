@@ -330,6 +330,17 @@ final class PluginService
     }
 
     /**
+     * The published plugins of one author, for their public profile.
+     *
+     * @param  string  $userId  The publisher the list belongs to.
+     * @param  int  $perPage  Page size to paginate with.
+     */
+    public function getPaginatedApprovedPluginsByUser(string $userId, int $perPage): LengthAwarePaginator
+    {
+        return $this->pluginRepository->getPaginatedApprovedPluginsByUser($userId, $perPage);
+    }
+
+    /**
      * The plugin behind the id, or a 404 for a caller who may not open it.
      */
     private function resolveVisiblePlugin(string $id, ?User $user): Plugin

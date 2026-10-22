@@ -99,6 +99,12 @@ export const router = createRouter({
       meta: { layout: 'default', requiresAuth: true }
     },
     {
+      path: "/profile/:username",
+      name: "author-profile",
+      component: () => import("@/views/ProfileView.vue"),
+      meta: { layout: 'default' }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),

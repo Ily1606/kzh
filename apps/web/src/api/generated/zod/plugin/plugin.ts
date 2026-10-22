@@ -39,6 +39,7 @@ export const PluginMyPluginsResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -110,6 +111,7 @@ export const PluginStoreResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -165,6 +167,7 @@ export const PluginIndexResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -240,6 +243,7 @@ export const PluginUpdateResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -327,6 +331,7 @@ export const PluginShowResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),

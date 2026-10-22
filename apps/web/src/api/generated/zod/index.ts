@@ -1,4 +1,5 @@
 export * from './auth/auth';
+export * from './author/author';
 export * from './category/category';
 export * from './comment/comment';
 export * from './comment-report/comment-report';

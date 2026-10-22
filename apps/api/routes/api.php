@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AuthorController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CommentController;
 use App\Http\Controllers\Api\V1\CommentReportController;
@@ -73,6 +74,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/plugins/{id}', [PluginController::class, 'show'])->whereUuid('id');
         Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
             ->whereUuid('id');
+
+        // ================ Author ====================
+        Route::get('/users/{username}', [AuthorController::class, 'show']);
+        Route::get('/users/{username}/plugins', [AuthorController::class, 'plugins']);
 
         // ================ Taxonomy ====================
         Route::get('/categories', [CategoryController::class, 'index']);

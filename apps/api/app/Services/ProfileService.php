@@ -8,12 +8,14 @@ use App\Events\Profile\UserPasswordUpdated;
 use App\Events\Profile\UserProfileUpdated;
 use App\Models\User;
 use App\Models\UserProfile;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use Throwable;
@@ -30,6 +32,22 @@ class ProfileService
     public function getProfile(User $user): User
     {
         return $user->loadMissing('profile');
+    }
+
+    /**
+     * The public profile of the user carrying this username.
+     *
+     * @throws ModelNotFoundException when no user carries that username.
+     */
+    public function getProfileByUsername(string $username): User
+    {
+        $user = $this->userRepository->findByUsername(Str::lower($username));
+
+        if ($user === null) {
+            throw (new ModelNotFoundException)->setModel(User::class, [$username]);
+        }
+
+        return $user;
     }
 
     /**

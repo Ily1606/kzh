@@ -25,6 +25,7 @@ class PluginResource extends JsonResource
             'author' => $author ? [
                 'id' => $author->id,
                 'name' => $author->name,
+                'username' => $author->username,
                 'avatar_url' => $author->profile?->avatar_url,
             ] : null,
             'title' => $this->title,
