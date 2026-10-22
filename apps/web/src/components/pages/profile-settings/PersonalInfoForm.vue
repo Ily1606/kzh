@@ -5,7 +5,7 @@ import { useAuth } from "@/composables/useAuth";
 import { getProfile } from "@/api/generated/endpoints";
 import { profileSchema } from "@/schemas/profile.schema";
 import { notifyError, notifySuccess } from "@/utils/toast";
-import Avatar from "@/components/pages/profile/Avatar.vue";
+import Avatar from "@/components/pages/profile-settings/Avatar.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

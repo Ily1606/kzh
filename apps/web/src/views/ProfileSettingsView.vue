@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { UserRound, Lock } from "@lucide/vue";
-import PersonalInfoForm from "@/components/pages/profile/PersonalInfoForm.vue";
-import ChangePasswordForm from "@/components/pages/profile/ChangePasswordForm.vue";
+import PersonalInfoForm from "@/components/pages/profile-settings/PersonalInfoForm.vue";
+import ChangePasswordForm from "@/components/pages/profile-settings/ChangePasswordForm.vue";
 
 const activeTab = ref<'profile' | 'password'>('profile');
 </script>
