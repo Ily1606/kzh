@@ -17,7 +17,6 @@ use Illuminate\Support\Str;
 #[Fillable([
     'user_id',
     'avatar_link',
-    'github_name',
     'github_link',
 ])]
 #[ObservedBy([UserProfileObserver::class])]

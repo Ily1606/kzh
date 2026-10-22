@@ -9,6 +9,7 @@ return [
     'table' => [
         'columns' => [
             'name' => 'Name',
+            'username' => 'Username',
             'email' => 'Email',
             'created_at' => 'Joined At',
             'status' => 'Status',

@@ -212,6 +212,7 @@ class AuthEventTest extends TestCase
 
         $this->app->make(AuthService::class)->register([
             'name' => 'Service Metadata',
+            'username' => 'service-metadata',
             'email' => 'service-metadata@example.com',
             'password' => 'secret-password',
         ], new RequestContext('198.51.100.7', 'Console Runner'));
@@ -237,6 +238,7 @@ class AuthEventTest extends TestCase
 
         $this->app->make(AuthService::class)->register([
             'name' => 'No Http',
+            'username' => 'no-http',
             'email' => 'no-http@example.com',
             'password' => 'secret-password',
         ], new RequestContext(null, null));

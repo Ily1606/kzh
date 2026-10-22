@@ -17,9 +17,9 @@ class UserResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'username' => $this->username,
             'email' => $this->email,
             'avatarLink' => $this->profile?->avatar_url,
-            'githubName' => $this->profile?->github_name,
             'githubLink' => $this->profile?->github_link,
             'is_admin' => $this->is_admin,
             'created_at' => $this->created_at,

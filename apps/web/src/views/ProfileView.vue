@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { Toaster } from "vue-sonner";
-import "vue-sonner/style.css";
 import { UserRound, Lock } from "@lucide/vue";
-import { SUCCESS_DURATION } from "@/utils/toast";
 import PersonalInfoForm from "@/components/pages/profile/PersonalInfoForm.vue";
 import ChangePasswordForm from "@/components/pages/profile/ChangePasswordForm.vue";
 
@@ -48,13 +45,5 @@ const activeTab = ref<'profile' | 'password'>('profile');
         </div>
       </main>
     </div>
-
-    <Toaster
-      position="top-center"
-      rich-colors
-      close-button
-      :duration="SUCCESS_DURATION"
-      :visible-toasts="3"
-    />
   </div>
 </template>
