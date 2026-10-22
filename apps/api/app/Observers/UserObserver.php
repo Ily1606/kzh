@@ -3,7 +3,10 @@
 namespace App\Observers;
 
 use App\Jobs\CascadeDeleteUserData;
+use App\Mail\AccountLockedMail;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class UserObserver
 {
@@ -18,6 +21,24 @@ class UserObserver
             $user->plugins()->each(function ($plugin) {
                 app(PluginObserver::class)->cleanupTrendingCache($plugin->id);
             });
+
+            $this->sendAccountLockedEmail($user);
+        }
+    }
+
+    /**
+     * Send an email notifying the user that their account has been locked.
+     */
+    protected function sendAccountLockedEmail(User $user): void
+    {
+        if (empty($user->email)) {
+            return;
+        }
+
+        try {
+            Mail::to($user->email)->send(new AccountLockedMail($user));
+        } catch (Throwable $e) {
+            report($e);
         }
     }
     /**
