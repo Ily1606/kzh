@@ -134,7 +134,7 @@ onUnmounted(() => {
         <template v-if="auth.isAuthenticated">
           <!-- Desktop Profile Pill -->
           <RouterLink
-            to="/profile"
+            to="/settings"
             class="hidden items-center gap-2 rounded-full border bg-muted/50 p-1 text-sm transition-colors hover:bg-muted sm:flex sm:py-1 sm:pl-1 sm:pr-3"
             aria-label="Profile"
           >
@@ -145,7 +145,7 @@ onUnmounted(() => {
 
           <!-- Mobile User Avatar Link -->
           <RouterLink
-            to="/profile"
+            to="/settings"
             class="flex sm:hidden items-center rounded-full transition-transform active:scale-95"
             aria-label="Mobile Profile"
           >
@@ -231,7 +231,7 @@ onUnmounted(() => {
             <!-- User Profile Card (if authenticated) -->
             <div v-if="auth.isAuthenticated">
               <RouterLink
-                to="/profile"
+                to="/settings"
                 class="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3 transition-colors hover:bg-muted"
                 @click="isOpen = false"
               >

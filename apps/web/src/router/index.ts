@@ -93,9 +93,9 @@ export const router = createRouter({
       meta: { layout: 'default', requiresAuth: true }
     },
     {
-      path: "/profile",
-      name: "profile",
-      component: () => import("@/views/ProfileView.vue"),
+      path: "/settings",
+      name: "profile-settings",
+      component: () => import("@/views/ProfileSettingsView.vue"),
       meta: { layout: 'default', requiresAuth: true }
     },
     {
