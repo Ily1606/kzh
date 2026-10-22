@@ -7,6 +7,30 @@ use Illuminate\Support\Facades\Redis;
 
 final class TrendingTracker
 {
+    public const INTERACTION_VIEWS = 'views';
+    public const INTERACTION_COMMENTS = 'comments';
+    public const INTERACTION_STARS = 'stars';
+
+    public const INTERACTION_TYPES = [
+        self::INTERACTION_VIEWS,
+        self::INTERACTION_COMMENTS,
+        self::INTERACTION_STARS,
+    ];
+
+    public static function activeKey(string $date): string
+    {
+        $prefix = (string) config('plugins.trending.keys.active_prefix', 'trending:active_plugins');
+
+        return "{$prefix}:{$date}";
+    }
+
+    public static function statKey(string $type, string $date, string $pluginId): string
+    {
+        $prefix = (string) config('plugins.trending.keys.stats_prefix', 'trending:stats');
+
+        return "{$prefix}:{$type}:{$date}:{$pluginId}";
+    }
+
     public static function ttl(): int
     {
         // +1 day so the oldest bucket in the window is still there at the end of the day
@@ -15,30 +39,30 @@ final class TrendingTracker
 
     public static function trackView(string $pluginId): void
     {
-        self::trackInteraction('views', $pluginId, 1);
+        self::trackInteraction(self::INTERACTION_VIEWS, $pluginId, 1);
     }
 
     public static function trackComment(string $pluginId, int $increment = 1, ?CarbonInterface $at = null): void
     {
-        self::trackInteraction('comments', $pluginId, $increment, $at);
+        self::trackInteraction(self::INTERACTION_COMMENTS, $pluginId, $increment, $at);
     }
 
     public static function trackStar(string $pluginId, int $increment = 1, ?CarbonInterface $at = null): void
     {
-        self::trackInteraction('stars', $pluginId, $increment, $at);
+        self::trackInteraction(self::INTERACTION_STARS, $pluginId, $increment, $at);
     }
 
     private static function trackInteraction(string $type, string $pluginId, int $increment, ?CarbonInterface $at = null): void
     {
         $date = ($at ?? now())->format('Y-m-d');
-        $statKey = "trending:stats:{$type}:{$date}:{$pluginId}";
+        $statKey = self::statKey($type, $date, $pluginId);
 
         // The bucket is already outside the window (expired): nothing to subtract.
         if ($increment < 0 && ! Redis::exists($statKey)) {
             return;
         }
 
-        $activeKey = "trending:active_plugins:{$date}";
+        $activeKey = self::activeKey($date);
 
         if ($increment > 0) {
             Redis::incrby($statKey, $increment);
@@ -55,6 +79,46 @@ final class TrendingTracker
     }
 
     /**
+     * Decrement interaction counts for multiple items in bulk.
+     *
+     * @param string $type 'comments'|'stars'
+     * @param array<int, array{plugin_id: string, date: string, count: int}> $items
+     */
+    public static function bulkDecrementInteractions(string $type, array $items): void
+    {
+        if (empty($items)) {
+            return;
+        }
+
+        $chunkSize = (int) config('plugins.cascade_delete.chunk_size');
+
+        foreach (array_chunk($items, $chunkSize) as $chunk) {
+            $keys = [];
+            foreach ($chunk as $item) {
+                $keys[] = self::statKey($type, $item['date'], $item['plugin_id']);
+            }
+
+            $values = Redis::mget($keys);
+            if (! is_array($values)) {
+                continue;
+            }
+
+            $pipe = Redis::pipeline();
+            foreach ($chunk as $index => $item) {
+                if ($values[$index] !== null && $values[$index] !== false) {
+                    $key = $keys[$index];
+                    $current = (int) $values[$index];
+                    $decrement = min($current, (int) $item['count']);
+                    if ($decrement > 0) {
+                        $pipe->decrby($key, $decrement);
+                    }
+                }
+            }
+            $pipe->exec();
+        }
+    }
+
+    /**
      * Get the active plugin IDs for the last N days.
      *
      * @return array<int, string>
@@ -63,7 +127,7 @@ final class TrendingTracker
     {
         $keys = [];
         for ($i = 0; $i < $daysLimit; $i++) {
-            $keys[] = 'trending:active_plugins:' . now()->subDays($i)->format('Y-m-d');
+            $keys[] = self::activeKey(now()->subDays($i)->format('Y-m-d'));
         }
 
         if (empty($keys)) {
@@ -87,7 +151,7 @@ final class TrendingTracker
             return [];
         }
 
-        $types = ['views', 'comments', 'stars'];
+        $types = self::INTERACTION_TYPES;
         $dates = [];
         for ($i = 0; $i < $daysLimit; $i++) {
             $dates[] = now()->subDays($i)->format('Y-m-d');
@@ -106,7 +170,7 @@ final class TrendingTracker
             foreach ($chunk as $id) {
                 foreach ($types as $type) {
                     foreach ($dates as $date) {
-                        $keys[] = "trending:stats:{$type}:{$date}:{$id}";
+                        $keys[] = self::statKey($type, $date, $id);
                         $keyMap[] = ['id' => $id, 'type' => $type];
                     }
                 }

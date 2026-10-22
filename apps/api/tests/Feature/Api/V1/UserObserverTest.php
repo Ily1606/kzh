@@ -3,12 +3,14 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Jobs\CascadeDeleteUserData;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\Star;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
 
@@ -62,6 +64,16 @@ class UserObserverTest extends TestCase
             'user_id' => $user->id,
         ]);
 
+        // Another user comments and stars on user's own plugin
+        $commentOnUserPlugin = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $otherUser->id,
+        ]);
+        $starOnUserPlugin = Star::create([
+            'plugin_id' => $plugin->id,
+            'user_id' => $otherUser->id,
+        ]);
+
         $date = now()->format('Y-m-d');
         $commentStatKey = "trending:stats:comments:{$date}:{$otherPlugin->id}";
         $starStatKey = "trending:stats:stars:{$date}:{$otherPlugin->id}";
@@ -79,6 +91,13 @@ class UserObserverTest extends TestCase
         Redis::set($commentStatKey, 1);
         Redis::set($starStatKey, 1);
 
+        $pluginViewsKey = "trending:stats:views:{$date}:{$plugin->id}";
+        $pluginCommentsKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        $pluginStarsKey = "trending:stats:stars:{$date}:{$plugin->id}";
+        Redis::set($pluginViewsKey, 20);
+        Redis::set($pluginCommentsKey, 10);
+        Redis::set($pluginStarsKey, 5);
+
         $otherPlugin->comment_count = 1;
         $otherPlugin->star_count = 1;
         Redis::zadd($zsetKey, 80, $otherPlugin->id);
@@ -92,10 +111,15 @@ class UserObserverTest extends TestCase
 
         // 2. User's plugins soft-deleted and removed from Redis trending
         $this->assertTrue($plugin->fresh()->trashed());
+        $this->assertTrue($commentOnUserPlugin->fresh()->trashed());
+        $this->assertTrue($starOnUserPlugin->fresh()->trashed());
         $this->assertFalse((bool) Redis::zscore($zsetKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
         $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+        $this->assertFalse((bool) Redis::exists($pluginViewsKey));
+        $this->assertFalse((bool) Redis::exists($pluginCommentsKey));
+        $this->assertFalse((bool) Redis::exists($pluginStarsKey));
 
         // 3. User's comments soft-deleted and trending stats decremented
         $this->assertTrue($comment->fresh()->trashed());
@@ -346,5 +370,17 @@ class UserObserverTest extends TestCase
 
         $this->assertFalse($activePlugin->fresh()->trashed());
         $this->assertTrue($previouslyDeletedPlugin->fresh()->trashed());
+    }
+
+    public function test_soft_deleting_user_dispatches_cascade_delete_job(): void
+    {
+        Queue::fake([CascadeDeleteUserData::class]);
+
+        $user = User::factory()->create();
+        $user->delete();
+
+        Queue::assertPushed(CascadeDeleteUserData::class, function ($job) use ($user) {
+            return $job->userId === $user->id;
+        });
     }
 }

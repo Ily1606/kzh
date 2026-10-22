@@ -15,7 +15,7 @@ return [
     |
     */
     'view_cache_ttl' => env('PLUGIN_VIEW_CACHE_TTL', 86400),
-    'views_buffer_key' => 'plugins:views_buffer',
+    'views_buffer_key' => env('PLUGIN_VIEWS_BUFFER_KEY', 'plugins:views_buffer'),
 
     // Cron schedule for the plugins:sync-views job
     'sync_views_schedule' => env('PLUGIN_SYNC_VIEWS_SCHEDULE', '*/5 * * * *'),
@@ -87,11 +87,22 @@ return [
 
         // Redis Cache Keys
         'keys' => [
-            'zset' => 'plugins:trending_zset',
-            'objects' => 'plugins:trending_objects',
-            'recovered' => 'plugins:trending_recovered',
+            'zset' => env('PLUGIN_TRENDING_KEY_ZSET', 'plugins:trending_zset'),
+            'objects' => env('PLUGIN_TRENDING_KEY_OBJECTS', 'plugins:trending_objects'),
+            'active_prefix' => env('PLUGIN_TRENDING_KEY_ACTIVE_PREFIX', 'trending:active_plugins'),
+            'stats_prefix' => env('PLUGIN_TRENDING_KEY_STATS_PREFIX', 'trending:stats'),
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cascade Deletion Configuration
+    |--------------------------------------------------------------------------
+    */
+    'cascade_delete' => [
+        'chunk_size' => (int) env('PLUGIN_CASCADE_DELETE_CHUNK_SIZE', 500),
+    ],
+
     'licenses' => array_column(PluginLicense::cases(), 'value'),
 
     /*

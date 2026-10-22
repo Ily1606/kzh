@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Jobs\CascadeDeleteUserData;
 use App\Models\User;
 
 class UserObserver
@@ -24,10 +25,7 @@ class UserObserver
      */
     public function deleted(User $user): void
     {
-        $user->tokens()->delete();
-        $user->plugins()->lazyById()->each(fn ($plugin) => $plugin->delete());
-        $user->comments()->lazyById()->each(fn ($comment) => $comment->delete());
-        $user->stars()->get()->each(fn ($star) => $star->delete());
+        CascadeDeleteUserData::dispatch($user);
     }
 
     /**
