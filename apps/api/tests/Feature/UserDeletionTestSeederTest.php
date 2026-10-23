@@ -69,7 +69,7 @@ class UserDeletionTestSeederTest extends TestCase
         // 2. Act: Delete target user and execute cascade delete job
         $targetUser->delete();
         $job = new CascadeDeleteUserData($targetUser);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         // 3. Assertions: Full cleanup verification
 
