@@ -6,9 +6,9 @@ use App\Contracts\CategoryRepositoryInterface;
 use App\Contracts\PluginRepositoryInterface;
 use App\Contracts\StarRepositoryInterface;
 use App\Contracts\TagRepositoryInterface;
+use App\DTOs\PluginViewResult;
 use App\Enums\PluginEventType;
 use App\Enums\PluginStatus;
-use App\DTOs\PluginViewResult;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginUpdated;
 use App\Jobs\RecoverTrendingJob;
@@ -140,6 +140,28 @@ final class PluginService
         );
 
         return $updated;
+    }
+
+    /**
+     * Delete a plugin the caller owns.
+     *
+     * @param  User  $user  Owner of the plugin.
+     * @param  string  $pluginId  ID of the plugin to delete.
+     *
+     * @throws AuthorizationException the plugin belongs to another user.
+     * @throws ModelNotFoundException the plugin does not exist or is soft-deleted.
+     */
+    public function delete(User $user, string $pluginId): void
+    {
+        $plugin = $this->pluginRepository->findById($pluginId);
+
+        if ($plugin->user_id !== $user->getAuthIdentifier()) {
+            throw new AuthorizationException;
+        }
+
+        DB::transaction(function () use ($plugin): void {
+            $this->pluginRepository->delete($plugin);
+        });
     }
 
     /**
@@ -377,10 +399,6 @@ final class PluginService
      * The algorithm calculates the score based on recent interactions (views, comments, stars)
      * within a sliding time window (e.g., last 7 days). Older plugins can still trend if they
      * receive a surge in recent activity, as the creation date is not used as a penalty.
-     *
-     * @param int $perPage
-     * @param User|null $user
-     * @return LengthAwarePaginator
      */
     public function getTrendingPlugins(int $perPage, ?User $user = null): LengthAwarePaginator
     {

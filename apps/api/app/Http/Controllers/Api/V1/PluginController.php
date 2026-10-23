@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
 use App\Enums\PluginStatus;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ListMyPluginsRequest;
 use App\Http\Requests\Api\V1\ListPluginsRequest;
 use App\Http\Requests\Api\V1\ListTrendingPluginsRequest;
@@ -129,6 +129,21 @@ class PluginController extends Controller
         return ApiResponse::successResponse(
             ['plugin' => new PluginResource($plugin)],
             __('api.plugin_updated_successfully'),
+        );
+    }
+
+    /**
+     * Delete a plugin you own.
+     */
+    #[Response(status: 403, description: 'This action is unauthorized.')]
+    #[Response(status: 404, description: 'The plugin does not exist or is soft-deleted.')]
+    public function destroy(Request $request, string $pluginId): JsonResponse
+    {
+        $this->pluginService->delete($request->user(), $pluginId);
+
+        return ApiResponse::successResponse(
+            null,
+            __('api.plugin_deleted_successfully'),
         );
     }
 

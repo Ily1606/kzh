@@ -4,8 +4,10 @@ namespace App\Observers;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
+use App\Jobs\CascadeDeletePluginData;
 use App\Models\Plugin;
 use App\Services\TrendingTracker;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 class PluginObserver
@@ -20,6 +22,8 @@ class PluginObserver
         // 1. If the plugin is no longer approved, remove it immediately from trending
         if ($plugin->status !== PluginStatus::Approved || $plugin->approved_at === null) {
             $this->cleanupTrendingCache($plugin->id, false);
+
+            TrendingTracker::cleanupPlugin($plugin->id);
 
             return;
         }
@@ -41,7 +45,7 @@ class PluginObserver
      */
     public function deleted(Plugin $plugin): void
     {
-        $this->cleanupTrendingCache($plugin->id, true);
+        CascadeDeletePluginData::dispatch($plugin);
     }
 
     /**

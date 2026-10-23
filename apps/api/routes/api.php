@@ -41,6 +41,9 @@ Route::prefix('v1')->group(function () {
                 Route::patch('/{pluginId}', 'update')
                     ->whereUuid('pluginId');
 
+                Route::delete('/{pluginId}', 'destroy')
+                    ->whereUuid('pluginId');
+
                 Route::get('/{pluginId}/events', [PluginEventController::class, 'index'])
                     ->whereUuid('pluginId');
             });
@@ -77,7 +80,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/plugins/{pluginId}/comments/{commentId}/replies', [CommentController::class, 'replies'])
             ->whereUuid('pluginId')
             ->whereUuid('commentId');
-            
+
         // ================ Star ======================
         Route::get('/plugins/{pluginId}/stars/timeline', [StarController::class, 'timeline'])
             ->whereUuid('pluginId');

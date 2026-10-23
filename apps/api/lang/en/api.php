@@ -32,6 +32,7 @@ return [
     'plugin_starred_successfully' => 'Plugin starred successfully.',
     'plugin_unstarred_successfully' => 'Plugin unstarred successfully.',
     'plugin_updated_successfully' => 'Plugin updated successfully.',
+    'plugin_deleted_successfully' => 'Plugin deleted successfully.',
     'plugin_update_requires_field' => 'At least one of name, title, license, category, tags, or source_link is required.',
     'plugin_unknown_category' => 'The selected category is not one we offer.',
     'plugin_unknown_tags' => 'One or more selected tags are not ones we offer.',
