@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Users\Tables;
 use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
@@ -14,7 +15,6 @@ use Illuminate\Database\Eloquent\Builder;
 
 class UsersTable
 {
-
     /**
      * Only rows of live, non-admin users may be acted on. Admins are off
      * limits entirely: the panel re-checks `canAccessPanel()` on the next
@@ -22,7 +22,7 @@ class UsersTable
      */
     private static function canActOn(User $record): bool
     {
-        return !$record->trashed() && !$record->is_admin;
+        return ! $record->trashed() && ! $record->is_admin;
     }
 
     public static function configure(Table $table): Table
@@ -120,6 +120,16 @@ class UsersTable
                     ->modalSubmitActionLabel(__('user.table.actions.unlock'))
                     ->action(fn (User $record) => app(UserRepositoryInterface::class)->unlock($record))
                     ->successNotificationTitle(__('user.table.actions.unlock_success')),
+
+                DeleteAction::make()
+                    ->label(__('user.table.actions.delete'))
+                    ->visible(fn (User $record): bool => self::canActOn($record))
+                    ->requiresConfirmation()
+                    ->modalHeading(__('user.table.actions.delete_modal_heading'))
+                    ->modalDescription(__('user.table.actions.delete_modal_description'))
+                    ->modalSubmitActionLabel(__('user.table.actions.delete'))
+                    ->action(fn (User $record) => app(UserRepositoryInterface::class)->delete($record))
+                    ->successNotificationTitle(__('user.table.actions.delete_success')),
             ]);
     }
 }

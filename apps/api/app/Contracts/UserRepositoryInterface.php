@@ -51,4 +51,10 @@ interface UserRepositoryInterface
      * has to sign in again.
      */
     public function unlock(User $user): User;
+
+    /**
+     * Delete the user account (soft delete), triggering cascade deletion
+     * of their plugins, comments, stars, and revoking tokens.
+     */
+    public function delete(User $user): bool;
 }

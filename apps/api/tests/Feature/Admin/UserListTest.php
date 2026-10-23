@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -41,12 +42,14 @@ class UserListTest extends TestCase
         $this->get('/admin/users')->assertOk();
     }
 
-    public function test_both_actions_are_registered_on_the_table(): void
+    public function test_actions_are_registered_on_the_table(): void
     {
         Livewire::test(ListUsers::class)
             ->assertSuccessful()
             ->assertTableActionExists('lock')
-            ->assertTableActionExists('unlock');
+            ->assertTableActionExists('unlock')
+            ->assertTableActionExists('delete')
+            ->assertTableActionDoesNotExist('restore');
     }
 
     public function test_the_lock_action_is_hidden_for_a_locked_user(): void
@@ -141,5 +144,80 @@ class UserListTest extends TestCase
             ->assertTableColumnStateSet('status', 'active', $target)
             ->callTableAction('lock', $target)
             ->assertTableColumnStateSet('status', 'locked', $target->fresh());
+    }
+
+    public function test_the_delete_action_is_visible_for_an_active_user(): void
+    {
+        $active = User::factory()->create(['locked_at' => null]);
+
+        Livewire::test(ListUsers::class)
+            ->assertTableActionVisible('delete', $active);
+    }
+
+    public function test_the_delete_action_is_visible_for_a_locked_user(): void
+    {
+        $locked = User::factory()->create(['locked_at' => now()]);
+
+        Livewire::test(ListUsers::class)
+            ->assertTableActionVisible('delete', $locked);
+    }
+
+    public function test_the_delete_action_is_hidden_on_the_admins_own_row(): void
+    {
+        Livewire::test(ListUsers::class)
+            ->assertTableActionHidden('delete', $this->admin);
+    }
+
+    public function test_the_delete_action_is_hidden_on_another_admins_row(): void
+    {
+        $otherAdmin = User::factory()->create(['is_admin' => true]);
+
+        Livewire::test(ListUsers::class)
+            ->assertTableActionHidden('delete', $otherAdmin);
+    }
+
+    public function test_the_delete_action_is_hidden_on_a_soft_deleted_row(): void
+    {
+        $trashed = User::factory()->create();
+        $trashed->delete();
+
+        Livewire::test(ListUsers::class)
+            ->assertTableActionHidden('delete', $trashed);
+    }
+
+    public function test_deleting_a_user_soft_deletes_them_and_revokes_their_tokens(): void
+    {
+        $target = User::factory()->create();
+        $target->createToken('api-token');
+
+        Livewire::test(ListUsers::class)
+            ->callTableAction('delete', $target)
+            ->assertHasNoActionErrors()
+            ->assertNotified(__('user.table.actions.delete_success'));
+
+        $this->assertTrue($target->fresh()->trashed());
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_deleting_a_user_updates_status_badge_to_deleted(): void
+    {
+        $target = User::factory()->create();
+
+        Livewire::test(ListUsers::class)
+            ->assertTableColumnStateSet('status', 'active', $target)
+            ->callTableAction('delete', $target)
+            ->assertTableColumnStateSet('status', 'deleted', $target->fresh());
+    }
+
+    public function test_restoring_a_user_is_not_allowed_on_the_admin_page(): void
+    {
+        $trashed = User::factory()->create();
+        $trashed->delete();
+
+        Livewire::test(ListUsers::class)
+            ->assertTableActionDoesNotExist('restore');
+
+        $this->assertFalse(UserResource::canRestore($trashed));
+        $this->assertFalse(UserResource::canRestoreAny());
     }
 }
