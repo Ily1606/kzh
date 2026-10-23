@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -117,5 +118,10 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         $user->save();
 
         return $user->refresh();
+    }
+
+    public function delete(User|Model $user): bool
+    {
+        return parent::delete($user);
     }
 }

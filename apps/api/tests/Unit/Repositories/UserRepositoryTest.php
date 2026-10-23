@@ -55,6 +55,18 @@ class UserRepositoryTest extends TestCase
         $this->assertSame('Tran Van B', $user->refresh()->name);
     }
 
+    public function test_delete_soft_deletes_the_user_model(): void
+    {
+        $repository = app(UserRepositoryInterface::class);
+
+        $user = User::factory()->create();
+
+        $result = $repository->delete($user);
+
+        $this->assertTrue($result);
+        $this->assertTrue($user->fresh()->trashed());
+    }
+
     public function test_find_by_email_returns_the_matching_account(): void
     {
         User::factory()->create(['email' => 'active@example.com']);

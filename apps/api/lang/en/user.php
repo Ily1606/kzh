@@ -30,6 +30,10 @@ return [
             'unlock_success' => 'User unlocked',
             'unlock_modal_heading' => 'Unlock this user?',
             'unlock_modal_description' => 'The user can sign in again. Their previous API tokens stay revoked, so they will have to sign in on each device again.',
+            'delete' => 'Delete',
+            'delete_success' => 'User deleted',
+            'delete_modal_heading' => 'Delete this user?',
+            'delete_modal_description' => 'Are you sure you want to delete this user? Their account, plugins, comments, and stars will be deleted. This action cannot be undone.',
         ],
     ],
 ];
