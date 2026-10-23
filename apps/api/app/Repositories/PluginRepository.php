@@ -6,9 +6,9 @@ use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Category;
 use App\Models\Plugin;
+use App\Models\PluginDailyView;
 use App\Models\Tag;
 use App\Support\LikeHelper;
-use App\Models\PluginDailyView;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -187,6 +187,11 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             where {$prefix}comments.plugin_id = {$prefix}plugins.id
             and {$prefix}comments.hidden_at is null
             and {$prefix}comments.deleted_at is null)";
+    }
+
+    public function delete(Plugin|Model $plugin): bool
+    {
+        return parent::delete($plugin);
     }
 
     public function getTopAllTimePlugins(int $limit): Collection

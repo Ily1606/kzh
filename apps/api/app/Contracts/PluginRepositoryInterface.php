@@ -66,6 +66,11 @@ interface PluginRepositoryInterface
     public function getPaginatedPluginsByUser(string $userId, ?PluginStatus $status, int $perPage): LengthAwarePaginator;
 
     /**
+     * Delete the given plugin.
+     */
+    public function delete(Plugin $plugin): bool;
+
+    /**
      * @return Collection<int, Plugin>
      */
     public function getTopAllTimePlugins(int $limit): Collection;
