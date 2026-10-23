@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import { ArrowUpRight, Boxes, Check, Download, Search, ShieldCheck } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,7 +26,6 @@ const authorName = computed(() => props.plugin?.author?.name ?? "community");
 const authorAvatar = computed(() => props.plugin?.author?.avatar_url ?? null);
 
 const router = useRouter();
-const route = useRoute();
 const copied = ref(false);
 
 async function copyPluginCommand(pluginName: string, event?: Event) {
@@ -42,13 +41,9 @@ async function copyPluginCommand(pluginName: string, event?: Event) {
   }
 }
 
-function goToDetail(id: string | undefined) {
-  if (id) {
-    router.push({
-      name: 'plugin-detail',
-      params: { id },
-      query: { redirect: route.fullPath },
-    });
+function goToDetail(username: string | undefined, pluginName: string | undefined) {
+  if (username && pluginName) {
+    router.push({ name: 'plugin-detail', params: { username, pluginName } });
   }
 }
 </script>
@@ -56,7 +51,7 @@ function goToDetail(id: string | undefined) {
 <template>
   <Card
     v-if="plugin"
-    @click="goToDetail(plugin.id)"
+    @click="goToDetail(plugin.author.username, plugin.name)"
     class="@container relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start cursor-pointer"
     :class="{
       'border-amber-400/50 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10': rank === 1,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Support\PluginNameHelper;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,13 +19,23 @@ class SubmitPluginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', 'regex:'.PluginNameHelper::PATTERN],
             'title' => ['required', 'string', 'max:255'],
             'license' => ['required', 'string', Rule::in(config('plugins.licenses', []))],
             'category' => ['required', 'string', Rule::exists('categories', 'name')],
             'tags' => ['nullable', 'array', 'max:'.config('plugins.tags_per_plugin_limit', 5)],
             'tags.*' => ['required', 'string', Rule::exists('tags', 'name')],
             'source_link' => ['required', 'string', 'url:https', 'max:2048'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.regex' => __('api.plugin_name_invalid'),
         ];
     }
 

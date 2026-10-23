@@ -34,11 +34,16 @@ class ShowPluginTest extends TestCase
         ]);
     }
 
+    private function showUrl(Plugin $plugin): string
+    {
+        return "/api/v1/plugins/{$plugin->user->username}/{$plugin->name}";
+    }
+
     public function test_returns_the_plugin(): void
     {
         $plugin = $this->givenApprovedPlugin();
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.id', $plugin->id)
             ->assertJsonPath('data.plugin.name', $plugin->name);
@@ -53,7 +58,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($user, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.is_star', true);
     }
@@ -68,7 +73,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($other, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.is_star', false);
     }
@@ -83,7 +88,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($second, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.is_star', false);
     }
@@ -92,15 +97,54 @@ class ShowPluginTest extends TestCase
     {
         $plugin = $this->givenApprovedPlugin();
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertOk()
             ->assertJsonMissingPath('data.plugin.is_star');
     }
 
     public function test_returns_404_for_an_unknown_plugin(): void
     {
-        $this->getJson('/api/v1/plugins/00000000-0000-0000-0000-000000000000')
+        $this->getJson('/api/v1/plugins/nobody/unknown-plugin')
             ->assertNotFound();
+    }
+
+    public function test_the_old_uuid_url_returns_method_not_allowed(): void
+    {
+        $plugin = $this->givenApprovedPlugin();
+
+        $this->getJson("/api/v1/plugins/{$plugin->id}")
+            ->assertMethodNotAllowed();
+    }
+
+    public function test_the_url_accepts_dots_underscores_and_uppercase(): void
+    {
+        $plugin = Plugin::factory()->create([
+            'name' => 'Dsh.Guardrails_v2-Test',
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $this->getJson($this->showUrl($plugin))
+            ->assertOk()
+            ->assertJsonPath('data.plugin.id', $plugin->id);
+    }
+
+    public function test_the_same_name_under_another_author_is_a_different_plugin(): void
+    {
+        $first = $this->givenApprovedPlugin();
+        $second = Plugin::factory()->create([
+            'name' => $first->name,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $this->getJson($this->showUrl($first))
+            ->assertOk()
+            ->assertJsonPath('data.plugin.id', $first->id);
+
+        $this->getJson($this->showUrl($second))
+            ->assertOk()
+            ->assertJsonPath('data.plugin.id', $second->id);
     }
 
     public function test_returns_404_for_a_plugin_that_is_not_approved(): void
@@ -109,7 +153,7 @@ class ShowPluginTest extends TestCase
             'status' => PluginStatus::Pending,
         ]);
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertNotFound();
     }
 
@@ -124,7 +168,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($owner, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.id', $plugin->id)
             ->assertJsonPath('data.plugin.status', 'pending');
@@ -141,7 +185,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($owner, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.status', 'rejected');
     }
@@ -158,7 +202,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($stranger, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertNotFound();
     }
 
@@ -169,7 +213,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($stranger, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertNotFound();
     }
 
@@ -188,13 +232,13 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($owner, [], 'api');
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->showUrl($plugin))
             ->assertNotFound();
     }
 
     /**
      * The owner's read must be the same read the catalogue serves, apart from
-     * the status. `findById` skipping the eager load would answer 200 with
+     * the status. A lookup skipping the eager load would answer 200 with
      * `author: null`, and the client's cache merge would then write that null
      * over an author it already had.
      */
@@ -209,7 +253,7 @@ class ShowPluginTest extends TestCase
 
         Sanctum::actingAs($owner, [], 'api');
 
-        $response = $this->getJson("/api/v1/plugins/{$plugin->id}")->assertOk();
+        $response = $this->getJson($this->showUrl($plugin))->assertOk();
 
         $response->assertJsonStructure([
             'data' => ['plugin' => [

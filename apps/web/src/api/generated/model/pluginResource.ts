@@ -10,7 +10,6 @@ export interface PluginResource {
   id: string;
   name: string;
   user_id: string;
-  /** @nullable */
   author: PluginResourceAuthor;
   title: string;
   license: string;

@@ -9,6 +9,7 @@ return [
     'health_check_successful' => 'Health check successful.',
     'plugin_submitted_successfully' => 'Plugin submitted successfully.',
     'plugin_name_already_exists' => 'You already submitted a plugin with this name.',
+    'plugin_name_invalid' => 'The plugin name can only contain ASCII letters, digits, and the characters ., -, and _.',
     'invalid_data' => 'The given data was invalid.',
     'invalid_credentials' => 'Email or password is incorrect.',
     'account_locked' => 'Your account has been locked. Please contact support.',

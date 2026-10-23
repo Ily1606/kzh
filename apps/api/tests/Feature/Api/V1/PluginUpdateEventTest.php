@@ -31,7 +31,7 @@ class PluginUpdateEventTest extends TestCase
     {
         return Plugin::factory()->create(array_merge([
             'user_id' => $user->id,
-            'name' => 'Audit Plugin',
+            'name' => 'Audit-Plugin',
             'title' => 'Audit Plugin Title',
             'license' => 'MIT',
             'source_link' => 'https://example.com/audit-plugin',
@@ -57,7 +57,7 @@ class PluginUpdateEventTest extends TestCase
                     && $event->user->is($user)
                     && $event->context()['plugin_id'] === $plugin->id
                     && $event->context()['user_id'] === $user->id
-                    && $event->context()['name'] === 'Audit Plugin'
+                    && $event->context()['name'] === 'Audit-Plugin'
                     && $event->context()['ip_address'] === '127.0.0.1';
             },
         );
@@ -154,14 +154,14 @@ class PluginUpdateEventTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->patchJson("/api/v1/plugins/{$plugin->id}", [
-            'name' => 'Đổi tên',
+            'name' => 'Renamed-Plugin',
         ])->assertOk();
 
         Event::assertDispatched(
             PluginUpdated::class,
             fn (PluginUpdated $event): bool => $event->changes['name'] === [
-                'from' => 'Audit Plugin',
-                'to' => 'Đổi tên',
+                'from' => 'Audit-Plugin',
+                'to' => 'Renamed-Plugin',
             ],
         );
     }
@@ -267,14 +267,14 @@ class PluginUpdateEventTest extends TestCase
         Event::fake([PluginUpdated::class]);
 
         $user = User::factory()->create();
-        $plugin = $this->pluginFor($user, ['name' => 'Tên cũ']);
+        $plugin = $this->pluginFor($user, ['name' => 'Old-Name']);
         Plugin::factory()->create([
             'user_id' => $user->id,
-            'name' => 'Tên đã có',
+            'name' => 'Taken-Name',
         ]);
         Sanctum::actingAs($user);
 
-        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['name' => 'Tên đã có'])
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['name' => 'Taken-Name'])
             ->assertUnprocessable();
 
         Event::assertNotDispatched(PluginUpdated::class);

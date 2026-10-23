@@ -29,6 +29,31 @@ class StarController extends Controller
             RequestContext::fromRequest($request),
         );
 
+        return $this->respond($result);
+    }
+
+    /**
+     * Star or unstar a plugin, addressed by its author and name.
+     */
+    #[Response(status: 429, description: 'Too many star operations. Retry after the rate limit window resets.')]
+    public function storeBySlug(SetStarRequest $request, string $username, string $pluginName): JsonResponse
+    {
+        $result = $this->starService->setStarredBySlug(
+            $request->user(),
+            $username,
+            $pluginName,
+            $request->boolean('starred'),
+            RequestContext::fromRequest($request),
+        );
+
+        return $this->respond($result);
+    }
+
+    /**
+     * @param  array{starred: bool, star_count: int}  $result
+     */
+    private function respond(array $result): JsonResponse
+    {
         $message = $result['starred']
             ? __('api.plugin_starred_successfully')
             : __('api.plugin_unstarred_successfully');

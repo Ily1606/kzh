@@ -174,7 +174,7 @@ async function handleDelete() {
       <!-- Owner-only. -->
       <RouterLink
         v-if="showHistoryLink"
-        :to="{ name: 'plugin-history', params: { id: plugin.id } }"
+        :to="{ name: 'plugin-history', params: { username: plugin.author.username, pluginName: plugin.name } }"
         class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
       >
         <History class="size-4" />

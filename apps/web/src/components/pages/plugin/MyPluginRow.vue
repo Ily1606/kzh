@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { Boxes, Eye, MessageSquare, Star } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
@@ -9,8 +9,6 @@ defineProps<{
   plugin: PluginResource
 }>()
 
-const route = useRoute()
-
 function submittedAt(plugin: PluginResource): string | null {
   return plugin.approved_at ?? plugin.created_at
 }
@@ -19,7 +17,7 @@ function submittedAt(plugin: PluginResource): string | null {
 <template>
   <li class="border-b last:border-b-0">
     <RouterLink
-      :to="{ name: 'plugin-detail', params: { id: plugin.id }, query: { redirect: route.fullPath } }"
+      :to="{ name: 'plugin-detail', params: { username: plugin.author.username, pluginName: plugin.name } }"
       class="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset focus-visible:outline-none"
     >
       <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">

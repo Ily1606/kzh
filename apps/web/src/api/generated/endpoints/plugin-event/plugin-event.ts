@@ -6,6 +6,8 @@
  */
 import type {
   PluginEventIndex200,
+  PluginEventIndexBySlug200,
+  PluginEventIndexBySlugParams,
   PluginEventIndexParams
 } from '../../model';
 
@@ -30,5 +32,20 @@ const pluginEventIndex = (
     },
       options);
     }
-  return {pluginEventIndex}};
+  /**
+ * @summary The same timeline, addressed by the author and plugin name
+ */
+const pluginEventIndexBySlug = (
+    username: string,
+    pluginName: string,
+    params?: PluginEventIndexBySlugParams,
+ options?: SecondParameter<typeof customInstance<PluginEventIndexBySlug200>>,) => {
+      return customInstance<PluginEventIndexBySlug200>(
+      {url: `/v1/plugins/${username}/${pluginName}/events`, method: 'GET',
+        params
+    },
+      options);
+    }
+  return {pluginEventIndex,pluginEventIndexBySlug}};
 export type PluginEventIndexResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPluginEvent>['pluginEventIndex']>>>
+export type PluginEventIndexBySlugResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPluginEvent>['pluginEventIndexBySlug']>>>

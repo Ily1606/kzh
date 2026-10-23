@@ -42,3 +42,38 @@ export const PluginEventIndexResponse = zod.object({
 })
 })
 
+/**
+ * @summary The same timeline, addressed by the author and plugin name
+ */
+export const PluginEventIndexBySlugParams = zod.object({
+  "username": zod.string(),
+  "pluginName": zod.string()
+})
+
+
+
+
+
+export const PluginEventIndexBySlugQueryParams = zod.object({
+  "page": zod.number().int().min(1).nullish(),
+  "per_page": zod.number().int().min(1).optional(),
+  "sort": zod.enum(['newest', 'oldest']).optional()
+})
+
+export const PluginEventIndexBySlugResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Request successful."),
+  "data": zod.object({
+  "events": zod.array(zod.unknown())
+}),
+  "errors": zod.null(),
+  "meta": zod.object({
+  "current_page": zod.number().int(),
+  "from": zod.number().int().nullable(),
+  "last_page": zod.number().int(),
+  "per_page": zod.number().int(),
+  "to": zod.number().int().nullable(),
+  "total": zod.number().int()
+})
+})
+

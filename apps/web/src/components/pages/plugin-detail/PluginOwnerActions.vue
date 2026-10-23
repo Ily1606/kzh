@@ -21,7 +21,7 @@ const { canEdit } = usePluginDetailAccess(toRef(props, 'plugin'))
     variant="outline"
     class="flex-1 cursor-pointer gap-2 font-medium border-gray-400 bg-background text-foreground hover:bg-foreground hover:text-background"
   >
-    <RouterLink :to="{ name: 'plugin-edit', params: { id: plugin.id } }">
+    <RouterLink :to="{ name: 'plugin-edit', params: { username: plugin.author.username, pluginName: plugin.name } }">
       <Pencil class="size-4" />
       Edit plugin
     </RouterLink>

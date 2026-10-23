@@ -16,6 +16,7 @@ import type {
   PluginTrending200,
   PluginTrendingParams,
   PluginUpdate200,
+  PluginUpdateBySlug200,
   SubmitPluginRequest,
   UpdatePluginRequest
 } from '../../model';
@@ -91,14 +92,17 @@ const pluginDestroy = (
       options);
     }
   /**
- * @summary Trending
+ * @summary Update a plugin you own, addressed by its author and name
  */
-const pluginTrending = (
-    params?: PluginTrendingParams,
- options?: SecondParameter<typeof customInstance<PluginTrending200>>,) => {
-      return customInstance<PluginTrending200>(
-      {url: `/v1/plugins/trending`, method: 'GET',
-        params
+const pluginUpdateBySlug = (
+    username: string,
+    pluginName: string,
+    updatePluginRequest?: UpdatePluginRequest,
+ options?: SecondParameter<typeof customInstance<PluginUpdateBySlug200>>,) => {
+      return customInstance<PluginUpdateBySlug200>(
+      {url: `/v1/plugins/${username}/${pluginName}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: updatePluginRequest
     },
       options);
     }
@@ -108,10 +112,23 @@ const pluginTrending = (
  * @summary Get one plugin's detail
  */
 const pluginShow = (
-    id: string,
+    username: string,
+    pluginName: string,
  options?: SecondParameter<typeof customInstance<PluginShow200>>,) => {
       return customInstance<PluginShow200>(
-      {url: `/v1/plugins/${id}`, method: 'GET'
+      {url: `/v1/plugins/${username}/${pluginName}`, method: 'GET'
+    },
+      options);
+    }
+  /**
+ * @summary Trending
+ */
+const pluginTrending = (
+    params?: PluginTrendingParams,
+ options?: SecondParameter<typeof customInstance<PluginTrending200>>,) => {
+      return customInstance<PluginTrending200>(
+      {url: `/v1/plugins/trending`, method: 'GET',
+        params
     },
       options);
     }
@@ -127,12 +144,13 @@ const pluginTrackView = (
     },
       options);
     }
-  return {pluginMyPlugins,pluginStore,pluginIndex,pluginUpdate,pluginDestroy,pluginTrending,pluginShow,pluginTrackView}};
+  return {pluginMyPlugins,pluginStore,pluginIndex,pluginUpdate,pluginDestroy,pluginUpdateBySlug,pluginShow,pluginTrending,pluginTrackView}};
 export type PluginMyPluginsResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginMyPlugins']>>>
 export type PluginStoreResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginStore']>>>
 export type PluginIndexResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginIndex']>>>
 export type PluginUpdateResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginUpdate']>>>
 export type PluginDestroyResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginDestroy']>>>
-export type PluginTrendingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrending']>>>
+export type PluginUpdateBySlugResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginUpdateBySlug']>>>
 export type PluginShowResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginShow']>>>
+export type PluginTrendingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrending']>>>
 export type PluginTrackViewResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrackView']>>>

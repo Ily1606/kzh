@@ -29,12 +29,43 @@ class PluginEventController extends Controller
     {
         $plugin = $this->pluginService->getPlugin($pluginId, $request->user());
 
-        if ($plugin->user_id !== $request->user()->getAuthIdentifier()) {
-            throw (new ModelNotFoundException)->setModel(Plugin::class, [$pluginId]);
-        }
+        $this->assertOwner($request, $plugin);
 
+        return $this->timelineResponse($request, $plugin);
+    }
+
+    /**
+     * The same timeline, addressed by the author and plugin name.
+     */
+    #[Response(status: 404, description: 'The plugin does not exist, is soft-deleted, is not visible to the caller, or is not the caller\'s.')]
+    public function indexBySlug(ListPluginEventsRequest $request, string $username, string $pluginName): JsonResponse
+    {
+        $plugin = $this->pluginService->getPluginByUsernameAndPluginName(
+            $username,
+            $pluginName,
+            $request->user(),
+        );
+
+        $this->assertOwner($request, $plugin);
+
+        return $this->timelineResponse($request, $plugin);
+    }
+
+    /**
+     * An outsider gets the same 404 as a plugin that does not exist: a 403
+     * would confirm the plugin is there.
+     */
+    private function assertOwner(ListPluginEventsRequest $request, Plugin $plugin): void
+    {
+        if ($plugin->user_id !== $request->user()->getAuthIdentifier()) {
+            throw (new ModelNotFoundException)->setModel(Plugin::class, [$plugin->id]);
+        }
+    }
+
+    private function timelineResponse(ListPluginEventsRequest $request, Plugin $plugin): JsonResponse
+    {
         $events = $this->pluginEventService->paginateForPlugin(
-            $pluginId,
+            $plugin->id,
             $request->sort(),
             $request->perPage(),
         );

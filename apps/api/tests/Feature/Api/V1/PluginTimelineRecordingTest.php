@@ -43,7 +43,7 @@ class PluginTimelineRecordingTest extends TestCase
     {
         return Plugin::factory()->create(array_merge([
             'user_id' => $owner->id,
-            'name' => '@dsh/timeline-plugin',
+            'name' => 'dsh-timeline-plugin',
             'title' => 'Timeline Plugin',
             'license' => 'MIT',
             'source_link' => 'https://example.com/timeline-plugin',
@@ -56,7 +56,7 @@ class PluginTimelineRecordingTest extends TestCase
         Sanctum::actingAs($owner);
 
         $pluginId = $this->postJson('/api/v1/plugins', [
-            'name' => '@dsh/brand-new',
+            'name' => 'dsh-brand-new',
             'title' => 'Brand New',
             'license' => 'MIT',
             'category' => 'Developer tools',
@@ -79,7 +79,7 @@ class PluginTimelineRecordingTest extends TestCase
         Sanctum::actingAs($owner);
 
         $pluginId = $this->postJson('/api/v1/plugins', [
-            'name' => '@dsh/no-actor',
+            'name' => 'dsh-no-actor',
             'title' => 'No Actor',
             'license' => 'MIT',
             'category' => 'Developer tools',
@@ -100,12 +100,12 @@ class PluginTimelineRecordingTest extends TestCase
     public function test_a_refused_submission_records_nothing(): void
     {
         $owner = $this->owner();
-        $this->pluginFor($owner, ['name' => '@dsh/taken']);
+        $this->pluginFor($owner, ['name' => 'dsh-taken']);
 
         Sanctum::actingAs($owner);
 
         $this->postJson('/api/v1/plugins', [
-            'name' => '@dsh/taken',
+            'name' => 'dsh-taken',
             'title' => 'Duplicate',
             'license' => 'MIT',
             'category' => 'Developer tools',
@@ -185,9 +185,9 @@ class PluginTimelineRecordingTest extends TestCase
 
         // Renaming onto a name this owner already holds fails on the unique
         // index, after the timeline row would otherwise have been written.
-        $this->pluginFor($owner, ['name' => '@dsh/occupied']);
+        $this->pluginFor($owner, ['name' => 'dsh-occupied']);
 
-        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['name' => '@dsh/occupied'])
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", ['name' => 'dsh-occupied'])
             ->assertStatus(422)
             ->assertJsonValidationErrors('name');
 

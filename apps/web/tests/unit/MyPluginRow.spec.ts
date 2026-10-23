@@ -11,7 +11,7 @@ const mockPush = vi.fn()
 vi.mock('vue-router', () => ({
   useRoute: () => ({ fullPath: '/resources' }),
   useRouter: () => ({ push: mockPush }),
-  RouterLink: { props: ['to'], template: '<a :href="to && to.name ? `/${to.name}/${to.params.id}` : \'\'"><slot /></a>' },
+  RouterLink: { props: ['to'], template: '<a :href="to && to.name ? `/${to.name}/${to.params.username}/${to.params.pluginName}` : \'\'"><slot /></a>' },
 }))
 
 function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
@@ -19,9 +19,11 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     id: 'plugin-1',
     name: '@dsh/dsr-webhook',
     user_id: 'user-1',
-    author: null,
+    author: { id: 'user-1', name: 'John Doe', username: 'johndoe', avatar_url: '' },
     title: 'Webhook notifier',
     license: 'MIT',
+    category: 'Integrations',
+    tags: [],
     approved_at: '2026-10-01T00:00:00Z',
     status: 'approved',
     source_link: 'https://github.com/owner/repo',
@@ -55,7 +57,7 @@ describe('MyPluginRow.vue', () => {
     // The row, not just the name: this is a list of things to click, and the
     // hover and focus rings the row already had implied exactly that.
     expect(link.exists()).toBe(true)
-    expect(link.attributes('href')).toBe('/plugin-detail/plugin-1')
+    expect(link.attributes('href')).toBe('/plugin-detail/johndoe/@dsh/dsr-webhook')
   })
 
   it('renders the plugin name, title and stats', () => {

@@ -108,8 +108,8 @@ export function describeEvent(eventType: string): TimelineEntry {
 /**
  * One plugin's review timeline.
  */
-export function usePluginEvents(pluginId: Ref<string>) {
-  const { pluginEventIndex } = getPluginEvent()
+export function usePluginEvents(username: Ref<string>, pluginName: Ref<string>) {
+  const { pluginEventIndexBySlug } = getPluginEvent()
 
   const events = ref<PluginEventResource[]>([])
   const isLoading = ref(false)
@@ -120,11 +120,18 @@ export function usePluginEvents(pluginId: Ref<string>) {
   const sort = ref<'newest' | 'oldest'>('newest')
 
   async function load(page = 1): Promise<void> {
+    if (!username.value || !pluginName.value) {
+      return
+    }
+
     isLoading.value = true
     error.value = ''
 
     try {
-      const res = await pluginEventIndex(pluginId.value, { page, sort: sort.value })
+      const res = await pluginEventIndexBySlug(username.value, pluginName.value, {
+        page,
+        sort: sort.value,
+      })
 
       // Scramble cannot infer this endpoint's shape, so the collection comes
       // back untyped. The same cast plugins.store.ts makes for the plugin

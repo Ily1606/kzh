@@ -13,21 +13,24 @@ class PluginResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // relationLoaded check the User object associated with this specific Plugin already in RAM?
+        // Prevent Orval generate the author is NULL
+        if (!$this->relationLoaded('user')) {
+            $this->load('user');
+        }
 
-        /** @var User|null $author */
-        $author = $this->relationLoaded('user') ? $this->user : null;
+        /** @var User $author */
+        $author = $this->user;
 
         return [
             'id' => $this->id,
             'name' => $this->name,
             'user_id' => $this->user_id,
-            'author' => $author ? [
+            'author' => [
                 'id' => $author->id,
                 'name' => $author->name,
                 'username' => $author->username,
                 'avatar_url' => $author->avatar_url,
-            ] : null,
+            ],
             'title' => $this->title,
             'license' => $this->license,
             // Null for a plugin submitted before categories existed.

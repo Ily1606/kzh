@@ -166,6 +166,26 @@ final class PluginService
     }
 
     /**
+     * Same edit, addressed by the author and plugin name instead of the id.
+     *
+     * Resolved without the visibility filter on purpose: update() already
+     * answers 403 for someone else's plugin, and that has to stay true here.
+     *
+     * @param  array<string, mixed>  $attributes  Validated patch payload.
+     */
+    public function updateBySlug(
+        User $user,
+        string $username,
+        string $pluginName,
+        array $attributes,
+        RequestContext $requestContext,
+    ): Plugin {
+        $plugin = $this->pluginRepository->findByUsernameAndPluginName($username, $pluginName);
+
+        return $this->update($user, $plugin->id, $attributes, $requestContext);
+    }
+
+    /**
      * Write whichever of the two the payload carries.
      *
      * A key that is absent is left alone, so an edit that sends just `category`
@@ -320,13 +340,15 @@ final class PluginService
      */
     public function getPlugin(string $id, ?User $user = null): Plugin
     {
-        $plugin = $this->resolveVisiblePlugin($id, $user);
+        return $this->getVisiblePlugin($this->pluginRepository->findById($id), $user);
+    }
 
-        if ($user !== null) {
-            $this->markStarredFlag([$plugin], (string) $user->getAuthIdentifier());
-        }
-
-        return $plugin;
+    public function getPluginByUsernameAndPluginName(string $username, string $name, ?User $user = null): Plugin
+    {
+        return $this->getVisiblePlugin(
+            $this->pluginRepository->findByUsernameAndPluginName($username, $name),
+            $user,
+        );
     }
 
     /**
@@ -341,18 +363,17 @@ final class PluginService
     }
 
     /**
-     * The plugin behind the id, or a 404 for a caller who may not open it.
+     * The plugin, or a 404 for a caller who may not open it.
      */
-    private function resolveVisiblePlugin(string $id, ?User $user): Plugin
+    private function getVisiblePlugin(Plugin $plugin, ?User $user): Plugin
     {
-        $plugin = $this->pluginRepository->findById($id);
-
-        if ($plugin->status === PluginStatus::Approved) {
-            return $plugin;
+        if ($plugin->status !== PluginStatus::Approved
+            && ($user === null || $plugin->user_id !== $user->getAuthIdentifier())) {
+            throw (new ModelNotFoundException)->setModel(Plugin::class, [$plugin->getKey()]);
         }
 
-        if ($user === null || $plugin->user_id !== $user->getAuthIdentifier()) {
-            throw (new ModelNotFoundException)->setModel(Plugin::class, [$id]);
+        if ($user !== null) {
+            $this->markStarredFlag([$plugin], (string) $user->getAuthIdentifier());
         }
 
         return $plugin;

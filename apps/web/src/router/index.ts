@@ -75,19 +75,19 @@ export const router = createRouter({
       meta: { layout: 'auth', title: 'Reset Password', guestOnly: true }
     },
     {
-      path: "/plugins/:id",
+      path: "/plugins/:username/:pluginName",
       name: "plugin-detail",
       component: () => import("@/views/PluginDetailView.vue"),
       meta: { layout: 'default' }
     },
     {
-      path: "/resources/:id/edit",
+      path: "/resources/:username/:pluginName/edit",
       name: "plugin-edit",
       component: () => import("@/views/EditPluginView.vue"),
       meta: { layout: 'default', requiresAuth: true }
     },
     {
-      path: "/plugins/:id/history",
+      path: "/plugins/:username/:pluginName/history",
       name: "plugin-history",
       component: () => import("@/views/PluginHistoryView.vue"),
       meta: { layout: 'default', requiresAuth: true }

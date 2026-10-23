@@ -85,6 +85,14 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->baseQuery()->findOrFail($id);
     }
 
+    public function findByUsernameAndPluginName(string $username, string $name): Plugin
+    {
+        return $this->baseQuery()
+            ->whereHas('user', fn (Builder $query) => $query->where('username', $username))
+            ->where('name', $name)
+            ->firstOrFail();
+    }
+
     /**
      * Write the given attributes onto the plugin and return it re-read.
      *

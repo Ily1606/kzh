@@ -7,6 +7,7 @@
 import type {
   SetStarRequest,
   StarStore200,
+  StarStoreBySlug200,
   StarTimeline200
 } from '../../model';
 
@@ -32,6 +33,21 @@ const starStore = (
       options);
     }
   /**
+ * @summary Star or unstar a plugin, addressed by its author and name
+ */
+const starStoreBySlug = (
+    username: string,
+    pluginName: string,
+    setStarRequest: SetStarRequest,
+ options?: SecondParameter<typeof customInstance<StarStoreBySlug200>>,) => {
+      return customInstance<StarStoreBySlug200>(
+      {url: `/v1/plugins/${username}/${pluginName}/star`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: setStarRequest
+    },
+      options);
+    }
+  /**
  * @summary Get star timeline for a plugin
  */
 const starTimeline = (
@@ -42,6 +58,7 @@ const starTimeline = (
     },
       options);
     }
-  return {starStore,starTimeline}};
+  return {starStore,starStoreBySlug,starTimeline}};
 export type StarStoreResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getStar>['starStore']>>>
+export type StarStoreBySlugResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getStar>['starStoreBySlug']>>>
 export type StarTimelineResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getStar>['starTimeline']>>>

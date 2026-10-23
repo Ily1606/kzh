@@ -40,14 +40,22 @@ Route::prefix('v1')->group(function () {
                 Route::post('/', 'store')
                     ->middleware('throttle:submit-plugin');
 
+                // =========== Update plugin by ID (will be replace by slug permantly later) ===========
                 Route::patch('/{pluginId}', 'update')
                     ->whereUuid('pluginId');
 
                 Route::delete('/{pluginId}', 'destroy')
                     ->whereUuid('pluginId');
 
+                // =========== Update plugin by slug ===========
+                Route::patch('/{username}/{pluginName}', 'updateBySlug');
+
+                // =========== GET timeline event by ID (will be replace by slug permantly later) ===========
                 Route::get('/{pluginId}/events', [PluginEventController::class, 'index'])
                     ->whereUuid('pluginId');
+
+                // =========== GET timeline event by Slug ===========
+                Route::get('/{username}/{pluginName}/events', [PluginEventController::class, 'indexBySlug']);
             });
 
         // ================ Comment ====================
@@ -56,8 +64,14 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:create-comment');
 
         // ================ Star ======================
+
+        // ======= Star by pluginID (will be replace by slug permantly later) =============
         Route::post('/plugins/{pluginId}/star', [StarController::class, 'store'])
             ->whereUuid('pluginId')
+            ->middleware('throttle:star-plugin');
+
+        // ======= Star by slug =============
+        Route::patch('/plugins/{username}/{pluginName}/star', [StarController::class, 'storeBySlug'])
             ->middleware('throttle:star-plugin');
 
         Route::post('/plugins/{pluginId}/comments/{commentId}/reports', [CommentReportController::class, 'store'])
@@ -70,18 +84,6 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware(['set.api.guard', 'throttle:api'])->group(function () {
         Route::get('/plugins', [PluginController::class, 'index']);
-        Route::get('/plugins/trending', [PluginController::class, 'trending']);
-        Route::get('/plugins/{id}', [PluginController::class, 'show'])->whereUuid('id');
-        Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
-            ->whereUuid('id');
-
-        // ================ Author ====================
-        Route::get('/users/{username}', [AuthorController::class, 'show']);
-        Route::get('/users/{username}/plugins', [AuthorController::class, 'plugins']);
-
-        // ================ Taxonomy ====================
-        Route::get('/categories', [CategoryController::class, 'index']);
-        Route::get('/tags', [TagController::class, 'index']);
 
         // ================ Comment ====================
         Route::get('/plugins/{pluginId}/comments', [CommentController::class, 'index'])
@@ -93,5 +95,21 @@ Route::prefix('v1')->group(function () {
         // ================ Star ======================
         Route::get('/plugins/{pluginId}/stars/timeline', [StarController::class, 'timeline'])
             ->whereUuid('pluginId');
+
+        // ================ Plugin detail ======================
+        Route::get('/plugins/{username}/{pluginName}', [PluginController::class, 'show']);
+
+        // ================ Trending ====================
+        Route::get('/plugins/trending', [PluginController::class, 'trending']);
+        Route::post('/plugins/{id}/view', [PluginController::class, 'trackView'])
+            ->whereUuid('id');
+
+        // ================ Author ====================
+        Route::get('/users/{username}', [AuthorController::class, 'show']);
+        Route::get('/users/{username}/plugins', [AuthorController::class, 'plugins']);
+
+        // ================ Taxonomy ====================
+        Route::get('/categories', [CategoryController::class, 'index']);
+        Route::get('/tags', [TagController::class, 'index']);
     });
 });

@@ -37,7 +37,7 @@ export const CommentStoreResponse = zod.object({
   "name": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
-  "replies_count": zod.union([zod.string(),zod.literal(0)]).describe('Number of visible direct replies — the client renders a "View N\n replies" affordance when this is above 0 and calls the replies\nendpoint to expand them. The list queries compute it per row, so it\nis null on the create path, where a brand-new comment cannot have\nreplies yet; the 0 fallback keeps that payload an integer too.'),
+  "replies_count": zod.union([zod.string(),zod.literal(0)]),
   "created_at": zod.string().nullable(),
   "updated_at": zod.string().nullable()
 })

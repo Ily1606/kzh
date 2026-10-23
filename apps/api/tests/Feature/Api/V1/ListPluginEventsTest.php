@@ -404,4 +404,46 @@ class ListPluginEventsTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0, 'data.events');
     }
+
+    public function test_the_owner_reads_their_timeline_by_slug(): void
+    {
+        $owner = User::factory()->create();
+        $plugin = $this->ownedBy($owner);
+
+        PluginEvent::factory()->created()->create(['plugin_id' => $plugin->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson("/api/v1/plugins/{$owner->username}/{$plugin->name}/events")
+            ->assertOk()
+            ->assertJsonPath('data.events.0.event_type', PluginEventType::Created->value);
+    }
+
+    public function test_another_users_plugin_is_a_404_by_slug(): void
+    {
+        $owner = User::factory()->create();
+        $plugin = $this->ownedBy($owner);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson("/api/v1/plugins/{$owner->username}/{$plugin->name}/events")
+            ->assertNotFound();
+    }
+
+    public function test_a_missing_slug_is_a_404(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/v1/plugins/nobody/unknown-plugin/events')
+            ->assertNotFound();
+    }
+
+    public function test_a_guest_is_rejected_by_slug(): void
+    {
+        $owner = User::factory()->create();
+        $plugin = $this->ownedBy($owner);
+
+        $this->getJson("/api/v1/plugins/{$owner->username}/{$plugin->name}/events")
+            ->assertUnauthorized();
+    }
 }

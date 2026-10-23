@@ -42,7 +42,7 @@ class SubmitPluginRequestTest extends TestCase
     private function validatedInput(array $overrides): array
     {
         $request = SubmitPluginRequest::create('/api/v1/plugins', 'POST', array_merge([
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
             'category' => 'Developer tools',
@@ -63,7 +63,7 @@ class SubmitPluginRequestTest extends TestCase
     public static function paddedFieldProvider(): array
     {
         return [
-            'name' => [['name' => '  Laravel Debugbar  ']],
+            'name' => [['name' => '  Laravel-Debugbar  ']],
             'title' => [['title' => "\t Debugbar for Laravel \n"]],
             'license' => [['license' => '  MIT  ']],
             'category' => [['category' => '  Developer tools  ']],
@@ -128,7 +128,7 @@ class SubmitPluginRequestTest extends TestCase
     public static function nonStringFieldProvider(): array
     {
         return [
-            'name as array' => [['name' => ['Laravel Debugbar']]],
+            'name as array' => [['name' => ['Laravel-Debugbar']]],
             'name as integer' => [['name' => 12345]],
             'title as float' => [['title' => 1.5]],
             'title as boolean' => [['title' => true]],
@@ -148,7 +148,7 @@ class SubmitPluginRequestTest extends TestCase
         $value = $overrides[$field];
 
         $request = SubmitPluginRequest::create('/api/v1/plugins', 'POST', array_merge([
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
             'category' => 'Developer tools',

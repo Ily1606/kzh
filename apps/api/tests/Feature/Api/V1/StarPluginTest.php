@@ -299,4 +299,51 @@ class StarPluginTest extends TestCase
 
         Redis::flushdb();
     }
+
+    public function test_authenticated_user_can_star_a_plugin_by_slug(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $plugin = $this->approvedPlugin();
+
+        $this->patchJson("/api/v1/plugins/{$plugin->user->username}/{$plugin->name}/star", [
+            'starred' => true,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.starred', true)
+            ->assertJsonPath('data.star_count', 1);
+
+        $this->assertDatabaseHas('stars', [
+            'plugin_id' => $plugin->id,
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_an_unknown_slug_is_a_404(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->patchJson('/api/v1/plugins/nobody/unknown-plugin/star', [
+            'starred' => true,
+        ])->assertNotFound();
+    }
+
+    public function test_a_pending_plugin_cannot_be_starred_by_slug(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $plugin = Plugin::factory()->create(['status' => PluginStatus::Pending]);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->user->username}/{$plugin->name}/star", [
+            'starred' => true,
+        ])->assertNotFound();
+    }
+
+    public function test_starring_by_slug_requires_authentication(): void
+    {
+        $plugin = $this->approvedPlugin();
+
+        $this->patchJson("/api/v1/plugins/{$plugin->user->username}/{$plugin->name}/star", [
+            'starred' => true,
+        ])->assertUnauthorized();
+    }
 }

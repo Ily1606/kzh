@@ -142,10 +142,18 @@ export function usePluginsActions(state: PluginsState) {
     }
   }
 
-  /** Fetches only on a cache miss: a deep link or refresh costs one request. */
-  async function ensurePlugin(id: string): Promise<PluginResource | null> {
-    const cached = findById(id);
+  /** Find a cached plugin by its author username and plugin name. */
+  function findBySlug(username: string, pluginName: string): PluginResource | null {
+    return Object.values(state.entities.value).find(
+      (p) => p.author?.username === username && p.name === pluginName
+    ) ?? null;
+  }
 
+  /**
+   * Fetches plugin details by slug (username and pluginName).
+   */
+  async function ensurePluginBySlug(username: string, pluginName: string): Promise<PluginResource | null> {
+    const cached = findBySlug(username, pluginName);
     if (cached) {
       return cached;
     }
@@ -154,7 +162,7 @@ export function usePluginsActions(state: PluginsState) {
     state.fetchError.value = null;
 
     try {
-      const res = await endpoints.fetchPlugin(id);
+      const res = await endpoints.fetchPlugin(username, pluginName);
       const plugin = res.data?.plugin ?? null;
 
       if (plugin) {
@@ -175,12 +183,14 @@ export function usePluginsActions(state: PluginsState) {
    * Set-state rather than toggle, matching the endpoint: a retry cannot reverse
    * it. Rolled back on failure; the server's own count wins on success.
    */
-  async function setStar(id: string, starred: boolean): Promise<void> {
-    const before = findById(id);
+  async function setStar(username: string, pluginName: string, starred: boolean): Promise<void> {
+    const before = findBySlug(username, pluginName);
 
-    if (!before || isStarring(id)) {
+    if (!before || isStarring(before.id)) {
       return;
     }
+
+    const id = before.id;
 
     state.starringIds.value = [...state.starringIds.value, id];
     patchPlugin(id, {
@@ -189,7 +199,7 @@ export function usePluginsActions(state: PluginsState) {
     });
 
     try {
-      const res = await endpoints.putStar(id, starred);
+      const res = await endpoints.putStar(username, pluginName, starred);
 
       patchPlugin(id, { is_star: res.data.starred, star_count: res.data.star_count });
     } catch (err) {
@@ -200,21 +210,30 @@ export function usePluginsActions(state: PluginsState) {
     }
   }
 
-  /** Applies an edit and writes the response through to the cache. */
-  async function updatePlugin(id: string, payload: UpdatePluginRequest): Promise<boolean> {
+  /**
+   * Applies an edit and writes the response through to the cache.
+   *
+   * Returns the saved plugin because an edit can rename it: the caller needs
+   * the new slug to navigate to.
+   */
+  async function updatePlugin(
+    username: string,
+    pluginName: string,
+    payload: UpdatePluginRequest
+  ): Promise<PluginResource | null> {
     try {
-      const res = await endpoints.savePlugin(id, payload);
-      const plugin = res.data?.plugin;
+      const res = await endpoints.savePlugin(username, pluginName, payload);
+      const plugin = res.data?.plugin ?? null;
 
       if (plugin) {
         put([plugin]);
       }
 
-      return Boolean(plugin);
+      return plugin;
     } catch (err) {
       notifyError(errorMessage(err, 'Could not save the plugin. Please try again.'));
 
-      return false;
+      return null;
     }
   }
 
@@ -281,12 +300,13 @@ export function usePluginsActions(state: PluginsState) {
   return {
     put,
     findById,
+    findBySlug,
     patchPlugin,
     isStarring,
     fetchTrending,
     fetchList,
     fetchMine,
-    ensurePlugin,
+    ensurePluginBySlug,
     setStar,
     updatePlugin,
     deletePlugin,

@@ -14,10 +14,17 @@ const router = useRouter()
 const store = usePluginsStore()
 const auth = useAuth()
 
-const pluginId = computed(() => route.params.id as string)
-const plugin = computed(() => store.findById(pluginId.value))
+const username = computed(() => route.params.username as string)
+const pluginName = computed(() => route.params.pluginName as string)
 
-const { events, isLoading, error, currentPage, lastPage, total, sort, load } = usePluginEvents(pluginId)
+const plugin = computed(() => {
+  if (username.value && pluginName.value) {
+    return store.findBySlug(username.value, pluginName.value)
+  }
+  return null
+})
+
+const { events, isLoading, error, currentPage, lastPage, total, sort, load } = usePluginEvents(username, pluginName)
 
 const ICONS = {
   send: Send,
@@ -44,20 +51,42 @@ async function changeSort() {
   await load(1)
 }
 
-onMounted(async () => {
-  await store.ensurePlugin(pluginId.value)
+async function loadCurrentPlugin(): Promise<boolean> {
+  if (!username.value || !pluginName.value) {
+    return false
+  }
+
+  await store.ensurePluginBySlug(username.value, pluginName.value)
 
   if (!plugin.value || plugin.value.user_id !== auth.user?.id) {
-    router.replace({ name: 'plugin-detail', params: { id: pluginId.value } })
-
-    return
+    return false
   }
 
   await load(1)
+
+  return true
+}
+
+function leave() {
+  router.replace({
+    name: 'plugin-detail',
+    params: {
+      username: username.value,
+      pluginName: pluginName.value,
+    },
+  })
+}
+
+onMounted(async () => {
+  if (!await loadCurrentPlugin()) {
+    leave()
+  }
 })
 
-watch(pluginId, () => {
-  load(1)
+watch([username, pluginName], async () => {
+  if (!await loadCurrentPlugin()) {
+    leave()
+  }
 })
 </script>
 
@@ -87,7 +116,7 @@ watch(pluginId, () => {
         </div>
 
         <Button as-child variant="outline" class="shrink-0">
-          <RouterLink :to="{ name: 'plugin-detail', params: { id: pluginId } }">
+          <RouterLink :to="{ name: 'plugin-detail', params: { username, pluginName } }">
             <ArrowLeft class="size-4" />
             Back to plugin
           </RouterLink>

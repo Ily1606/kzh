@@ -51,6 +51,7 @@ class ApiDocumentationTest extends TestCase
             '/v1/plugins' => 'post',
             '/v1/plugins/{pluginId}/comments' => 'post',
             '/v1/plugins/{pluginId}/star' => 'post',
+            '/v1/plugins/{username}/{pluginName}/star' => 'patch',
         ];
 
         foreach ($throttled as $path => $method) {

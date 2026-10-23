@@ -34,6 +34,11 @@ interface PluginRepositoryInterface
     public function findById(string $id): Plugin;
 
     /**
+     * Find a plugin by its author's username and its name
+     */
+    public function findByUsernameAndPluginName(string $username, string $name): Plugin;
+
+    /**
      * Write the given attributes onto the plugin and return it re-read.
      *
      * @param  array<string, mixed>  $attributes

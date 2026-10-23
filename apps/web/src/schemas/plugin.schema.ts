@@ -1,6 +1,7 @@
 import { SubmitPluginRequestLicense } from "@/api/generated/model"
 import {
   pluginStoreBodyNameMax,
+  pluginStoreBodyNameRegExp,
   pluginStoreBodySourceLinkMax,
   pluginStoreBodyTagsMax,
   pluginStoreBodyTitleMax,
@@ -26,7 +27,8 @@ export function createPluginFieldsSchema(categories: string[], tags: string[]) {
       .string({ required_error: 'Plugin name is required' })
       .trim()
       .min(1, 'Plugin name is required')
-      .max(pluginStoreBodyNameMax, `Plugin name must not exceed ${pluginStoreBodyNameMax} characters`),
+      .max(pluginStoreBodyNameMax, `Plugin name must not exceed ${pluginStoreBodyNameMax} characters`)
+      .regex(pluginStoreBodyNameRegExp, 'Plugin name must only contain alphanumeric characters, dots, underscores, and hyphens, and cannot be "." or ".."'),
     title: z
       .string({ required_error: 'Display title is required' })
       .trim()

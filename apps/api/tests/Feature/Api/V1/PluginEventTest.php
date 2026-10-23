@@ -39,7 +39,7 @@ class PluginEventTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return array_merge([
-            'name' => 'Event Plugin',
+            'name' => 'Event-Plugin',
             'title' => 'Event Plugin Title',
             'license' => 'MIT',
             'category' => 'Developer tools',
@@ -65,7 +65,7 @@ class PluginEventTest extends TestCase
                     && $event->user->is($user)
                     && $event->context()['plugin_id'] === $event->plugin->id
                     && $event->context()['user_id'] === $user->id
-                    && $event->context()['name'] === 'Event Plugin'
+                    && $event->context()['name'] === 'Event-Plugin'
                     && $event->context()['status'] === 'pending'
                     && $event->context()['ip_address'] === '127.0.0.1'
                     && $event->context()['user_agent'] === 'Plugin Review Agent';

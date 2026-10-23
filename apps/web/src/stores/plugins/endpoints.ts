@@ -22,20 +22,20 @@ export function fetchMyPlugins(page: number, status?: PluginStatus) {
   return getPlugin().pluginMyPlugins({ page, per_page: pluginConfig.numberPluginPerPage, status });
 }
 
-export function fetchPlugin(id: string) {
-  return getPlugin().pluginShow(id);
+export function fetchPlugin(username: string, pluginName: string) {
+  return getPlugin().pluginShow(username, pluginName);
 }
 
-export function savePlugin(id: string, payload: UpdatePluginRequest) {
-  return getPlugin().pluginUpdate(id, payload);
+export function savePlugin(username: string, pluginName: string, payload: UpdatePluginRequest) {
+  return getPlugin().pluginUpdateBySlug(username, pluginName, payload);
 }
 
 export function destroyPlugin(id: string) {
   return getPlugin().pluginDestroy(id);
 }
 
-export function putStar(id: string, starred: boolean) {
-  return getStar().starStore(id, { starred });
+export function putStar(username: string, pluginName: string, starred: boolean) {
+  return getStar().starStoreBySlug(username, pluginName, { starred });
 }
 
 export function pluginTrackView(id: string) {

@@ -10,7 +10,7 @@ import { useAuthStore, usePluginsStore } from '@/stores'
 import type { PluginResource, UserResource } from '@/api/generated/model'
 
 const mockPluginShow = vi.fn()
-const mockPluginUpdate = vi.fn()
+const mockPluginUpdateBySlug = vi.fn()
 const mockNotifyError = vi.fn()
 const mockNotifySuccess = vi.fn()
 
@@ -20,7 +20,7 @@ vi.mock('@/api/generated/endpoints', async () => {
   return {
     getPlugin: () => ({
       pluginShow: mockPluginShow,
-      pluginUpdate: mockPluginUpdate,
+      pluginUpdateBySlug: mockPluginUpdateBySlug,
     }),
     getStar: () => ({ starStore: vi.fn() }),
     getAuth: () => ({ authLogout: vi.fn() }),
@@ -36,8 +36,8 @@ vi.mock('@/utils/toast', () => ({
 }))
 
 const mockRoute = ref({
-  params: { id: 'plugin-123' } as Record<string, string>,
-  fullPath: '/resources/plugin-123/edit',
+  params: { username: 'janedev', pluginName: '@dsh/my-plugin' } as Record<string, string>,
+  fullPath: '/resources/janedev/@dsh/my-plugin/edit',
 })
 
 const mockPush = vi.fn()
@@ -55,7 +55,7 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     id: 'plugin-123',
     name: '@dsh/my-plugin',
     user_id: 'user-456',
-    author: { id: 'user-456', name: 'Jane Dev', avatar_url: null },
+    author: { id: 'user-456', name: 'Jane Dev', username: 'janedev', avatar_url: '' },
     title: 'My awesome plugin',
     license: 'MIT',
     category: 'Integrations',
@@ -105,7 +105,7 @@ describe('EditPluginView.vue', () => {
     window.history.replaceState(null, '')
 
     mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin() } })
-    mockPluginUpdate.mockResolvedValue({ data: { plugin: makePlugin({ title: 'Renamed' }) } })
+    mockPluginUpdateBySlug.mockResolvedValue({ data: { plugin: makePlugin({ title: 'Renamed' }) } })
   })
 
   describe('loading the plugin', () => {
@@ -153,7 +153,7 @@ describe('EditPluginView.vue', () => {
       await flushPromises()
 
       // The hard-refresh / shared-link case.
-      expect(mockPluginShow).toHaveBeenCalledWith('plugin-123')
+      expect(mockPluginShow).toHaveBeenCalledWith('janedev', '@dsh/my-plugin')
       expect(wrapper.findComponent(PluginFieldsForm).props('initialValues')).toMatchObject({
         title: 'From API',
       })
@@ -191,7 +191,7 @@ describe('EditPluginView.vue', () => {
       // reveal that at submit time.
       expect(mockReplace).toHaveBeenCalledWith({
         name: 'plugin-detail',
-        params: { id: 'plugin-123' },
+        params: { username: 'janedev', pluginName: '@dsh/my-plugin' },
       })
       expect(wrapper.findComponent(PluginFieldsForm).exists()).toBe(false)
     })
@@ -291,11 +291,32 @@ describe('EditPluginView.vue', () => {
       await wrapper.findComponent(PluginFieldsForm).props('submit')(values)
       await flushPromises()
 
-      expect(mockPluginUpdate).toHaveBeenCalledWith('plugin-123', values)
+      expect(mockPluginUpdateBySlug).toHaveBeenCalledWith('janedev', '@dsh/my-plugin', values)
       expect(mockNotifySuccess).toHaveBeenCalledWith('Plugin updated successfully.')
       // Back, not a fresh push: pushing the detail route again would leave this
       // page in the history and send the browser Back button straight back into it.
       expect(mockBack).toHaveBeenCalled()
+    })
+
+    it('navigates to the new slug when the save renames the plugin', async () => {
+      signIn()
+      seedStore()
+      mockPluginUpdateBySlug.mockResolvedValue({
+        data: { plugin: makePlugin({ name: 'renamed-plugin' }) },
+      })
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.findComponent(PluginFieldsForm).props('submit')(values)
+      await flushPromises()
+
+      // Back would land on the URL built from the old name, which now 404s.
+      expect(mockBack).not.toHaveBeenCalled()
+      expect(mockReplace).toHaveBeenCalledWith({
+        name: 'plugin-detail',
+        params: { username: 'janedev', pluginName: 'renamed-plugin' },
+      })
     })
 
     it('returns to the detail page when there is no earlier history entry', async () => {
@@ -310,14 +331,17 @@ describe('EditPluginView.vue', () => {
 
       // A bookmark or a new tab: `back()` would drop the reader out of the app.
       expect(mockBack).not.toHaveBeenCalled()
-      expect(mockReplace).toHaveBeenCalledWith({ name: 'plugin-detail', params: { id: 'plugin-123' } })
+      expect(mockReplace).toHaveBeenCalledWith({
+        name: 'plugin-detail',
+        params: { username: 'janedev', pluginName: '@dsh/my-plugin' },
+      })
     })
 
     it('leaves the page on the plugin and shows the message when the save fails', async () => {
       signIn()
       seedStore()
 
-      mockPluginUpdate.mockRejectedValue(new Error('boom'))
+      mockPluginUpdateBySlug.mockRejectedValue(new Error('boom'))
 
       const wrapper = mountView()
       await flushPromises()

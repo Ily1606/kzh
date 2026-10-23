@@ -36,7 +36,7 @@ async function toggleStar() {
     return;
   }
 
-  await store.setStar(props.plugin.id, !isStarred.value)
+  await store.setStar(props.plugin.author.username, props.plugin.name, !isStarred.value)
 }
 </script>
 

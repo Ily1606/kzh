@@ -32,6 +32,11 @@ class CreateCommentTest extends TestCase
         ]);
     }
 
+    private function pluginUrl(Plugin $plugin): string
+    {
+        return "/api/v1/plugins/{$plugin->user->username}/{$plugin->name}";
+    }
+
     /** @return array<string, mixed> */
     private function payload(array $overrides = []): array
     {
@@ -84,7 +89,7 @@ class CreateCommentTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
         $plugin = $this->approvedPlugin();
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->pluginUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.comment_count', 0);
 
@@ -93,7 +98,7 @@ class CreateCommentTest extends TestCase
 
         $this->assertDatabaseCount('comments', 1);
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->pluginUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.comment_count', 1);
     }
@@ -156,7 +161,7 @@ class CreateCommentTest extends TestCase
 
         $this->assertDatabaseCount('comments', 2);
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->pluginUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.comment_count', 2);
     }
@@ -295,7 +300,7 @@ class CreateCommentTest extends TestCase
         // Only the factory-made parent survives the failed insert.
         $this->assertDatabaseCount('comments', 1);
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->pluginUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.comment_count', 1);
     }
@@ -429,7 +434,7 @@ class CreateCommentTest extends TestCase
 
         $this->assertDatabaseCount('comments', 3); // nothing new persisted
 
-        $this->getJson("/api/v1/plugins/{$plugin->id}")
+        $this->getJson($this->pluginUrl($plugin))
             ->assertOk()
             ->assertJsonPath('data.plugin.comment_count', 3);
     }
