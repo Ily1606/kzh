@@ -242,6 +242,45 @@ export function usePluginsActions(state: PluginsState) {
   }
 
 
+  /** Removes a plugin from the store cache and all list queries. */
+  function removePluginFromCache(id: string): void {
+    delete state.entities.value[id];
+
+    state.trending.value = {
+      ...state.trending.value,
+      ids: state.trending.value.ids.filter((pluginId) => pluginId !== id),
+      total: Math.max(0, state.trending.value.total - 1),
+    };
+
+    state.list.value = {
+      ...state.list.value,
+      ids: state.list.value.ids.filter((pluginId) => pluginId !== id),
+      total: Math.max(0, state.list.value.total - 1),
+    };
+
+    state.mine.value = {
+      ...state.mine.value,
+      ids: state.mine.value.ids.filter((pluginId) => pluginId !== id),
+      total: Math.max(0, state.mine.value.total - 1),
+    };
+
+    state.starringIds.value = state.starringIds.value.filter((starringId) => starringId !== id);
+  }
+
+  /** Permanently deletes a plugin owned by the user. */
+  async function deletePlugin(id: string): Promise<boolean> {
+    try {
+      await endpoints.destroyPlugin(id);
+      removePluginFromCache(id);
+
+      return true;
+    } catch (err) {
+      notifyError(errorMessage(err, 'Could not delete the plugin. Please try again.'));
+
+      return false;
+    }
+  }
+
   return {
     put,
     findById,
@@ -253,6 +292,7 @@ export function usePluginsActions(state: PluginsState) {
     ensurePlugin,
     setStar,
     updatePlugin,
+    deletePlugin,
     trackView
   };
 }

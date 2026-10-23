@@ -262,6 +262,21 @@ export const PluginUpdateResponse = zod.object({
 })
 
 /**
+ * @summary Delete a plugin you own
+ */
+export const PluginDestroyParams = zod.object({
+  "pluginId": zod.string()
+})
+
+export const PluginDestroyResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Plugin deleted successfully."),
+  "data": zod.null(),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
  * @summary Trending
  */
 

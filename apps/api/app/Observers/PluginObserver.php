@@ -23,8 +23,6 @@ class PluginObserver
         if ($plugin->status !== PluginStatus::Approved || $plugin->approved_at === null) {
             $this->cleanupTrendingCache($plugin->id, false);
 
-            TrendingTracker::cleanupPlugin($plugin->id);
-
             return;
         }
 

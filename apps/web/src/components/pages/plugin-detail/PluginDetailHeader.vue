@@ -67,7 +67,7 @@ const { showStatusBadge, showStar, showInstallCommand, showHistoryLink } = usePl
     <div class="flex min-w-65 flex-col gap-3">
       <InstallCommand v-if="showInstallCommand" :name="plugin.name" />
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <PluginStarButton v-if="showStar" :plugin="plugin" />
 
         <PluginOwnerActions :plugin="plugin" />

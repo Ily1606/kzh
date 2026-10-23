@@ -33,6 +33,11 @@ export function usePluginDetailAccess(plugin: Ref<PluginResource | null>) {
     ),
 
     /**
+     * Whether this visitor may delete this plugin.
+     */
+    canDelete: computed(() => isOwner.value),
+
+    /**
      * Owner only, and only once the plugin has actually loaded
      */
     showHistoryLink: computed(() => Boolean(plugin.value) && isOwner.value),
