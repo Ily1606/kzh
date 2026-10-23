@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.0.1
  */
 import type { PluginTrending200Data } from './pluginTrending200Data';
+import type { PluginTrending200Meta } from './pluginTrending200Meta';
 
 export type PluginTrending200 = {
   success: boolean;
@@ -12,5 +13,5 @@ export type PluginTrending200 = {
   data: PluginTrending200Data;
   /** @nullable */
   errors: null;
-  meta: string;
+  meta: PluginTrending200Meta;
 };

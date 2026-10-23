@@ -14,6 +14,7 @@ export function usePluginsState() {
   // tab do not cancel each other out.
   const listTicket = latestOnly();
   const mineTicket = latestOnly();
+  const trendingTicket = latestOnly();
 
   // The ids with a star request in flight, so a button can disable itself.
   const starringIds = ref<string[]>([]);
@@ -46,6 +47,7 @@ export function usePluginsState() {
     fetchError,
     listTicket,
     mineTicket,
+    trendingTicket,
     trendingPlugins,
     listPlugins,
     minePlugins,

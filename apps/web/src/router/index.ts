@@ -33,6 +33,12 @@ export const router = createRouter({
       meta: { layout: 'default' }
     },
     {
+      path: "/trending",
+      name: "trending",
+      component: () => import("@/views/TrendingView.vue"),
+      meta: { layout: 'default' }
+    },
+    {
       path: "/publish",
       name: "publish",
       component: () => import("@/views/PublishPluginView.vue"),

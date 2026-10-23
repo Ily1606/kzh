@@ -258,10 +258,11 @@ const steps = [
           description="Discover the most popular plugins for DeepSeek Harness."
         />
         <div class="flex items-center gap-3">
-          <Button variant="outline" as-child
-            ><RouterLink to="/plugins"
-              >View all plugins <ArrowRight /></RouterLink
-          ></Button>
+          <Button variant="outline" as-child>
+            <RouterLink to="/trending">
+              View all trending <ArrowRight />
+            </RouterLink>
+          </Button>
         </div>
       </div>
 

@@ -121,6 +121,7 @@ onUnmounted(() => {
         </RouterLink>
         <div class="hidden items-center gap-6 md:flex">
           <RouterLink to="/plugins" class="nav-link">Plugins</RouterLink>
+          <RouterLink to="/trending" class="nav-link">Trending</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/resources" class="nav-link">Resources</RouterLink>
         </div>
       </div>

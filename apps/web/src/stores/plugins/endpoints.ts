@@ -2,8 +2,11 @@ import { getPlugin, getStar } from '@/api/generated/endpoints';
 import type { PluginStatus, UpdatePluginRequest } from '@/api/generated/model';
 import { pluginConfig } from '@/config/plugins';
 
-export function fetchTrending() {
-  return getPlugin().pluginTrending();
+export function fetchTrending(page = 1, perPage = pluginConfig.numberTrendingPluginPerPage) {
+  return getPlugin().pluginTrending({
+    page,
+    per_page: perPage,
+  });
 }
 
 export function fetchIndex(page: number, category?: string | null, search?: string | null) {
