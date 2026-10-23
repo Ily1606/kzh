@@ -10,9 +10,8 @@ export interface AuthorResource {
   name: string;
   username: string;
   /** @nullable */
-  avatar_url: string | null;
-  /** @nullable */
   github_link: string | null;
+  avatar_url: string;
   /** @nullable */
   created_at: string | null;
 }
