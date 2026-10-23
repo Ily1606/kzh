@@ -21,8 +21,6 @@ class PluginObserver
 
         // 1. If the plugin is no longer approved, remove it immediately from trending
         if ($plugin->status !== PluginStatus::Approved || $plugin->approved_at === null) {
-            $this->cleanupTrendingCache($plugin->id);
-
             TrendingTracker::cleanupPlugin($plugin->id);
 
             return;
@@ -53,14 +51,6 @@ class PluginObserver
      */
     public function forceDeleted(Plugin $plugin): void
     {
-        $this->cleanupTrendingCache($plugin->id);
-    }
-
-    /**
-     * Remove the plugin from all trending caches in Redis and flush associated cache keys.
-     */
-    public function cleanupTrendingCache(string $pluginId): void
-    {
-        TrendingTracker::cleanupPlugin($pluginId);
+        TrendingTracker::cleanupPlugin($plugin->id);
     }
 }

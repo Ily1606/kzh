@@ -27,6 +27,10 @@ export function savePlugin(id: string, payload: UpdatePluginRequest) {
   return getPlugin().pluginUpdate(id, payload);
 }
 
+export function destroyPlugin(id: string) {
+  return getPlugin().pluginDestroy(id);
+}
+
 export function putStar(id: string, starred: boolean) {
   return getStar().starStore(id, { starred });
 }

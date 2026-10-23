@@ -12,11 +12,15 @@ const mockPluginShow = vi.fn()
 const mockPluginTrackView = vi.fn()
 const mockStarStore = vi.fn()
 const mockNotifyError = vi.fn()
+const mockNotifySuccess = vi.fn()
+const mockPluginDestroy = vi.fn()
+const mockRouterPush = vi.fn()
 
 vi.mock('@/api/generated/endpoints', () => ({
   getPlugin: () => ({
     pluginShow: mockPluginShow,
-    pluginTrackView: mockPluginTrackView
+    pluginTrackView: mockPluginTrackView,
+    pluginDestroy: mockPluginDestroy
   }),
   getStar: () => ({ starStore: mockStarStore }),
   getAuth: () => ({ authLogout: vi.fn() }),
@@ -30,7 +34,7 @@ vi.mock('@/router', () => ({
 
 vi.mock('@/utils/toast', () => ({
   notifyError: (message: string) => mockNotifyError(message),
-  notifySuccess: vi.fn()
+  notifySuccess: (message: string) => mockNotifySuccess(message)
 }))
 
 const mockRoute = ref({
@@ -45,7 +49,7 @@ vi.mock('vue-router', async (importOriginal) => {
   return {
     ...actual,
     useRoute: () => mockRoute.value,
-    useRouter: () => ({ push: vi.fn() }),
+    useRouter: () => ({ push: mockRouterPush }),
     // Renders a real href from `to` so the sign-in target is assertable. Named
     // routes with params keep the name visible: resolving `plugin-detail` + `{ id }`
     // to a path needs the router's route table, which is not what these tests are
@@ -709,6 +713,91 @@ describe('PluginDetailView.vue', () => {
         // review flow is a separate piece of work.
         expect(wrapper.findAll('button').find((b) => /Edit plugin/.test(b.text()))).toBeUndefined()
         expect(wrapper.findAll('a').find((a) => /Edit plugin/.test(a.text()))).toBeUndefined()
+      })
+    })
+
+    describe('deleting a plugin', () => {
+      it('offers the delete button to the owner', async () => {
+        signIn()
+        seedStore(makePlugin({ user_id: 'user-456' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
+        expect(deleteBtn).toBeDefined()
+      })
+
+      it('hides the delete button from non-owners', async () => {
+        const auth = useAuthStore()
+        auth.setUser({ id: 'user-other', name: 'Someone', email: 'o@example.com' } as UserResource)
+        auth.setToken('mock-token')
+
+        seedStore(makePlugin({ user_id: 'user-456' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
+        expect(deleteBtn).toBeUndefined()
+      })
+
+      it('opens confirmation modal and executes delete on confirm', async () => {
+        signIn()
+        seedStore(makePlugin({ id: 'plugin-123', name: '@dsh/test-plugin', user_id: 'user-456' }))
+        mockPluginDestroy.mockResolvedValue({ status: 200, data: {} })
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
+        expect(deleteBtn).toBeDefined()
+
+        // Click delete button to open modal
+        await deleteBtn!.trigger('click')
+        await flushPromises()
+
+        // Modal should be visible in document.body
+        const modal = document.body.querySelector('[role="dialog"]')
+        expect(modal).not.toBeNull()
+        expect(modal?.textContent).toContain('Delete Plugin')
+        expect(modal?.textContent).toContain('@dsh/test-plugin')
+
+        // Find the confirm button in the modal and click it
+        const confirmBtn = Array.from(modal!.querySelectorAll('button')).find((b) =>
+          /Delete Plugin/i.test(b.textContent ?? '')
+        )
+        expect(confirmBtn).toBeDefined()
+        confirmBtn!.click()
+        await flushPromises()
+
+        expect(mockPluginDestroy).toHaveBeenCalledWith('plugin-123')
+        expect(mockNotifySuccess).toHaveBeenCalledWith('Plugin deleted successfully.')
+        expect(mockRouterPush).toHaveBeenCalledWith({ name: 'my-plugins' })
+      })
+
+      it('cancels deletion when cancel button in modal is clicked', async () => {
+        signIn()
+        seedStore(makePlugin({ id: 'plugin-123', user_id: 'user-456' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
+        await deleteBtn!.trigger('click')
+        await flushPromises()
+
+        const modal = document.body.querySelector('[role="dialog"]')
+        expect(modal).not.toBeNull()
+
+        const cancelBtn = Array.from(modal!.querySelectorAll('button')).find((b) =>
+          /Cancel/i.test(b.textContent ?? '')
+        )
+        expect(cancelBtn).toBeDefined()
+        cancelBtn!.click()
+        await flushPromises()
+
+        expect(mockPluginDestroy).not.toHaveBeenCalled()
       })
     })
   })
