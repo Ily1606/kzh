@@ -19,20 +19,20 @@ class ListTrendingPluginsRequest extends FormRequest
         return [
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1'],
+            'limit' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
     /**
-     * Resolve the clamped items-per-page limit.
+     * Resolve the items-per-page count.
      */
     public function perPage(): int
     {
-        $defaultPerPage = (int) config('plugins.trending_api.default_per_page', config('plugins.trending_api.default_limit'));
-        $maxPerPage = (int) config('plugins.trending_api.max_per_page', config('plugins.trending_api.max_limit'));
+        $defaultPerPage = (int) config('plugins.trending.default_per_page', config('plugins.trending.per_page', 15));
 
-        $perPage = (int) $this->query('per_page', $defaultPerPage);
+        $perPage = (int) ($this->query('per_page') ?? $this->query('limit') ?? $defaultPerPage);
 
-        return max(1, min($perPage, $maxPerPage));
+        return max(1, $perPage);
     }
 }
 

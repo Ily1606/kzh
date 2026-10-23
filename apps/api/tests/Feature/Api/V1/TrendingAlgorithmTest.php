@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Jobs\RecoverTrendingJob;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\User;
@@ -10,6 +11,7 @@ use App\Services\TrendingTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Illuminate\Support\Facades\Redis;
 use Tests\TestCase;
@@ -613,6 +615,161 @@ class TrendingAlgorithmTest extends TestCase
 
         // Redis active plugin keys and stats should now be populated
         $this->assertNotEmpty(TrendingTracker::getActivePluginIds(7));
+    }
+
+    public function test_trend_32_refresh_recovers_historical_stats_even_when_new_interaction_exists_after_restart(): void
+    {
+        config()->set('plugins.trending.auto_recover', true);
+
+        // Historical plugin with 10 comments
+        $historicalPlugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDays(2),
+        ]);
+        $this->commentTimes($historicalPlugin, 10);
+
+        // Brand new plugin
+        $newPlugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        // Redis restarts (all keys cleared)
+        Redis::flushdb();
+        Cache::flush();
+
+        // Marker must not exist yet
+        $recoveredKey = config('plugins.trending.keys.recovered', 'plugins:trending_recovered');
+        $this->assertFalse((bool) Redis::exists($recoveredKey));
+
+        // A single interaction occurs on the new plugin before scheduled refresh runs
+        $today = now()->format('Y-m-d');
+        Redis::set("trending:stats:views:{$today}:{$newPlugin->id}", 1);
+        Redis::sadd("trending:active_plugins:{$today}", $newPlugin->id);
+
+        // Despite hasActivePlugins being true, refresh-trending checks marker and recovers 30 days of data
+        $this->artisan('plugins:refresh-trending')->assertSuccessful();
+
+        // Marker is now created
+        $this->assertTrue((bool) Redis::exists($recoveredKey));
+
+        // Historical plugin stats are recovered and it ranks first due to higher score (10 * 5 > 1 * 1)
+        $response = $this->getJson('/api/v1/plugins/trending');
+        $response->assertOk()
+            ->assertJsonCount(2, 'data.plugins')
+            ->assertJsonPath('data.plugins.0.id', $historicalPlugin->id)
+            ->assertJsonPath('data.plugins.0.comment_count', 10)
+            ->assertJsonPath('data.plugins.1.id', $newPlugin->id);
+    }
+
+    public function test_trend_33_recover_trending_sets_marker_and_respects_no_refresh_flag(): void
+    {
+        Redis::flushdb();
+        $recoveredKey = config('plugins.trending.keys.recovered', 'plugins:trending_recovered');
+
+        $this->assertFalse((bool) Redis::exists($recoveredKey));
+
+        $this->artisan('plugins:recover-trending', ['--no-refresh' => true])
+            ->assertSuccessful();
+
+        $this->assertTrue((bool) Redis::exists($recoveredKey));
+    }
+
+    public function test_trend_34_cold_request_dispatches_recover_job_and_returns_fallback_without_blocking(): void
+    {
+        config()->set('plugins.trending.auto_recover', true);
+        Queue::fake();
+
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDays(10),
+            'view_count' => 50,
+        ]);
+
+        Redis::flushdb();
+        Cache::flush();
+
+        $recoveredKey = config('plugins.trending.keys.recovered', 'plugins:trending_recovered');
+        $this->assertFalse((bool) Redis::exists($recoveredKey));
+
+        // The HTTP request returns fallback immediately without blocking on synchronous recovery
+        $response = $this->getJson('/api/v1/plugins/trending');
+        $response->assertOk()
+            ->assertJsonCount(1, 'data.plugins')
+            ->assertJsonPath('data.plugins.0.id', $plugin->id);
+
+        // RecoverTrendingJob was pushed to queue to run in background
+        Queue::assertPushed(RecoverTrendingJob::class, 1);
+    }
+
+    public function test_trend_35_concurrent_requests_only_dispatch_single_recovery_job(): void
+    {
+        config()->set('plugins.trending.auto_recover', true);
+        Queue::fake();
+
+        Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDays(2),
+        ]);
+
+        Redis::flushdb();
+        Cache::flush();
+
+        // First request triggers dispatch
+        $this->getJson('/api/v1/plugins/trending')->assertOk();
+        Queue::assertPushed(RecoverTrendingJob::class, 1);
+
+        // Even if ZSET is cleared again, recovering lock prevents second dispatch
+        Redis::del(config('plugins.trending.keys.zset'));
+        Cache::forget('plugins:trending:refresh_attempted');
+
+        $this->getJson('/api/v1/plugins/trending')->assertOk();
+        Queue::assertPushed(RecoverTrendingJob::class, 1);
+    }
+
+    public function test_trend_36_recover_trending_preserves_concurrent_live_increment_via_set_nx(): void
+    {
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now()->subDays(2),
+        ]);
+
+        // Historical 5 comments from yesterday in database
+        Comment::factory()->count(5)->create([
+            'plugin_id' => $plugin->id,
+            'hidden_at' => null,
+            'created_at' => now()->subDays(1),
+        ]);
+
+        // Redis restart
+        Redis::flushdb();
+        Cache::flush();
+
+        $today = now()->format('Y-m-d');
+        $yesterday = now()->subDays(1)->format('Y-m-d');
+        $todayKey = "trending:stats:comments:{$today}:{$plugin->id}";
+        $yesterdayKey = "trending:stats:comments:{$yesterday}:{$plugin->id}";
+
+        // T1: Live comment arrives today before recovery runs: incrby to 1
+        TrendingTracker::trackComment($plugin->id, 1);
+        $this->assertEquals(1, (int) Redis::get($todayKey));
+
+        // T2: Recovery executes using SET NX in pipeline
+        $this->artisan('plugins:recover-trending', ['--no-refresh' => true])
+            ->assertSuccessful();
+
+        // 1. Today's live comment was NOT overwritten (remains 1)
+        $this->assertEquals(1, (int) Redis::get($todayKey));
+
+        // 2. Yesterday's historical comments were recovered from DB (equals 5)
+        $this->assertEquals(5, (int) Redis::get($yesterdayKey));
+
+        // 3. Re-running recovery remains idempotent and does not overwrite today's live counter
+        $this->artisan('plugins:recover-trending', ['--no-refresh' => true])
+            ->assertSuccessful();
+
+        $this->assertEquals(1, (int) Redis::get($todayKey));
+        $this->assertEquals(5, (int) Redis::get($yesterdayKey));
     }
 }
 

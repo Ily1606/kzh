@@ -8,9 +8,10 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Redis;
 
-#[Signature('plugins:refresh-trending')]
+#[Signature('plugins:refresh-trending {--no-recover : Do not trigger recovery even if marker is missing}')]
 #[Description('Calculate and cache the top trending plugins using Hacker News algorithm')]
 class RefreshTrendingPlugins extends Command
 {
@@ -25,11 +26,19 @@ class RefreshTrendingPlugins extends Command
      */
     public function handle(): void
     {
+        $autoRecover = (bool) config('plugins.trending.auto_recover', true);
+        $recoveredKey = config('plugins.trending.keys.recovered', 'plugins:trending_recovered');
+
+        if ($autoRecover && ! $this->option('no-recover') && ! Redis::exists($recoveredKey)) {
+            $this->info('Trending data not recovered in Redis yet. Running recovery...');
+            Artisan::call('plugins:recover-trending', ['--no-refresh' => true]);
+        }
+
         $daysLimit = (int) config('plugins.trending.days_limit');
         $weightView = (float) config('plugins.trending.weights.view');
         $weightComment = (float) config('plugins.trending.weights.comment');
         $weightStar = (float) config('plugins.trending.weights.star');
-        $masterLimit = (int) config('plugins.trending.master_limit');
+        $limit = (int) config('plugins.trending.limit', 100);
 
         $activeIds = TrendingTracker::getActivePluginIds($daysLimit);
 
@@ -37,7 +46,7 @@ class RefreshTrendingPlugins extends Command
         $hashKey = config('plugins.trending.keys.objects');
 
         if (empty($activeIds)) {
-            $this->fallbackToAllTime($masterLimit, $zsetKey, $hashKey);
+            $this->fallbackToAllTime($limit, $zsetKey, $hashKey);
             return;
         }
 
@@ -56,32 +65,32 @@ class RefreshTrendingPlugins extends Command
         }
 
         if (empty($scoredPlugins)) {
-            $this->fallbackToAllTime($masterLimit, $zsetKey, $hashKey);
+            $this->fallbackToAllTime($limit, $zsetKey, $hashKey);
             return;
         }
 
         // Sort descending
         arsort($scoredPlugins);
 
-        // Take top $masterLimit
-        $topIds = array_slice(array_keys($scoredPlugins), 0, $masterLimit);
+        // Take top $limit
+        $topIds = array_slice(array_keys($scoredPlugins), 0, $limit);
 
         // Fetch full objects from DB
         $plugins = $this->pluginRepository->findApprovedByIds($topIds);
 
         if ($plugins->isEmpty()) {
-            $this->fallbackToAllTime($masterLimit, $zsetKey, $hashKey);
+            $this->fallbackToAllTime($limit, $zsetKey, $hashKey);
             return;
         }
 
-        $this->storeResultsToRedis($plugins, $masterLimit, $zsetKey, $hashKey, false, $scoredPlugins);
+        $this->storeResultsToRedis($plugins, $limit, $zsetKey, $hashKey, false, $scoredPlugins);
 
         $this->info("Successfully refreshed {$plugins->count()} trending plugins to Redis ZSET.");
     }
 
-    private function fallbackToAllTime(int $masterLimit, string $zsetKey, string $hashKey): void
+    private function fallbackToAllTime(int $limit, string $zsetKey, string $hashKey): void
     {
-        $results = $this->pluginRepository->getTopAllTimePlugins($masterLimit);
+        $results = $this->pluginRepository->getTopAllTimePlugins($limit);
 
         if ($results->isEmpty()) {
             Redis::del($zsetKey);
@@ -90,7 +99,7 @@ class RefreshTrendingPlugins extends Command
             return;
         }
 
-        $this->storeResultsToRedis($results, $masterLimit, $zsetKey, $hashKey, true);
+        $this->storeResultsToRedis($results, $limit, $zsetKey, $hashKey, true);
         $this->info("Successfully refreshed {$results->count()} fallback plugins to Redis ZSET.");
     }
 
@@ -100,7 +109,7 @@ class RefreshTrendingPlugins extends Command
      */
     private function storeResultsToRedis(
         Collection $plugins,
-        int $masterLimit,
+        int $limit,
         string $zsetKey,
         string $hashKey,
         bool $isFallback,
@@ -118,7 +127,7 @@ class RefreshTrendingPlugins extends Command
         Redis::del($tmpZsetKey);
         Redis::del($tmpHashKey);
 
-        $baseScore = $masterLimit;
+        $baseScore = $limit;
 
         foreach ($plugins as $index => $plugin) {
             if ($isFallback) {

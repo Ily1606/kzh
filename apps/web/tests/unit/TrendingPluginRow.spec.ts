@@ -86,9 +86,6 @@ describe('TrendingPluginRow.vue', () => {
     // Basic info / description
     expect(wrapper.text()).toContain('Automated pull request code review assistant')
 
-    // Category
-    expect(wrapper.text()).toContain('Developer tools')
-
     // Star count & View count & Comments
     expect(wrapper.text()).toContain('520')
     expect(wrapper.text()).toContain('3,200')

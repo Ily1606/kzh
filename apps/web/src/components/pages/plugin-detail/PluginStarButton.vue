@@ -31,8 +31,7 @@ const isStarred = computed(() => livePlugin.value.is_star === true)
 const starCount = computed(() => livePlugin.value.star_count || 0)
 const isStarring = computed(() => store.isStarring(props.plugin.id))
 
-async function toggleStar(event?: Event) {
-  event?.stopPropagation()
+async function toggleStar() {
   if (!auth.isAuthenticated) {
     return;
   }

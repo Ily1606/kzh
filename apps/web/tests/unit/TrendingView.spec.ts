@@ -145,10 +145,6 @@ describe('TrendingView.vue', () => {
     expect(wrapper.text()).toContain('8,530')
     expect(wrapper.text()).toContain('890')
     expect(wrapper.text()).toContain('4,210')
-
-    // Checks categories
-    expect(wrapper.text()).toContain('Developer tools')
-    expect(wrapper.text()).toContain('Vision')
   })
 
   it('renders a star button in each row and toggles star when clicked by authenticated user', async () => {

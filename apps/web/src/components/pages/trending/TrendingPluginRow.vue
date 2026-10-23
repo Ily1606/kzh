@@ -65,14 +65,8 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
       {{ plugin.title }}
     </p>
 
-    <!-- Meta row: Category, Author, Stars, Views, Comments, Source, Date -->
+    <!-- Meta row: Author, Stars, Views, Comments, Source, Date -->
     <div class="mt-1 flex flex-wrap items-center gap-x-4.5 gap-y-1.5 text-xs text-muted-foreground">
-      <!-- Category Badge -->
-      <span v-if="plugin.category" class="inline-flex items-center gap-1.5 font-normal text-foreground">
-        <span class="size-2 rounded-full bg-primary shrink-0" />
-        <span>{{ plugin.category }}</span>
-      </span>
-
       <!-- Author -->
       <span class="inline-flex items-center gap-1.5 text-foreground/90 font-normal">
         <span class="text-muted-foreground font-normal">Built by</span>
@@ -127,7 +121,7 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
         class="hidden md:inline-flex items-center gap-1 font-normal text-muted-foreground ml-auto"
       >
         <Calendar class="size-3 shrink-0" />
-        <span>Updated {{ formatRelativeDate(submittedDate) }}</span>
+        <span>Published {{ formatRelativeDate(submittedDate) }}</span>
       </time>
     </div>
   </article>
