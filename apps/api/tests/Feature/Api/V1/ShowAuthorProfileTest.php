@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,14 +48,14 @@ class ShowAuthorProfileTest extends TestCase
             ->assertJsonMissingPath('data.password');
     }
 
-    public function test_returns_nulls_when_the_author_has_no_profile(): void
+    public function test_returns_the_default_avatar_when_the_author_has_no_profile(): void
     {
         User::factory()->create(['username' => 'ada']);
 
         $response = $this->getJson('/api/v1/users/ada');
 
         $response->assertOk()
-            ->assertJsonPath('data.avatar_url', null)
+            ->assertJsonPath('data.avatar_url', url(UserProfile::DEFAULT_AVATAR_PATH))
             ->assertJsonPath('data.github_link', null);
     }
 

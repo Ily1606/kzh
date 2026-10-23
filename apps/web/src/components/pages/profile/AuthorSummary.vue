@@ -26,18 +26,12 @@ defineProps<{
       <p class="text-sm text-muted-foreground">@{{ author.username }}</p>
     </div>
 
-    <a
-      v-if="author.github_link"
-      :href="author.github_link"
-      target="_blank"
-      rel="noopener noreferrer"
-      class="inline-flex max-w-full items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary"
-    >
-      <Link class="size-4 shrink-0" />
-      <span class="truncate">{{ author.github_link }}</span>
-    </a>
-
     <dl class="flex flex-col gap-1.5 text-sm text-muted-foreground">
+      <a v-if="author.github_link" :href="author.github_link" target="_blank" rel="noopener noreferrer"
+        class="inline-flex max-w-full items-center gap-2 text-sm font-medium text-foreground transition-colors hover:text-primary">
+        <Link class="size-4 shrink-0" />
+        <span class="truncate">{{ author.github_link }}</span>
+      </a>
       <div class="flex items-center gap-2">
         <Package class="size-4 shrink-0" />
         <dd>

@@ -17,7 +17,7 @@ class AuthorResource extends JsonResource
             'name' => $this->name,
             'username' => $this->username,
             'github_link' => $this->profile?->github_link,
-            'avatar_url' => $this->profile?->avatar_url,
+            'avatar_url' => $this->avatar_url,
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

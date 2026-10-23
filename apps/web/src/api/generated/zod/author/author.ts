@@ -21,8 +21,8 @@ export const AuthorShowResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
   "username": zod.string(),
-  "avatar_url": zod.string().nullable(),
   "github_link": zod.string().nullable(),
+  "avatar_url": zod.string(),
   "created_at": zod.string().nullable()
 }),
   "errors": zod.null(),

@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
-
 use Illuminate\Support\Str;
 
 #[Fillable([
@@ -25,6 +24,8 @@ class UserProfile extends Model
     use HasUuids;
 
     public const AVATAR_DISK = 'public';
+
+    public const DEFAULT_AVATAR_PATH = 'avatars/default_avatar.jpg';
 
     public static function isLocalPath(?string $path): bool
     {
@@ -47,9 +48,9 @@ class UserProfile extends Model
     protected function avatarUrl(): Attribute
     {
         return Attribute::make(
-            get: function () {
+            get: function (): string {
                 if (! $this->isLocalAvatar()) {
-                    return $this->avatar_link;
+                    return $this->avatar_link ?: url(self::DEFAULT_AVATAR_PATH);
                 }
 
                 /** @var FilesystemAdapter $disk */

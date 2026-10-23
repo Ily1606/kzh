@@ -38,7 +38,8 @@ class ProfileUpdateTest extends TestCase
         $user->profile()->create(['id' => (string) Str::uuid(), 'avatar_link' => 'avatars/old.png']);
         Sanctum::actingAs($user);
         $response = $this->postJson('/api/v1/user/avatar', []);
-        $response->assertStatus(200)->assertJsonPath('data.avatarLink', null);
+        $response->assertStatus(200)
+            ->assertJsonPath('data.avatarLink', url(UserProfile::DEFAULT_AVATAR_PATH));
     }
 
     public function test_authenticated_user_can_update_username(): void
