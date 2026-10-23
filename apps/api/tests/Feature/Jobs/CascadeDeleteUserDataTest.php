@@ -37,7 +37,7 @@ class CascadeDeleteUserDataTest extends TestCase
         $nonExistentId = (string) Str::uuid();
 
         $job = new CascadeDeleteUserData($nonExistentId);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $this->assertTrue(true);
     }
@@ -53,7 +53,7 @@ class CascadeDeleteUserDataTest extends TestCase
         ]);
 
         $job = new CascadeDeleteUserData($user);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $this->assertCount(1, $user->fresh()->tokens);
         $this->assertFalse($plugin->fresh()->trashed());
@@ -103,7 +103,7 @@ class CascadeDeleteUserDataTest extends TestCase
 
         // Run the job manually
         $job = new CascadeDeleteUserData($user);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $this->assertCount(0, $user->fresh()->tokens);
         $this->assertTrue($plugin->fresh()->trashed());
@@ -169,7 +169,7 @@ class CascadeDeleteUserDataTest extends TestCase
         $user->delete();
 
         $job = new CascadeDeleteUserData($user);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         // Assert: stats today reduced by 2 (from 5 to 3), hidden comment was not subtracted again
         $this->assertEquals(3, (int) Redis::get($statKeyToday));
@@ -192,7 +192,7 @@ class CascadeDeleteUserDataTest extends TestCase
         // Set key with a specific TTL (500 seconds)
         Redis::setex($statKey, 500, 10);
 
-        \App\Services\TrendingTracker::bulkDecrementInteractions('comments', [
+        TrendingTracker::bulkDecrementInteractions('comments', [
             ['plugin_id' => 'test-plugin-id', 'date' => $today, 'count' => 3],
         ]);
 
@@ -242,7 +242,7 @@ class CascadeDeleteUserDataTest extends TestCase
         // Act: soft delete User A and run cascade delete job
         $userA->delete();
         $job = new CascadeDeleteUserData($userA);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         // Assert: Root comment, child comment, and sub-reply are all soft-deleted
         $this->assertTrue($rootComment->fresh()->trashed());
@@ -279,7 +279,7 @@ class CascadeDeleteUserDataTest extends TestCase
 
         $user->delete();
         $job = new CascadeDeleteUserData($user);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         $this->assertFalse((bool) Redis::sismember($activeKey, $plugin->id));
         $this->assertNull(Redis::get($statKey));
@@ -293,7 +293,7 @@ class CascadeDeleteUserDataTest extends TestCase
         $user->delete();
 
         $job = new CascadeDeleteUserData($user);
-        $job->handle();
+        app()->call([$job, 'handle']);
 
         Mail::assertSent(AccountDeletedMail::class, function (AccountDeletedMail $mail) use ($user) {
             return $mail->hasTo('deleted_user@example.com')
@@ -301,4 +301,3 @@ class CascadeDeleteUserDataTest extends TestCase
         });
     }
 }
-

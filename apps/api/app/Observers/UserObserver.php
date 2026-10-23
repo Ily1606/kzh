@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Jobs\CascadeDeleteUserData;
 use App\Mail\AccountLockedMail;
 use App\Models\User;
+use App\Services\TrendingTracker;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
@@ -18,9 +19,10 @@ class UserObserver
         if ($user->wasChanged('locked_at') && $user->locked_at !== null) {
             $user->tokens()->delete();
 
-            $user->plugins()->each(function ($plugin) {
-                app(PluginObserver::class)->cleanupTrendingCache($plugin->id);
-            });
+            $pluginIds = $user->plugins()->pluck('id')->all();
+            if (! empty($pluginIds)) {
+                TrendingTracker::cleanupPlugins($pluginIds);
+            }
 
             $this->sendAccountLockedEmail($user);
         }
@@ -41,6 +43,7 @@ class UserObserver
             report($e);
         }
     }
+
     /**
      * Handle the User "deleted" event (soft delete).
      */
