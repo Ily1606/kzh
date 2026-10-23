@@ -26,16 +26,20 @@ export const CommentReportStoreBody = zod.object({
   "reason": zod.string().min(commentReportStoreBodyReasonMin).max(commentReportStoreBodyReasonMax)
 })
 
-export const commentReportStoreResponseDataReportMin = 0;
-export const commentReportStoreResponseDataReportMax = 0;
-
-
-
 export const CommentReportStoreResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Comment reported successfully. Our moderators will review it shortly."),
   "data": zod.object({
-  "report": zod.array(zod.string()).min(commentReportStoreResponseDataReportMin).max(commentReportStoreResponseDataReportMax)
+  "report": zod.object({
+  "id": zod.string(),
+  "user_id": zod.string(),
+  "comment_id": zod.string(),
+  "plugin_id": zod.string(),
+  "reason": zod.string(),
+  "created_at": zod.string().datetime({"offset":true}).nullable(),
+  "updated_at": zod.string().datetime({"offset":true}).nullable(),
+  "deleted_at": zod.string().datetime({"offset":true}).nullable()
+})
 }),
   "errors": zod.null(),
   "meta": zod.string()

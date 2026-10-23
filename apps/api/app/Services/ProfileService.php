@@ -8,10 +8,14 @@ use App\Events\Profile\UserPasswordUpdated;
 use App\Events\Profile\UserProfileUpdated;
 use App\Models\User;
 use App\Models\UserProfile;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 use Throwable;
@@ -31,21 +35,41 @@ class ProfileService
     }
 
     /**
+     * The public profile of the user carrying this username.
+     *
+     * @throws ModelNotFoundException when no user carries that username.
+     */
+    public function getProfileByUsername(string $username): User
+    {
+        $user = $this->userRepository->findByUsername(Str::lower($username));
+
+        if ($user === null) {
+            throw (new ModelNotFoundException)->setModel(User::class, [$username]);
+        }
+
+        return $user;
+    }
+
+    /**
      * Update user's basic profile information.
      */
     public function updateProfile(User $user, array $data): User
     {
-        $name = $data['name'] ?? null;
+        $userData = Arr::only($data, ['name', 'username']);
 
         $profileData = [];
-        if (array_key_exists('githubName', $data)) {
-            $profileData['github_name'] = $data['githubName'];
-        }
         if (array_key_exists('githubLink', $data)) {
             $profileData['github_link'] = $data['githubLink'];
         }
 
-        $user = $this->userRepository->updateProfile($user, $name, $profileData);
+        try {
+            $user = $this->userRepository->updateProfile($user, $userData, $profileData);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages([
+                'username' => __('api.username_taken'),
+            ]);
+        }
+
         UserProfileUpdated::dispatch($user);
 
         return $user;

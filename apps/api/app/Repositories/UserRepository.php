@@ -42,6 +42,22 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     }
 
     /**
+     * The user carrying this username, with the profile the public page shows.
+     * Admin accounts are not public authors.
+     */
+    public function findByUsername(string $username): ?User
+    {
+        /** @var User|null $user */
+        $user = $this->newQuery()
+            ->where('username', $username)
+            ->where('is_admin', false)
+            ->with('profile')
+            ->first();
+
+        return $user;
+    }
+
+    /**
      * Credential check lives here, not in the base class: "email exists AND
      * account is not locked AND the password matches" is a business rule that
      * only this repository knows about.
@@ -58,11 +74,11 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
             : null;
     }
 
-    public function updateProfile(User $user, ?string $name, array $profileData): User
+    public function updateProfile(User $user, array $userData, array $profileData): User
     {
-        return DB::transaction(function () use ($user, $name, $profileData) {
-            if ($name !== null) {
-                $user->update(['name' => $name]);
+        return DB::transaction(function () use ($user, $userData, $profileData) {
+            if (! empty($userData)) {
+                $user->update($userData);
             }
 
             if (! empty($profileData)) {

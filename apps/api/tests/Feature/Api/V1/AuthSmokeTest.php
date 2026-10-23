@@ -21,22 +21,47 @@ class AuthSmokeTest extends TestCase
                 'password_confirmation' => 'secret-password',
             ]);
 
+        $username = $response->json('data.user.username');
+
         $response->assertCreated()
             ->assertJsonPath('data.user.name', 'Nguyen Van A')
             ->assertJsonPath('data.user.email', 'nguyen@example.com')
+            ->assertJsonPath('data.user.is_admin', false)
             ->assertJsonPath('data.token', fn (string $token): bool => $token !== '')
             ->assertJsonMissingPath('data.user.password')
             ->assertJsonMissingPath('data.user.remember_token')
             ->assertJsonPath('success', true)
             ->assertJsonPath('errors', null);
 
+        $this->assertMatchesRegularExpression('/^user-[a-z0-9]{8}$/', $username);
+
         $this->assertDatabaseHas('users', [
             'email' => 'nguyen@example.com',
+            'username' => $username,
             'locked_at' => null,
             'is_admin' => false,
             'deleted_at' => null,
         ]);
         $this->assertGuest('web');
+    }
+
+    public function test_each_registration_receives_a_generated_username(): void
+    {
+        $first = $this->postJson('/api/v1/register', [
+            'name' => 'First User',
+            'email' => 'first@example.com',
+            'password' => 'secret-password',
+            'password_confirmation' => 'secret-password',
+        ])->assertCreated();
+
+        $second = $this->postJson('/api/v1/register', [
+            'name' => 'Second User',
+            'email' => 'second@example.com',
+            'password' => 'secret-password',
+            'password_confirmation' => 'secret-password',
+        ])->assertCreated();
+
+        $this->assertNotSame($first->json('data.user.username'), $second->json('data.user.username'));
     }
 
     public function test_register_rejects_duplicate_email(): void

@@ -5,6 +5,10 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property-read string $status
+ * @property-read int $viewCount
+ */
 class PluginViewResource extends JsonResource
 {
     /**

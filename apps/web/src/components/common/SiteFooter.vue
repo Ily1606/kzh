@@ -10,7 +10,7 @@ const productLinks = [
 const accountLinks = [
   { to: "/login", label: "Sign in" },
   { to: "/register", label: "Create account" },
-  { to: "/profile", label: "Profile settings" },
+  { to: "/settings", label: "Profile settings" },
 ];
 </script>
 

@@ -19,14 +19,14 @@ describe('router/index.ts navigation guards', () => {
     expect(router.currentRoute.value.query).toEqual({ redirect: '/publish' });
   });
 
-  it('redirects to login with query.redirect for /profile when unauthenticated', async () => {
+  it('redirects to login with query.redirect for /settings when unauthenticated', async () => {
     const authStore = useAuthStore();
     authStore.clearAuth();
 
-    await router.push('/profile');
+    await router.push('/settings');
 
     expect(router.currentRoute.value.name).toBe('login');
-    expect(router.currentRoute.value.query).toEqual({ redirect: '/profile' });
+    expect(router.currentRoute.value.query).toEqual({ redirect: '/settings' });
   });
 
   it('redirects to home when authenticated user accesses guestOnly route', async () => {

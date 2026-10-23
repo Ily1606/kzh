@@ -14,6 +14,11 @@ interface UserRepositoryInterface
     public function findByEmail(string $email): ?User;
 
     /**
+     * The user carrying this username, or null when the username is unknown.
+     */
+    public function findByUsername(string $username): ?User;
+
+    /**
      * Return the user matching the given credentials, or null when the email
      * is unknown, the account is locked, or the password does not match.
      */
@@ -21,8 +26,11 @@ interface UserRepositoryInterface
 
     /**
      * Update user's basic profile information.
+     *
+     * @param  array<string, mixed>  $userData
+     * @param  array<string, mixed>  $profileData
      */
-    public function updateProfile(User $user, ?string $name, array $profileData): User;
+    public function updateProfile(User $user, array $userData, array $profileData): User;
 
     /**
      * Update user's avatar.

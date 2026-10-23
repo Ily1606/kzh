@@ -17,7 +17,6 @@ return new class extends Migration
                 ->constrained('users')
                 ->cascadeOnDelete();
             $table->string('avatar_link')->nullable();
-            $table->string('github_name')->nullable();
             $table->string('github_link')->nullable();
             $table->timestamps();
         });
@@ -27,10 +26,9 @@ return new class extends Migration
         }
 
         DB::table('users')
-            ->select('id', 'avatar_link', 'github_name', 'github_link')
+            ->select('id', 'avatar_link', 'github_link')
             ->where(function ($query): void {
                 $query->whereNotNull('avatar_link')
-                    ->orWhereNotNull('github_name')
                     ->orWhereNotNull('github_link');
             })
             ->orderBy('id')
@@ -39,7 +37,6 @@ return new class extends Migration
                     'id' => (string) Str::uuid(),
                     'user_id' => $user->id,
                     'avatar_link' => $user->avatar_link,
-                    'github_name' => $user->github_name,
                     'github_link' => $user->github_link,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -47,7 +44,7 @@ return new class extends Migration
             });
 
         Schema::table('users', function (Blueprint $table): void {
-            $table->dropColumn(['avatar_link', 'github_name', 'github_link']);
+            $table->dropColumn(['avatar_link', 'github_link']);
         });
     }
 
@@ -55,19 +52,17 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table): void {
             $table->string('avatar_link')->nullable();
-            $table->string('github_name')->nullable();
             $table->string('github_link')->nullable();
         });
 
         DB::table('user_profiles')
-            ->select('user_id', 'avatar_link', 'github_name', 'github_link')
+            ->select('user_id', 'avatar_link', 'github_link')
             ->orderBy('user_id')
             ->each(function ($profile): void {
                 DB::table('users')
                     ->where('id', $profile->user_id)
                     ->update([
                         'avatar_link' => $profile->avatar_link,
-                        'github_name' => $profile->github_name,
                         'github_link' => $profile->github_link,
                     ]);
             });

@@ -16,9 +16,9 @@ export const ProfileShowResponse = zod.object({
   "data": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "email": zod.string(),
   "avatarLink": zod.string(),
-  "githubName": zod.string().nullable(),
   "githubLink": zod.string().nullable(),
   "is_admin": zod.boolean(),
   "created_at": zod.string().datetime({"offset":true}).nullable()
@@ -32,15 +32,17 @@ export const ProfileShowResponse = zod.object({
  */
 export const profileUpdateProfileBodyNameMax = 255;
 
-export const profileUpdateProfileBodyGithubNameMax = 255;
+export const profileUpdateProfileBodyUsernameMax = 39;
 
+
+export const profileUpdateProfileBodyUsernameRegExp = new RegExp('^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$');
 export const profileUpdateProfileBodyGithubLinkMax = 255;
 
 
 
 export const ProfileUpdateProfileBody = zod.object({
   "name": zod.string().max(profileUpdateProfileBodyNameMax).optional(),
-  "githubName": zod.string().max(profileUpdateProfileBodyGithubNameMax).nullish(),
+  "username": zod.string().max(profileUpdateProfileBodyUsernameMax).regex(profileUpdateProfileBodyUsernameRegExp).optional(),
   "githubLink": zod.string().url().max(profileUpdateProfileBodyGithubLinkMax).nullish()
 })
 
@@ -50,9 +52,9 @@ export const ProfileUpdateProfileResponse = zod.object({
   "data": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "email": zod.string(),
   "avatarLink": zod.string(),
-  "githubName": zod.string().nullable(),
   "githubLink": zod.string().nullable(),
   "is_admin": zod.boolean(),
   "created_at": zod.string().datetime({"offset":true}).nullable()
@@ -74,9 +76,9 @@ export const ProfileUpdateAvatarResponse = zod.object({
   "data": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "email": zod.string(),
   "avatarLink": zod.string(),
-  "githubName": zod.string().nullable(),
   "githubLink": zod.string().nullable(),
   "is_admin": zod.boolean(),
   "created_at": zod.string().datetime({"offset":true}).nullable()
@@ -106,9 +108,9 @@ export const ProfileUpdatePasswordResponse = zod.object({
   "data": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "email": zod.string(),
   "avatarLink": zod.string(),
-  "githubName": zod.string().nullable(),
   "githubLink": zod.string().nullable(),
   "is_admin": zod.boolean(),
   "created_at": zod.string().datetime({"offset":true}).nullable()

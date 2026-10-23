@@ -34,9 +34,9 @@ export const AuthRegisterResponse = zod.object({
   "user": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "email": zod.string(),
   "avatarLink": zod.string(),
-  "githubName": zod.string().nullable(),
   "githubLink": zod.string().nullable(),
   "is_admin": zod.boolean(),
   "created_at": zod.string().datetime({"offset":true}).nullable()
@@ -62,9 +62,9 @@ export const AuthLoginResponse = zod.object({
   "user": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "email": zod.string(),
   "avatarLink": zod.string(),
-  "githubName": zod.string().nullable(),
   "githubLink": zod.string().nullable(),
   "is_admin": zod.boolean(),
   "created_at": zod.string().datetime({"offset":true}).nullable()

@@ -5,7 +5,7 @@ import { useAuth } from "@/composables/useAuth";
 import { getProfile } from "@/api/generated/endpoints";
 import { profileSchema } from "@/schemas/profile.schema";
 import { notifyError, notifySuccess } from "@/utils/toast";
-import Avatar from "@/components/pages/profile/Avatar.vue";
+import Avatar from "@/components/pages/profile-settings/Avatar.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,14 +55,15 @@ const {
 });
 
 const [name, nameProps] = defineField('name');
-const [githubName, githubNameProps] = defineField('githubName');
+const [username, usernameProps] = defineField('username');
 const [githubLink, githubLinkProps] = defineField('githubLink');
 
-// Schema cho phép null, còn Input chỉ nhận string.
-const githubNameModel = computed({
-  get: () => githubName.value ?? '',
-  set: (value: string) => { githubName.value = value; },
+const usernameModel = computed({
+  get: () => username.value ?? '',
+  set: (value: string) => { username.value = value; },
 });
+
+// Schema cho phép null, còn Input chỉ nhận string.
 const githubLinkModel = computed({
   get: () => githubLink.value ?? '',
   set: (value: string) => { githubLink.value = value; },
@@ -72,7 +73,7 @@ const onSubmit = handleSubmit(async (values) => {
   try {
     const response = await profileUpdateProfile({
       name: values.name,
-      githubName: values.githubName || null,
+      username: values.username,
       githubLink: values.githubLink || null,
     });
     if (auth.user) Object.assign(auth.user, response.data);
@@ -87,7 +88,7 @@ onMounted(() => {
   if (auth.user) {
     setValues({
       name: auth.user.name ?? "",
-      githubName: auth.user.githubName ?? "",
+      username: auth.user.username ?? "",
       githubLink: auth.user.githubLink ?? "",
     });
   }
@@ -98,7 +99,7 @@ onMounted(() => {
   <div>
     <div class="mb-5">
       <h2 class="text-lg font-medium">Personal Information</h2>
-      <p class="text-sm text-muted-foreground">Update your name and GitHub details.</p>
+      <p class="text-sm text-muted-foreground">Update your name, username and GitHub details.</p>
     </div>
 
     <!-- Avatar -->
@@ -119,9 +120,9 @@ onMounted(() => {
       </div>
 
       <div class="space-y-1.5">
-        <Label for="githubName">GitHub username</Label>
-        <Input id="githubName" v-model="githubNameModel" v-bind="githubNameProps" type="text" placeholder="johndoe" :aria-invalid="Boolean(errors.githubName)" />
-        <p v-if="errors.githubName" class="text-xs text-destructive">{{ errors.githubName }}</p>
+        <Label for="username">Username</Label>
+        <Input id="username" v-model="usernameModel" v-bind="usernameProps" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="johndoe" :aria-invalid="Boolean(errors.username)" />
+        <p v-if="errors.username" class="text-xs text-destructive">{{ errors.username }}</p>
       </div>
 
       <div class="space-y-1.5">

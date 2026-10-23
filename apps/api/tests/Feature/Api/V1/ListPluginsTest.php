@@ -6,6 +6,7 @@ use App\Enums\PluginStatus;
 use App\Models\Category;
 use App\Models\Plugin;
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
@@ -147,7 +148,7 @@ class ListPluginsTest extends TestCase
             ->assertJsonPath('data.0.user_id', $plugin->user_id);
     }
 
-    public function test_author_avatar_url_is_null_when_profile_missing(): void
+    public function test_author_avatar_url_falls_back_to_the_default_avatar_when_profile_missing(): void
     {
         $author = User::factory()->create(['name' => 'Grace Hopper']);
 
@@ -161,7 +162,7 @@ class ListPluginsTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.0.author.name', 'Grace Hopper')
-            ->assertJsonPath('data.0.author.avatar_url', null);
+            ->assertJsonPath('data.0.author.avatar_url', url(UserProfile::DEFAULT_AVATAR_PATH));
     }
 
     public function test_does_not_expose_author_email(): void

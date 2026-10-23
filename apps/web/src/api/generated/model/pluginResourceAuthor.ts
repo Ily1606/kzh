@@ -11,5 +11,6 @@
 export type PluginResourceAuthor = {
   id: string;
   name: string;
+  username: string;
   avatar_url: string;
 } | null;
