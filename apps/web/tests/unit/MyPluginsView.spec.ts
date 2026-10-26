@@ -42,7 +42,7 @@ function makePlugin(overrides: Record<string, unknown> = {}) {
     id: 'plugin-1',
     name: '@dsh/dsr-webhook',
     user_id: 'user-1',
-    author: null,
+    author: { id: 'author-1', name: 'Author', username: 'author', avatar_url: '' },
     title: 'Webhook notifier',
     license: 'MIT',
     category: 'Integrations',

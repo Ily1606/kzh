@@ -7,11 +7,11 @@ import TrendingPluginRow from '@/components/pages/trending/TrendingPluginRow.vue
 import { useAuthStore, usePluginsStore } from '@/stores'
 import type { PluginResource } from '@/api/generated/model'
 
-const mockStarStore = vi.fn()
+const mockStarStoreBySlug = vi.fn()
 
 vi.mock('@/api/generated/endpoints', () => ({
   getStar: () => ({
-    starStore: mockStarStore
+    starStoreBySlug: mockStarStoreBySlug
   }),
   getAuth: () => ({
     authLogin: vi.fn(),
@@ -27,6 +27,7 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ fullPath: '/trending' }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   RouterLink: {
+    name: 'RouterLink',
     template: '<a :href="to"><slot /></a>',
     props: ['to']
   }
@@ -40,6 +41,7 @@ const testPlugin: PluginResource = {
   author: {
     id: 'author-1',
     name: 'octocat',
+    username: 'octocat',
     avatar_url: 'https://example.com/octo.png'
   },
   category: 'Developer tools',
@@ -96,6 +98,13 @@ describe('TrendingPluginRow.vue', () => {
     expect(sourceLink.exists()).toBe(true)
     expect(sourceLink.attributes('href')).toBe('https://github.com/octocat/code-reviewer')
 
+    const pluginLink = wrapper.find('h2 a')
+    expect(pluginLink.exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'RouterLink' }).props('to')).toEqual({
+      name: 'plugin-detail',
+      params: { username: 'octocat', pluginName: 'code-reviewer' },
+    })
+
     // Star button exists in the row
     const starBtn = wrapper.find('button[data-test="star-button"]')
     expect(starBtn.exists()).toBe(true)
@@ -107,15 +116,15 @@ describe('TrendingPluginRow.vue', () => {
       id: 'u-1',
       name: 'User 1',
       email: 'user1@example.com',
+      username: 'user-1',
       avatarLink: '',
-      githubName: null,
       githubLink: null,
       is_admin: false,
       created_at: null
     })
     auth.setToken('auth-token')
 
-    mockStarStore.mockResolvedValue({
+    mockStarStoreBySlug.mockResolvedValue({
       data: { starred: true, star_count: 521 }
     })
 
@@ -130,7 +139,11 @@ describe('TrendingPluginRow.vue', () => {
     await starBtn.trigger('click')
     await flushPromises()
 
-    expect(mockStarStore).toHaveBeenCalledWith('plug-1', { starred: true })
+    expect(mockStarStoreBySlug).toHaveBeenCalledWith(
+      'octocat',
+      'code-reviewer',
+      { starred: true }
+    )
     expect(wrapper.text()).toContain('Starred')
   })
 })

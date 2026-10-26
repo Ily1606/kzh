@@ -83,7 +83,9 @@ describe('useAuth composable', () => {
     authStore.setToken('old-token');
     authStore.setUser({ id: '1', name: 'User', email: 'test@example.com' } as any);
     pluginsStore.put([{
-      id: 'plugin-1', name: '@dsh/x', user_id: '1', author: null, title: 't', license: 'MIT', category: null, tags: [],
+      id: 'plugin-1', name: '@dsh/x', user_id: '1',
+      author: { id: 'author-1', name: 'Author', username: 'author', avatar_url: '' },
+      title: 't', license: 'MIT', category: null, tags: [],
       approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
       is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
     }]);
@@ -106,7 +108,9 @@ describe('useAuth composable', () => {
 
     authStore.setToken('old-token');
     pluginsStore.put([{
-      id: 'plugin-1', name: '@dsh/x', user_id: '1', author: null, title: 't', license: 'MIT', category: null, tags: [],
+      id: 'plugin-1', name: '@dsh/x', user_id: '1',
+      author: { id: 'author-1', name: 'Author', username: 'author', avatar_url: '' },
+      title: 't', license: 'MIT', category: null, tags: [],
       approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 0,
       comment_count: 0, view_count: 0, created_at: null, updated_at: null,
     }]);
@@ -159,7 +163,9 @@ describe('useAuth composable', () => {
         store.setToken('revoked-token');
         store.setUser({ id: '42', name: 'Old User' } as any);
         pluginsStore.put([{
-          id: 'plugin-1', name: '@dsh/x', user_id: '42', author: null, title: 't', license: 'MIT', category: null, tags: [],
+          id: 'plugin-1', name: '@dsh/x', user_id: '42',
+          author: { id: 'author-1', name: 'Author', username: 'author', avatar_url: '' },
+          title: 't', license: 'MIT', category: null, tags: [],
           approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
           is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
         }]);
@@ -185,7 +191,9 @@ describe('useAuth composable', () => {
       store.setToken('valid-token');
       store.setUser({ id: '42', name: 'Valid User' } as any);
       pluginsStore.put([{
-        id: 'plugin-1', name: '@dsh/x', user_id: '42', author: null, title: 't', license: 'MIT', category: null, tags: [],
+        id: 'plugin-1', name: '@dsh/x', user_id: '42',
+        author: { id: 'author-1', name: 'Author', username: 'author', avatar_url: '' },
+        title: 't', license: 'MIT', category: null, tags: [],
         approved_at: null, status: 'approved', source_link: 'https://example.com', star_count: 3,
         is_star: true, comment_count: 0, view_count: 0, created_at: null, updated_at: null,
       }]);

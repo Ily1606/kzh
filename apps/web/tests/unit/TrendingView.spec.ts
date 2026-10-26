@@ -7,7 +7,7 @@ import TrendingView from '@/views/TrendingView.vue'
 import { useAuthStore } from '@/stores'
 
 const mockPluginTrending = vi.fn()
-const mockStarStore = vi.fn()
+const mockStarStoreBySlug = vi.fn()
 
 vi.mock('@/api/generated/endpoints', async () => {
   const { getCategory, getTag } = await import('../helpers/taxonomy')
@@ -17,7 +17,7 @@ vi.mock('@/api/generated/endpoints', async () => {
       pluginTrending: mockPluginTrending
     }),
     getStar: () => ({
-      starStore: mockStarStore
+      starStoreBySlug: mockStarStoreBySlug
     }),
     getAuth: () => ({
       authLogin: vi.fn(),
@@ -50,7 +50,7 @@ const samplePlugins = [
     id: '10',
     name: 'deepseek-agent',
     title: 'Autonomous multi-step coding agent plugin',
-    author: { id: 'u1', name: 'octocat', avatar_url: 'https://example.com/avatar1.png' },
+    author: { id: 'u1', name: 'octocat', username: 'octocat', avatar_url: 'https://example.com/avatar1.png' },
     category: 'Developer tools',
     tags: ['agent', 'coding'],
     star_count: 1420,
@@ -108,7 +108,7 @@ describe('TrendingView.vue', () => {
         plugins: JSON.parse(JSON.stringify(samplePlugins))
       }
     })
-    mockStarStore.mockResolvedValue({
+    mockStarStoreBySlug.mockResolvedValue({
       data: {
         starred: true,
         star_count: 1421
@@ -152,9 +152,9 @@ describe('TrendingView.vue', () => {
     authStore.setUser({
       id: 'tester-1',
       name: 'Tester',
+      username: 'tester',
       email: 'tester@example.com',
       avatarLink: '',
-      githubName: null,
       githubLink: null,
       is_admin: false,
       created_at: null
@@ -178,7 +178,11 @@ describe('TrendingView.vue', () => {
     await starBtn.trigger('click')
     await flushPromises()
 
-    expect(mockStarStore).toHaveBeenCalledWith('10', { starred: true })
+    expect(mockStarStoreBySlug).toHaveBeenCalledWith(
+      'octocat',
+      'deepseek-agent',
+      { starred: true }
+    )
     expect(row1.text()).toContain('Starred')
     expect(row1.text()).toContain('1421')
   })

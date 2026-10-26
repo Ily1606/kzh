@@ -110,7 +110,7 @@ describe('ProfileView.vue', () => {
   })
 
   it('does not reload the profile when only the page changes', async () => {
-    const wrapper = mountView()
+    mountView()
     await flushPromises()
 
     mockAuthorShow.mockClear()

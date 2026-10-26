@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { Eye, Star, MessageSquare, ExternalLink, Calendar } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import Author from '@/components/common/Author.vue'
@@ -12,7 +12,6 @@ const props = defineProps<{
   rank: number
 }>()
 
-const route = useRoute()
 const authorName = computed(() => props.plugin.author?.name || 'community')
 const authorAvatar = computed(() => props.plugin.author?.avatar_url ?? null)
 const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.created_at)
@@ -42,7 +41,7 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
         <!-- Author / Plugin Name -->
         <h2 class="text-base sm:text-lg font-normal tracking-tight min-w-0 font-mono">
           <RouterLink
-            :to="{ name: 'plugin-detail', params: { id: plugin.id }, query: { redirect: route.fullPath } }"
+            :to="{ name: 'plugin-detail', params: { username: plugin.author.username, pluginName: plugin.name } }"
             class="inline-flex items-baseline gap-1 text-foreground"
           >
             <span class="font-normal text-foreground group-hover:text-primary">{{ authorName }}</span>
