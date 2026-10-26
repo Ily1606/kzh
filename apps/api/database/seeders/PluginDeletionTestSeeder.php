@@ -10,6 +10,7 @@ use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
 use App\Models\PluginDailyView;
+use App\Models\PluginReport;
 use App\Models\Star;
 use App\Models\Tag;
 use App\Models\User;
@@ -164,6 +165,13 @@ class PluginDeletionTestSeeder extends Seeder
             'reason' => 'Test report on comment',
         ]);
 
+        // Plugin Report on target plugin
+        PluginReport::create([
+            'plugin_id' => $targetPlugin->id,
+            'user_id' => $communityUser->id,
+            'reason' => 'Testing plugin reporting functionality.',
+        ]);
+
         // Stars on target plugin
         Star::create([
             'plugin_id' => $targetPlugin->id,
@@ -309,6 +317,7 @@ class PluginDeletionTestSeeder extends Seeder
 
         // Clean up database tables in order
         if (! empty($pluginIds)) {
+            PluginReport::whereIn('plugin_id', $pluginIds)->forceDelete();
             CommentReport::whereIn('plugin_id', $pluginIds)->forceDelete();
             Comment::whereIn('plugin_id', $pluginIds)->forceDelete();
             Star::whereIn('plugin_id', $pluginIds)->forceDelete();

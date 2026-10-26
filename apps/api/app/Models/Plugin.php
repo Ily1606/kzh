@@ -97,6 +97,11 @@ class Plugin extends Model
         return $this->hasMany(PluginTag::class);
     }
 
+    public function reports(): HasMany
+    {
+        return $this->hasMany(PluginReport::class);
+    }
+
     /**
      * The plugin's one category, or null for plugins submitted before
      * categories existed.

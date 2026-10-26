@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
+use App\Models\PluginReport;
 use App\Models\Star;
 use App\Services\TrendingTracker;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -45,10 +46,13 @@ class CascadeDeletePluginData implements ShouldQueue
         // 2. Cascade soft-delete comment reports
         $this->cascadeDeleteCommentReports($deletedAt, $chunkSize);
 
-        // 3. Cascade soft-delete stars
+        // 3. Cascade soft-delete plugin reports
+        $this->cascadeDeletePluginReports($deletedAt, $chunkSize);
+
+        // 4. Cascade soft-delete stars
         $this->cascadeDeleteStars($deletedAt, $chunkSize);
 
-        // 4. Clean up Redis trending caches and timeline cache
+        // 5. Clean up Redis trending caches and timeline cache
         TrendingTracker::cleanupPlugin($this->pluginId);
     }
 
@@ -84,6 +88,24 @@ class CascadeDeletePluginData implements ShouldQueue
 
             if (! empty($reportIds)) {
                 CommentReport::whereIn('id', $reportIds)->update(['deleted_at' => $deletedAt]);
+            }
+        } while (! empty($reportIds));
+    }
+
+    /**
+     * Soft-delete plugin reports belonging to this plugin in batches.
+     */
+    private function cascadeDeletePluginReports(mixed $deletedAt, int $chunkSize): void
+    {
+        do {
+            $reportIds = PluginReport::where('plugin_id', $this->pluginId)
+                ->whereNull('deleted_at')
+                ->limit($chunkSize)
+                ->pluck('id')
+                ->all();
+
+            if (! empty($reportIds)) {
+                PluginReport::whereIn('id', $reportIds)->update(['deleted_at' => $deletedAt]);
             }
         } while (! empty($reportIds));
     }

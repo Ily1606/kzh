@@ -29,6 +29,7 @@ return [
             'stars' => 'Stars',
             'views' => 'Views',
             'comments' => 'Comments',
+            'reports' => 'Reports',
             'license' => 'License',
             'source_link' => 'Source Link',
             'approved_at' => 'Approved At',

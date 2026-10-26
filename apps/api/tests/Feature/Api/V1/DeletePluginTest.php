@@ -217,4 +217,19 @@ class DeletePluginTest extends TestCase
         $this->assertFalse(Cache::has($timelineKey1));
         $this->assertFalse(Cache::has($timelineKey2));
     }
+
+    public function test_delete_by_admin_is_permitted_for_any_plugin(): void
+    {
+        $owner = User::factory()->create();
+        $admin = User::factory()->create(['is_admin' => true]);
+        $plugin = Plugin::factory()->create(['user_id' => $owner->id]);
+
+        Sanctum::actingAs($admin);
+
+        $this->deleteJson("/api/v1/plugins/{$plugin->id}")
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertTrue($plugin->fresh()->trashed());
+    }
 }

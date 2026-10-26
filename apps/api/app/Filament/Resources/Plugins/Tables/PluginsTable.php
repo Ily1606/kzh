@@ -4,10 +4,12 @@ namespace App\Filament\Resources\Plugins\Tables;
 
 use App\Enums\PluginEventType;
 use App\Enums\PluginStatus;
+use App\Filament\Resources\Plugins\PluginResource;
 use App\Models\Plugin;
 use App\Services\PluginEventService;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
@@ -27,6 +29,7 @@ class PluginsTable
                 ->withCount([
                     'stars as star_count',
                     'comments as comment_count' => fn(Builder $comments) => $comments->visible(),
+                    'reports as report_count' => fn(Builder $reports) => $reports->whereNull('deleted_at'),
                 ]))
             ->columns([
 
@@ -75,6 +78,14 @@ class PluginsTable
                     ->alignCenter()
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('report_count')
+                    ->label(__('plugin.table.columns.reports'))
+                    ->alignCenter()
+                    ->numeric()
+                    ->badge()
+                    ->color(fn ($state): string => (int) $state > 0 ? 'danger' : 'gray')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('license')
                     ->label(__('plugin.table.columns.license'))
                     ->badge()
@@ -122,6 +133,7 @@ class PluginsTable
             ->filtersLayout(FiltersLayout::Dropdown)
             ->deferFilters()
             ->defaultSort('created_at', 'desc')
+            ->recordUrl(fn (Plugin $record): string => PluginResource::getUrl('view', ['record' => $record]))
             ->recordActions([
                 ActionGroup::make([
                     Action::make('reject')
@@ -191,6 +203,17 @@ class PluginsTable
                         ->modalHeading(__('plugin.table.actions.request_changes_modal_heading'))
                         ->modalDescription(__('plugin.table.actions.request_changes_modal_description'))
                         ->modalSubmitActionLabel(__('plugin.table.actions.request_changes_modal_submit')),
+                    DeleteAction::make()
+                        ->label('Delete')
+                        ->icon('heroicon-m-trash')
+                        ->color('danger')
+                        ->visible(fn (Plugin $record): bool => ! $record->trashed())
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete Plugin')
+                        ->modalDescription('Are you sure you want to delete this plugin? This will soft-delete the plugin and cascade clean up related stars, comments, reports, and trending metrics.')
+                        ->modalSubmitActionLabel('Delete')
+                        ->action(fn (Plugin $record) => $record->delete())
+                        ->successNotificationTitle('Plugin deleted successfully.'),
                 ])
                     ->icon('heroicon-m-ellipsis-vertical')
                     ->label(__('plugin.table.actions.group_label'))

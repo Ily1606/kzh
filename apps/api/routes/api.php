@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PluginController;
 use App\Http\Controllers\Api\V1\PluginEventController;
+use App\Http\Controllers\Api\V1\PluginReportController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\StarController;
 use App\Http\Controllers\Api\V1\TagController;
@@ -61,6 +62,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/plugins/{pluginId}/comments/{commentId}/reports', [CommentReportController::class, 'store'])
             ->whereUuid('pluginId')
             ->whereUuid('commentId');
+
+        Route::post('/plugins/{pluginId}/reports', [PluginReportController::class, 'store'])
+            ->whereUuid('pluginId');
     });
 
     Route::middleware(['set.api.guard', 'throttle:api'])->group(function () {

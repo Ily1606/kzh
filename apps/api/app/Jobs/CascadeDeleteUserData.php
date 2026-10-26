@@ -7,6 +7,7 @@ use App\Mail\AccountDeletedMail;
 use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
+use App\Models\PluginReport;
 use App\Models\Star;
 use App\Models\User;
 use App\Services\StarService;
@@ -159,6 +160,7 @@ class CascadeDeleteUserData implements ShouldQueue
             Plugin::whereIn('id', $chunk)->update(['deleted_at' => $deletedAt]);
             Comment::whereIn('plugin_id', $chunk)->whereNull('deleted_at')->update(['deleted_at' => $deletedAt]);
             CommentReport::whereIn('plugin_id', $chunk)->whereNull('deleted_at')->update(['deleted_at' => $deletedAt]);
+            PluginReport::whereIn('plugin_id', $chunk)->whereNull('deleted_at')->update(['deleted_at' => $deletedAt]);
             Star::whereIn('plugin_id', $chunk)->whereNull('deleted_at')->update(['deleted_at' => $deletedAt]);
         }
 
@@ -333,6 +335,10 @@ class CascadeDeleteUserData implements ShouldQueue
     private function cascadeDeleteUserReports(User $user, mixed $deletedAt): void
     {
         CommentReport::where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->update(['deleted_at' => $deletedAt]);
+
+        PluginReport::where('user_id', $user->id)
             ->whereNull('deleted_at')
             ->update(['deleted_at' => $deletedAt]);
     }

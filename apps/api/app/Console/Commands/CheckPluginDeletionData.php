@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
+use App\Models\PluginReport;
 use App\Models\Star;
 use App\Services\TrendingTracker;
 use Database\Seeders\PluginDeletionTestSeeder;
@@ -51,8 +52,10 @@ class CheckPluginDeletionData extends Command
         // 1. Target Plugin & Database Cascades
         $activeComments = Comment::where('plugin_id', $targetPlugin->id)->count();
         $totalComments = Comment::withTrashed()->where('plugin_id', $targetPlugin->id)->count();
-        $activeReports = CommentReport::where('plugin_id', $targetPlugin->id)->count();
-        $totalReports = CommentReport::withTrashed()->where('plugin_id', $targetPlugin->id)->count();
+        $activeCommentReports = CommentReport::where('plugin_id', $targetPlugin->id)->count();
+        $totalCommentReports = CommentReport::withTrashed()->where('plugin_id', $targetPlugin->id)->count();
+        $activePluginReports = PluginReport::where('plugin_id', $targetPlugin->id)->count();
+        $totalPluginReports = PluginReport::withTrashed()->where('plugin_id', $targetPlugin->id)->count();
         $activeStars = Star::where('plugin_id', $targetPlugin->id)->count();
         $totalStars = Star::withTrashed()->where('plugin_id', $targetPlugin->id)->count();
 
@@ -65,7 +68,8 @@ class CheckPluginDeletionData extends Command
                 ['Status', $targetPlugin->status->value, $targetPlugin->trashed() ? '<fg=green>DELETED (OK)</>' : '<fg=yellow>ACTIVE (NOT DELETED YET)</>'],
                 ['Deleted At', (string) $targetPlugin->deleted_at, $targetPlugin->trashed() ? '<fg=green>SET (OK)</>' : '<fg=yellow>NULL</>'],
                 ['Active Comments Count', "{$activeComments} / {$totalComments}", $activeComments === 0 ? '<fg=green>0 (CLEANED UP)</>' : "<fg=yellow>{$activeComments} ACTIVE</>"],
-                ['Active Reports Count', "{$activeReports} / {$totalReports}", $activeReports === 0 ? '<fg=green>0 (CLEANED UP)</>' : "<fg=yellow>{$activeReports} ACTIVE</>"],
+                ['Active Comment Reports Count', "{$activeCommentReports} / {$totalCommentReports}", $activeCommentReports === 0 ? '<fg=green>0 (CLEANED UP)</>' : "<fg=yellow>{$activeCommentReports} ACTIVE</>"],
+                ['Active Plugin Reports Count', "{$activePluginReports} / {$totalPluginReports}", $activePluginReports === 0 ? '<fg=green>0 (CLEANED UP)</>' : "<fg=yellow>{$activePluginReports} ACTIVE</>"],
                 ['Active Stars Count', "{$activeStars} / {$totalStars}", $activeStars === 0 ? '<fg=green>0 (CLEANED UP)</>' : "<fg=yellow>{$activeStars} ACTIVE</>"],
             ]
         );
@@ -128,7 +132,7 @@ class CheckPluginDeletionData extends Command
             );
         }
 
-        if ($targetPlugin->trashed() && ($activeComments > 0 || $activeStars > 0 || $inZset)) {
+        if ($targetPlugin->trashed() && ($activeComments > 0 || $activeStars > 0 || $activeCommentReports > 0 || $activePluginReports > 0 || $inZset)) {
             $this->newLine();
             $this->warn('⚠️  NOTICE: The plugin has been soft-deleted, but related child data/Redis metrics are still active because the cascade job runs asynchronously via queue (Queue: ' . config('queue.default') . ').');
             $this->line('   If a queue worker is not running, the [CascadeDeletePluginData] job is waiting in the Redis queue.');

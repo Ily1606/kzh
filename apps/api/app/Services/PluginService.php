@@ -155,7 +155,7 @@ final class PluginService
     {
         $plugin = $this->pluginRepository->findById($pluginId);
 
-        if ($plugin->user_id !== $user->getAuthIdentifier()) {
+        if (! $user->is_admin && $plugin->user_id !== $user->getAuthIdentifier()) {
             throw new AuthorizationException;
         }
 

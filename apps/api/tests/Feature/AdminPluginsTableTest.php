@@ -188,19 +188,19 @@ class AdminPluginsTableTest extends TestCase
     }
 
     /**
-     * Grouping must not resurrect the actions on a row that has already been
-     * decided. An `ActionGroup` hides itself once every action inside it is
-     * hidden, so a reviewed plugin gets no trigger cell at all rather than an
-     * ellipsis that opens onto an empty menu.
+     * Review actions must remain hidden on a row that has already been decided,
+     * while administrative management actions (such as delete) remain available.
      */
-    public function test_the_review_action_group_is_absent_once_the_plugin_is_reviewed(): void
+    public function test_review_actions_are_hidden_once_the_plugin_is_reviewed(): void
     {
-        $this->pluginWith();
+        $approved = $this->pluginWith();
 
-        $html = Livewire::test(ListPlugins::class)->html();
-
-        $this->assertStringNotContainsString('fi-ac-icon-btn-group', $html);
-        $this->assertStringNotContainsString('aria-label="Actions"', $html);
+        Livewire::test(ListPlugins::class)
+            ->assertTableActionHidden('approve', $approved)
+            ->assertTableActionHidden('reject', $approved)
+            ->assertTableActionHidden('requestChanges', $approved)
+            ->assertTableActionVisible('delete', $approved)
+            ->assertTableActionDoesNotExist('restore');
     }
 
     /**

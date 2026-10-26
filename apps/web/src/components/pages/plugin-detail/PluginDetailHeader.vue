@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowUpRight, BookOpen, Calendar, Eye, History, Scale, Star } from '@lucide/vue'
+import { ArrowUpRight, BookOpen, Calendar, Eye, Folder, History, Scale, Star, Tag } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
@@ -50,6 +50,21 @@ const { showStatusBadge, showStar, showInstallCommand, showHistoryLink } = usePl
         <span class="flex items-center gap-x-2">
           <Star class="size-4 text-muted-foreground" />
           <span>{{ plugin.star_count || 0 }}</span> stars
+        </span>
+        <span v-if="plugin.category" class="flex items-center gap-x-2">
+          <Folder class="size-5 text-muted-foreground" />
+          <span>Category: <span class="font-medium text-foreground">{{ plugin.category }}</span></span>
+        </span>
+      </div>
+
+      <!-- Tags list -->
+      <div v-if="plugin.tags?.length" class="flex flex-wrap items-center gap-1.5 pt-1">
+        <span
+          v-for="tag in plugin.tags"
+          :key="tag"
+          class="rounded-full bg-secondary/80 border border-border/60 px-2.5 py-0.5 text-xs font-medium text-secondary-foreground"
+        >
+          #{{ tag }}
         </span>
       </div>
 

@@ -7,6 +7,7 @@ use App\Jobs\CascadeDeleteUserData;
 use App\Mail\AccountDeletedMail;
 use App\Models\Comment;
 use App\Models\Plugin;
+use App\Models\PluginReport;
 use App\Models\Star;
 use App\Models\User;
 use App\Services\StarService;

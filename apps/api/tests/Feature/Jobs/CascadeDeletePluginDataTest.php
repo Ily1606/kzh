@@ -7,6 +7,7 @@ use App\Jobs\CascadeDeletePluginData;
 use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
+use App\Models\PluginReport;
 use App\Models\Star;
 use App\Models\User;
 use App\Services\TrendingTracker;
@@ -102,6 +103,12 @@ class CascadeDeletePluginDataTest extends TestCase
             'reason' => 'Inappropriate content',
         ]);
 
+        $pluginReport = PluginReport::create([
+            'plugin_id' => $plugin->id,
+            'user_id' => $user2->id,
+            'reason' => 'Plugin policy violation',
+        ]);
+
         Star::create([
             'plugin_id' => $plugin->id,
             'user_id' => $user2->id,
@@ -115,6 +122,7 @@ class CascadeDeletePluginDataTest extends TestCase
 
         $this->assertSoftDeleted('comments', ['id' => $comment->id]);
         $this->assertSoftDeleted('comment_reports', ['id' => $report->id]);
+        $this->assertSoftDeleted('plugin_reports', ['id' => $pluginReport->id]);
         $this->assertSoftDeleted('stars', [
             'plugin_id' => $plugin->id,
             'user_id' => $user2->id,
