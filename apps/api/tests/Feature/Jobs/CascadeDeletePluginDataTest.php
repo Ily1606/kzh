@@ -175,4 +175,204 @@ class CascadeDeletePluginDataTest extends TestCase
             return $job->pluginId === $plugin->id;
         });
     }
+
+    public function test_child_comments_and_nested_replies_are_cascade_soft_deleted(): void
+    {
+        $owner = User::factory()->create();
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        // 1. Root comment
+        $root = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $userA->id,
+            'parent_comment_id' => null,
+        ]);
+
+        // 2. Child reply
+        $child = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $userB->id,
+            'parent_comment_id' => $root->id,
+        ]);
+
+        // 3. Sub-reply
+        $subChild = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $userA->id,
+            'parent_comment_id' => $child->id,
+        ]);
+
+        $this->assertEquals(3, Comment::where('plugin_id', $plugin->id)->count());
+
+        $plugin->delete();
+
+        $job = new CascadeDeletePluginData($plugin);
+        $job->handle();
+
+        $this->assertTrue($root->fresh()->trashed());
+        $this->assertTrue($child->fresh()->trashed());
+        $this->assertTrue($subChild->fresh()->trashed());
+        $this->assertEquals(0, Comment::where('plugin_id', $plugin->id)->count());
+    }
+
+    public function test_cleanup_clears_star_timeline_cache(): void
+    {
+        $owner = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        Cache::put("plugin:star_timeline:{$plugin->id}", ['timeline' => 'data_1'], 600);
+        Cache::put("plugins:{$plugin->id}:star_timeline", ['timeline' => 'data_2'], 600);
+
+        $plugin->delete();
+
+        $job = new CascadeDeletePluginData($plugin);
+        $job->handle();
+
+        $this->assertNull(Cache::get("plugin:star_timeline:{$plugin->id}"));
+        $this->assertNull(Cache::get("plugins:{$plugin->id}:star_timeline"));
+    }
+
+    public function test_cleanup_respects_custom_configured_redis_keys_and_prefixes(): void
+    {
+        config([
+            'plugins.trending.keys.zset' => 'custom:plugins:zset',
+            'plugins.trending.keys.objects' => 'custom:plugins:objects',
+            'plugins.trending.keys.active_prefix' => 'custom:active_plugins',
+            'plugins.trending.keys.stats_prefix' => 'custom:stats',
+            'plugins.views_buffer_key' => 'custom:views_buffer',
+        ]);
+
+        $owner = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $today = now()->format('Y-m-d');
+        $activeKey = TrendingTracker::activeKey($today);
+        $statKey = TrendingTracker::statKey('views', $today, $plugin->id);
+
+        $this->assertEquals("custom:active_plugins:{$today}", $activeKey);
+        $this->assertEquals("custom:stats:views:{$today}:{$plugin->id}", $statKey);
+
+        Redis::zadd('custom:plugins:zset', 50, $plugin->id);
+        Redis::hset('custom:plugins:objects', $plugin->id, 'serialized_plugin');
+        Redis::hset('custom:views_buffer', $plugin->id, 10);
+        Redis::sadd($activeKey, $plugin->id);
+        Redis::set($statKey, 20);
+
+        $plugin->delete();
+
+        $job = new CascadeDeletePluginData($plugin);
+        $job->handle();
+
+        $this->assertFalse((bool) Redis::zscore('custom:plugins:zset', $plugin->id));
+        $this->assertFalse((bool) Redis::hexists('custom:plugins:objects', $plugin->id));
+        $this->assertFalse((bool) Redis::hexists('custom:views_buffer', $plugin->id));
+        $this->assertFalse((bool) Redis::sismember($activeKey, $plugin->id));
+        $this->assertNull(Redis::get($statKey));
+    }
+
+    public function test_job_processes_large_number_of_comments_and_stars_in_chunks(): void
+    {
+        config(['plugins.cascade_delete.chunk_size' => 2]);
+
+        $owner = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'user_id' => $owner->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        // Create 5 comments and 5 stars across multiple users
+        for ($i = 0; $i < 5; $i++) {
+            $user = User::factory()->create();
+            Comment::factory()->create([
+                'plugin_id' => $plugin->id,
+                'author_id' => $user->id,
+            ]);
+            Star::create([
+                'plugin_id' => $plugin->id,
+                'user_id' => $user->id,
+            ]);
+        }
+
+        $this->assertEquals(5, Comment::where('plugin_id', $plugin->id)->count());
+        $this->assertEquals(5, Star::where('plugin_id', $plugin->id)->count());
+
+        $plugin->delete();
+
+        $job = new CascadeDeletePluginData($plugin);
+        $job->handle();
+
+        $this->assertEquals(0, Comment::where('plugin_id', $plugin->id)->count());
+        $this->assertEquals(0, Star::where('plugin_id', $plugin->id)->count());
+        $this->assertEquals(5, Comment::withTrashed()->where('plugin_id', $plugin->id)->count());
+        $this->assertEquals(5, Star::withTrashed()->where('plugin_id', $plugin->id)->count());
+    }
+
+    public function test_preserves_other_plugins_in_database_and_redis(): void
+    {
+        $ownerA = User::factory()->create();
+        $ownerB = User::factory()->create();
+        $user = User::factory()->create();
+
+        $pluginA = Plugin::factory()->create([
+            'user_id' => $ownerA->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $pluginB = Plugin::factory()->create([
+            'user_id' => $ownerB->id,
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        Comment::factory()->create(['plugin_id' => $pluginA->id, 'author_id' => $user->id]);
+        Comment::factory()->create(['plugin_id' => $pluginB->id, 'author_id' => $user->id]);
+
+        Star::create(['plugin_id' => $pluginA->id, 'user_id' => $user->id]);
+        Star::create(['plugin_id' => $pluginB->id, 'user_id' => $user->id]);
+
+        $zsetKey = config('plugins.trending.keys.zset');
+        $hashKey = config('plugins.trending.keys.objects');
+
+        Redis::zadd($zsetKey, 100, $pluginA->id);
+        Redis::zadd($zsetKey, 200, $pluginB->id);
+        Redis::hset($hashKey, $pluginA->id, serialize($pluginA));
+        Redis::hset($hashKey, $pluginB->id, serialize($pluginB));
+
+        // Delete Plugin A only
+        $pluginA->delete();
+
+        $job = new CascadeDeletePluginData($pluginA);
+        $job->handle();
+
+        // Plugin A is cleaned up
+        $this->assertTrue($pluginA->fresh()->trashed());
+        $this->assertEquals(0, Comment::where('plugin_id', $pluginA->id)->count());
+        $this->assertEquals(0, Star::where('plugin_id', $pluginA->id)->count());
+        $this->assertFalse((bool) Redis::zscore($zsetKey, $pluginA->id));
+        $this->assertFalse((bool) Redis::hexists($hashKey, $pluginA->id));
+
+        // Plugin B is completely untouched
+        $this->assertFalse($pluginB->fresh()->trashed());
+        $this->assertEquals(1, Comment::where('plugin_id', $pluginB->id)->count());
+        $this->assertEquals(1, Star::where('plugin_id', $pluginB->id)->count());
+        $this->assertEquals(200, (int) Redis::zscore($zsetKey, $pluginB->id));
+        $this->assertTrue((bool) Redis::hexists($hashKey, $pluginB->id));
+    }
 }
