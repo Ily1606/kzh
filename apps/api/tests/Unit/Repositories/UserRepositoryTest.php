@@ -4,11 +4,13 @@ namespace Tests\Unit\Repositories;
 
 use App\Contracts\AuthRepositoryInterface;
 use App\Contracts\UserRepositoryInterface;
+use App\Mail\AccountLockedMail;
 use App\Models\User;
 use App\Repositories\AuthRepository;
 use App\Repositories\BaseRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use ReflectionClass;
 use Tests\TestCase;
 
@@ -89,6 +91,20 @@ class UserRepositoryTest extends TestCase
         $this->assertNotNull($locked->locked_at);
         $this->assertNotNull($user->fresh()->locked_at);
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_locking_a_user_sends_account_locked_email(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create(['email' => 'victim@example.com']);
+
+        $repository = app(UserRepositoryInterface::class);
+        $repository->lock($user);
+
+        Mail::assertSent(AccountLockedMail::class, function (AccountLockedMail $mail) use ($user) {
+            return $mail->hasTo('victim@example.com') && $mail->user->id === $user->id;
+        });
     }
 
     public function test_locking_an_already_locked_user_keeps_the_original_timestamp(): void
