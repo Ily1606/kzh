@@ -27,6 +27,7 @@ export function useAuthorProfile() {
   async function loadProfile(username: string): Promise<void> {
     isLoadingProfile.value = true
     error.value = ''
+    notFound.value = false
 
     try {
       const res = await authorShow(username)
@@ -47,6 +48,7 @@ export function useAuthorProfile() {
   async function loadPlugins(username: string, page = 1): Promise<void> {
     isLoadingPlugins.value = true
     error.value = ''
+    notFound.value = false
 
     try {
       const res = await authorPlugins(username, {
