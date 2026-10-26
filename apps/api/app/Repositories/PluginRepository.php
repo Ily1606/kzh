@@ -56,6 +56,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         $plugins = $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            // Exclude plugins whose author has been soft-deleted.
+            ->whereHas('user')
             ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
             ->whereIn('id', $ids)
             ->get();
@@ -129,6 +131,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            // Exclude plugins whose author has been soft-deleted.
+            ->whereHas('user')
             // Keep only the plugins filed under this category, when given.
             ->when($category !== null, fn (Builder $query) => $query->whereHas(
                 'categories',
@@ -153,6 +157,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->baseQuery()
             ->where('user_id', $userId)
             ->approved()
+            // Exclude plugins whose author has been soft-deleted.
+            ->whereHas('user')
             ->withCount([
                 'stars as star_count',
                 'comments as comment_count' => fn (Builder $comments) => $comments->visible(),
@@ -215,6 +221,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            // Exclude plugins whose author has been soft-deleted.
+            ->whereHas('user')
             ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
             ->orderByDesc('view_count')
             ->orderByRaw($this->starCountSql().' desc')
