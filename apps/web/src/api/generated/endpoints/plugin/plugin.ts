@@ -13,6 +13,7 @@ import type {
   PluginStore201,
   PluginTrackView200,
   PluginTrending200,
+  PluginTrendingParams,
   PluginUpdate200,
   SubmitPluginRequest,
   UpdatePluginRequest
@@ -81,10 +82,11 @@ const pluginUpdate = (
  * @summary Trending
  */
 const pluginTrending = (
-
+    params?: PluginTrendingParams,
  options?: SecondParameter<typeof customInstance<PluginTrending200>>,) => {
       return customInstance<PluginTrending200>(
-      {url: `/v1/plugins/trending`, method: 'GET'
+      {url: `/v1/plugins/trending`, method: 'GET',
+        params
     },
       options);
     }

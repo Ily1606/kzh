@@ -11,6 +11,7 @@ use App\Enums\PluginStatus;
 use App\DTOs\PluginViewResult;
 use App\Events\Plugin\PluginSubmitted;
 use App\Events\Plugin\PluginUpdated;
+use App\Jobs\RecoverTrendingJob;
 use App\Models\Plugin;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -393,9 +394,22 @@ final class PluginService
 
         $total = Redis::zcard($zsetKey);
 
-        if ($total === 0 && Cache::add('plugins:trending:refresh_attempted', true, 60)) {
-            Artisan::call('plugins:refresh-trending');
+        if ($total === 0) {
+            $autoRecover = (bool) config('plugins.trending.auto_recover', true);
+            $recoveredKey = config('plugins.trending.keys.recovered', 'plugins:trending_recovered');
+
+            if ($autoRecover && ! Redis::exists($recoveredKey)) {
+                if (Cache::add('plugins:trending:recovering', true, 600)) {
+                    RecoverTrendingJob::dispatch();
+                }
+            }
+
             $total = Redis::zcard($zsetKey);
+
+            if ($total === 0 && Cache::add('plugins:trending:refresh_attempted', true, 60)) {
+                Artisan::call('plugins:refresh-trending', ['--no-recover' => true]);
+                $total = Redis::zcard($zsetKey);
+            }
         }
 
         $ids = Redis::zrevrange($zsetKey, $start, $end);

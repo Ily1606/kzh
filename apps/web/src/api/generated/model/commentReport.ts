@@ -5,8 +5,16 @@
  * OpenAPI spec version: 0.0.1
  */
 
-/**
- * @minItems 0
- * @maxItems 0
- */
-export type CommentReport = string[];
+export interface CommentReport {
+  id: string;
+  user_id: string;
+  comment_id: string;
+  plugin_id: string;
+  reason: string;
+  /** @nullable */
+  created_at: string | null;
+  /** @nullable */
+  updated_at: string | null;
+  /** @nullable */
+  deleted_at: string | null;
+}

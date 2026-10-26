@@ -30,9 +30,16 @@ export function usePluginsActions(state: PluginsState) {
     return state.starringIds.value.includes(id);
   }
 
-  /** Cached, so revisiting the home page costs no request. `force` refetches. */
-  async function fetchTrending(force = false): Promise<void> {
-    if (!force && state.trending.value.ids.length > 0) {
+  /**
+   * Paged trending list. Re-requesting the current page without `force` is a no-op,
+   * so navigating between pages does not trigger duplicate requests.
+   */
+  async function fetchTrending(pageOrForce: number | boolean = 1, force = false): Promise<void> {
+    const page = typeof pageOrForce === 'number' ? pageOrForce : 1;
+    const isForce = typeof pageOrForce === 'boolean' ? pageOrForce : force;
+    const isLatest = state.trendingTicket();
+
+    if (!isForce && state.trending.value.page === page && state.trending.value.ids.length > 0) {
       return;
     }
 
@@ -40,21 +47,33 @@ export function usePluginsActions(state: PluginsState) {
     state.fetchError.value = null;
 
     try {
-      const res = await endpoints.fetchTrending();
+      const res = await endpoints.fetchTrending(page);
+      if (!isLatest()) return;
+
       // Untyped: Scramble cannot infer this endpoint's shape.
       const plugins = (res.data?.plugins ?? []) as PluginResource[];
+      const meta = res.meta as unknown as {
+        current_page?: number;
+        last_page?: number;
+        per_page?: number;
+        total?: number;
+      } | undefined;
 
       put(plugins);
       state.trending.value = {
         ids: plugins.map((plugin) => plugin.id),
-        page: 1,
-        total: plugins.length,
-        lastPage: 1,
+        page: meta?.current_page ?? page,
+        total: meta?.total ?? plugins.length,
+        lastPage: meta?.last_page ?? 1,
       };
     } catch (err) {
+      if (!isLatest()) return;
+
       state.fetchError.value = errorMessage(err, 'Failed to load trending plugins.');
     } finally {
-      state.isFetchingTrending.value = false;
+      if (isLatest()) {
+        state.isFetchingTrending.value = false;
+      }
     }
   }
 
@@ -212,9 +231,10 @@ export function usePluginsActions(state: PluginsState) {
 
     try {
       const res = await endpoints.pluginTrackView(id);
+      const data = res?.data as unknown as { view_count?: number } | undefined;
 
-      if (res?.data?.view_count !== undefined) {
-        patchPlugin(id, { view_count: res.data.view_count });
+      if (data?.view_count !== undefined) {
+        patchPlugin(id, { view_count: data.view_count });
       }
     } catch {
       // Non-blocking: view tracking failure is silent to the viewer

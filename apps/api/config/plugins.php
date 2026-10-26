@@ -56,16 +56,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Trending API Limits Configuration
-    |--------------------------------------------------------------------------
-    */
-    'trending_api' => [
-        'default_limit' => env('PLUGIN_TRENDING_DEFAULT_LIMIT', 15),
-        'max_limit' => env('PLUGIN_TRENDING_MAX_LIMIT', 50),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Trending Algorithm Configuration
     |--------------------------------------------------------------------------
     |
@@ -73,14 +63,20 @@ return [
     |
     */
     'trending' => [
+        // Default items per page when client does not specify per_page
+        'default_per_page' => (int) env('PLUGIN_TRENDING_DEFAULT_PER_PAGE', env('PLUGIN_TRENDING_PER_PAGE', 15)),
+
+        // Maximum number of plugins allowed in the trending cache (ZSET)
+        'limit' => (int) env('PLUGIN_TRENDING_LIMIT', env('PLUGIN_TRENDING_MASTER_LIMIT', 100)),
+
         // Only consider plugins approved within the last X days
         'days_limit' => (int) env('PLUGIN_TRENDING_DAYS_LIMIT', 30),
 
-        // Master limit of items to store in the trending cache (ZSET)
-        'master_limit' => (int) env('PLUGIN_TRENDING_MASTER_LIMIT', 100),
-
         // Cron schedule for the plugins:refresh-trending job
         'schedule' => env('PLUGIN_TRENDING_SCHEDULE', '*/15 * * * *'),
+
+        // Auto recover trending statistics from DB if Redis loses interaction data
+        'auto_recover' => (bool) env('PLUGIN_TRENDING_AUTO_RECOVER', true),
 
         // Interaction weights for calculating trending scores
         'weights' => [
@@ -93,6 +89,7 @@ return [
         'keys' => [
             'zset' => 'plugins:trending_zset',
             'objects' => 'plugins:trending_objects',
+            'recovered' => 'plugins:trending_recovered',
         ],
     ],
     'licenses' => array_column(PluginLicense::cases(), 'value'),
