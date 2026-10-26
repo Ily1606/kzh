@@ -27,6 +27,13 @@ class UserObserver
 
             $this->sendAccountLockedEmail($user);
         }
+
+        // If username changed, refresh trending cache for user's plugins
+        if ($user->wasChanged('username')) {
+            $user->plugins()->each(function ($plugin) {
+                app(PluginObserver::class)->refreshTrendingCacheIfCached($plugin->id);
+            });
+        }
     }
 
     /**
