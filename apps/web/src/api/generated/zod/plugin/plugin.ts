@@ -283,9 +283,11 @@ export const PluginDestroyResponse = zod.object({
 
 
 
+
 export const PluginTrendingQueryParams = zod.object({
   "page": zod.number().int().min(1).nullish(),
-  "per_page": zod.number().int().min(1).nullish()
+  "per_page": zod.number().int().min(1).nullish(),
+  "limit": zod.number().int().min(1).nullish()
 })
 
 export const PluginTrendingResponse = zod.object({

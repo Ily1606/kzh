@@ -24,7 +24,10 @@ vi.mock('@/api/generated/endpoints', () => ({
   }),
   getStar: () => ({ starStore: mockStarStore }),
   getAuth: () => ({ authLogout: vi.fn() }),
-  getProfile: () => ({ profileShow: vi.fn() })
+  getProfile: () => ({ profileShow: vi.fn() }),
+  getPluginReport: () => ({
+    pluginReportStore: vi.fn(),
+  }),
 }))
 
 // api.ts pulls in the real router, which calls createRouter at import time.
@@ -99,9 +102,9 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
   }
 }
 
-function signIn() {
+function signIn(userId = 'user-456') {
   const auth = useAuthStore()
-  auth.setUser({ id: 'user-456', name: 'Jane', email: 'j@example.com' } as UserResource)
+  auth.setUser({ id: userId, name: 'Jane', email: 'j@example.com' } as UserResource)
   auth.setToken('mock-token')
 }
 
@@ -798,6 +801,45 @@ describe('PluginDetailView.vue', () => {
         await flushPromises()
 
         expect(mockPluginDestroy).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('reporting a plugin', () => {
+      it('shows the report button to a non-owner', async () => {
+        seedStore(makePlugin({ user_id: 'other-user' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const reportBtn = wrapper.findAll('button').find((b) => /Report/i.test(b.text()))
+        expect(reportBtn).toBeDefined()
+      })
+
+      it('hides the report button from the owner', async () => {
+        signIn()
+        seedStore(makePlugin({ user_id: 'user-456' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const reportBtn = wrapper.findAll('button').find((b) => /Report/i.test(b.text()))
+        expect(reportBtn).toBeUndefined()
+      })
+
+      it('opens the report modal when report button is clicked', async () => {
+        signIn('reviewer-1')
+        seedStore(makePlugin({ user_id: 'other-user', name: '@dsh/test-plugin' }))
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const reportBtn = wrapper.findAll('button').find((b) => /Report/i.test(b.text()))
+        await reportBtn!.trigger('click')
+        await flushPromises()
+
+        const modal = document.body.querySelector('[role="dialog"]')
+        expect(modal).not.toBeNull()
+        expect(modal?.textContent).toContain('Report Plugin')
       })
     })
   })

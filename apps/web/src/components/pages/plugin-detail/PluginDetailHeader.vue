@@ -1,20 +1,24 @@
 <script setup lang="ts">
-import { toRef } from 'vue'
+import { ref, toRef } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowUpRight, BookOpen, Calendar, Eye, Folder, History, Scale, Star, Tag } from '@lucide/vue'
+import { ArrowUpRight, BookOpen, Calendar, Eye, Flag, Folder, History, Scale, Star } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
+import { Button } from '@/components/ui/button'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
 import PluginStatusBadge from '@/components/pages/plugin/PluginStatusBadge.vue'
 import InstallCommand from './InstallCommand.vue'
 import PluginOwnerActions from './PluginOwnerActions.vue'
 import PluginStarButton from './PluginStarButton.vue'
+import PluginReportModal from './PluginReportModal.vue'
 
 const props = defineProps<{
   plugin: PluginResource
 }>()
 
-const { showStatusBadge, showStar, showInstallCommand, showHistoryLink } = usePluginDetailAccess(
+const showReportModal = ref(false)
+
+const { showStatusBadge, showStar, showInstallCommand, showHistoryLink, isOwner } = usePluginDetailAccess(
   toRef(props, 'plugin'),
 )
 </script>
@@ -96,7 +100,28 @@ const { showStatusBadge, showStar, showInstallCommand, showHistoryLink } = usePl
         >
           Source <ArrowUpRight class="size-4" />
         </a>
+
+        <!-- Report button -->
+        <Button
+          v-if="!isOwner"
+          type="button"
+          variant="outline"
+          class="cursor-pointer gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+          title="Report this plugin"
+          aria-label="Report this plugin"
+          @click="showReportModal = true"
+        >
+          <Flag class="size-4" />
+          <span>Report</span>
+        </Button>
       </div>
     </div>
   </div>
+
+  <PluginReportModal
+    :show="showReportModal"
+    :plugin-id="plugin.id"
+    :plugin-name="plugin.name"
+    @close="showReportModal = false"
+  />
 </template>
