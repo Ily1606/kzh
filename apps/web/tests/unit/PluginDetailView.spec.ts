@@ -115,13 +115,17 @@ function seedStore(plugin: PluginResource = makePlugin()) {
   return store
 }
 
+let currentWrapper: ReturnType<typeof mount<typeof PluginDetailView>> | null = null
+
 function mountView() {
   // Attached to the document: the popover content is portalled to `body`, so a
   // detached mount cannot see it.
-  return mount(PluginDetailView, {
+  const wrapper = mount(PluginDetailView, {
     global: { stubs: { PluginComments: true } },
     attachTo: document.body
   })
+  currentWrapper = wrapper
+  return wrapper
 }
 
 function starButton(wrapper: ReturnType<typeof mountView>) {
@@ -169,6 +173,11 @@ describe('PluginDetailView.vue', () => {
     Object.assign(navigator, {
       clipboard: { writeText: vi.fn().mockResolvedValue(undefined) }
     })
+  })
+
+  afterEach(() => {
+    currentWrapper?.unmount()
+    currentWrapper = null
   })
 
   describe('reading the plugin', () => {
@@ -529,7 +538,7 @@ describe('PluginDetailView.vue', () => {
       await flushPromises()
 
       // The disabled button cannot be the trigger, so the wrapper span is.
-      const trigger = wrapper.find('[data-slot="popover-trigger"]')
+      const trigger = wrapper.find('[data-test="star-popover-trigger"]')
       expect(trigger.exists()).toBe(true)
       expect(trigger.attributes('aria-expanded')).toBe('false')
 
@@ -540,7 +549,7 @@ describe('PluginDetailView.vue', () => {
       expect(trigger.attributes('aria-expanded')).toBe('true')
 
       // The content is portalled to the document body, not into the wrapper.
-      const content = document.querySelector('[data-slot="popover-content"]')
+      const content = document.querySelector('[data-test="star-popover-content"]')
       expect(content).not.toBeNull()
       expect(content?.textContent).toContain('Sign in to star this plugin')
       // The link comes back to this page after signing in.
@@ -727,7 +736,15 @@ describe('PluginDetailView.vue', () => {
         const wrapper = mountView()
         await flushPromises()
 
-        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        expect(optionsBtn.exists()).toBe(true)
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const deleteBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Delete/i.test(b.textContent ?? '')
+        )
         expect(deleteBtn).toBeDefined()
       })
 
@@ -741,7 +758,14 @@ describe('PluginDetailView.vue', () => {
         const wrapper = mountView()
         await flushPromises()
 
-        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const deleteBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Delete/i.test(b.textContent ?? '')
+        )
         expect(deleteBtn).toBeUndefined()
       })
 
@@ -753,11 +777,18 @@ describe('PluginDetailView.vue', () => {
         const wrapper = mountView()
         await flushPromises()
 
-        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const deleteBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Delete/i.test(b.textContent ?? '')
+        )
         expect(deleteBtn).toBeDefined()
 
         // Click delete button to open modal
-        await deleteBtn!.trigger('click')
+        deleteBtn!.click()
         await flushPromises()
 
         // Modal should be visible in document.body
@@ -786,8 +817,15 @@ describe('PluginDetailView.vue', () => {
         const wrapper = mountView()
         await flushPromises()
 
-        const deleteBtn = wrapper.findAll('button').find((b) => /Delete plugin/i.test(b.text()))
-        await deleteBtn!.trigger('click')
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const deleteBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Delete/i.test(b.textContent ?? '')
+        )
+        deleteBtn!.click()
         await flushPromises()
 
         const modal = document.body.querySelector('[role="dialog"]')
@@ -811,7 +849,15 @@ describe('PluginDetailView.vue', () => {
         const wrapper = mountView()
         await flushPromises()
 
-        const reportBtn = wrapper.findAll('button').find((b) => /Report/i.test(b.text()))
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        expect(optionsBtn.exists()).toBe(true)
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const reportBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Report/i.test(b.textContent ?? '')
+        )
         expect(reportBtn).toBeDefined()
       })
 
@@ -822,7 +868,14 @@ describe('PluginDetailView.vue', () => {
         const wrapper = mountView()
         await flushPromises()
 
-        const reportBtn = wrapper.findAll('button').find((b) => /Report/i.test(b.text()))
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const reportBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Report/i.test(b.textContent ?? '')
+        )
         expect(reportBtn).toBeUndefined()
       })
 
@@ -833,8 +886,15 @@ describe('PluginDetailView.vue', () => {
         const wrapper = mountView()
         await flushPromises()
 
-        const reportBtn = wrapper.findAll('button').find((b) => /Report/i.test(b.text()))
-        await reportBtn!.trigger('click')
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const reportBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Report/i.test(b.textContent ?? '')
+        )
+        reportBtn!.click()
         await flushPromises()
 
         const modal = document.body.querySelector('[role="dialog"]')
