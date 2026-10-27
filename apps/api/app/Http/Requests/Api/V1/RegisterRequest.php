@@ -2,22 +2,16 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Models\User;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class RegisterRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
-    }
-
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('email') && is_string($this->email)) {
-            $this->merge(['email' => Str::lower(trim($this->email))]);
-        }
     }
 
     public function rules(): array
@@ -28,7 +22,14 @@ class RegisterRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email')->whereNull('deleted_at'),
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (User::whereNull('deleted_at')
+                        ->whereRaw('LOWER(email) = ?', [Str::lower($value)])
+                        ->exists()
+                    ) {
+                        $fail(__('validation.unique', ['attribute' => $attribute]));
+                    }
+                },
             ],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ];

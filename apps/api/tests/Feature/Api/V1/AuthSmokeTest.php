@@ -54,6 +54,22 @@ class AuthSmokeTest extends TestCase
             ->assertJsonValidationErrors('email');
     }
 
+    public function test_register_rejects_duplicate_email_case_insensitively(): void
+    {
+        // Existing user has uppercase in email (pre-normalization)
+        User::factory()->create([
+            'email' => 'LegacyUser@Example.Com',
+        ]);
+
+        $this->postJson('/api/v1/register', [
+            'name' => 'Another User',
+            'email' => 'legacyuser@example.com',
+            'password' => 'secret-password',
+            'password_confirmation' => 'secret-password',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+    }
+
     public function test_register_allows_same_email_if_previous_account_was_soft_deleted(): void
     {
         $oldUser = User::factory()->create([

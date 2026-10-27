@@ -171,13 +171,18 @@ class StarServiceTest extends TestCase
     // Timeline Cache Invalidation
     // -----------------------------------------------------------------------
 
+    public function test_timeline_cache_key_format(): void
+    {
+        $this->assertSame('plugin:star_timeline:uuid-123', StarService::timelineCacheKey('uuid-123'));
+    }
+
     public function test_starring_clears_timeline_cache_when_changed(): void
     {
         $user = User::factory()->create();
         $plugin = $this->approvedPlugin();
         $service = app(StarService::class);
 
-        $cacheKey = 'plugin:star_timeline:'.$plugin->id;
+        $cacheKey = StarService::timelineCacheKey($plugin->id);
         Cache::put($cacheKey, ['sample_cached_timeline'], 900);
         $this->assertTrue(Cache::has($cacheKey));
 
@@ -194,7 +199,7 @@ class StarServiceTest extends TestCase
 
         $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
-        $cacheKey = 'plugin:star_timeline:'.$plugin->id;
+        $cacheKey = StarService::timelineCacheKey($plugin->id);
         Cache::put($cacheKey, ['sample_cached_timeline'], 900);
         $this->assertTrue(Cache::has($cacheKey));
 
@@ -211,7 +216,7 @@ class StarServiceTest extends TestCase
 
         $service->setStarred($user, $plugin->id, true, new RequestContext(null, null));
 
-        $cacheKey = 'plugin:star_timeline:'.$plugin->id;
+        $cacheKey = StarService::timelineCacheKey($plugin->id);
         Cache::put($cacheKey, ['sample_cached_timeline'], 900);
 
         // Starring again when already starred ($changed is false)

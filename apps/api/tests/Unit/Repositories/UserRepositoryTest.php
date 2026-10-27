@@ -102,7 +102,7 @@ class UserRepositoryTest extends TestCase
         $repository = app(UserRepositoryInterface::class);
         $repository->lock($user);
 
-        Mail::assertSent(AccountLockedMail::class, function (AccountLockedMail $mail) use ($user) {
+        Mail::assertQueued(AccountLockedMail::class, function (AccountLockedMail $mail) use ($user) {
             return $mail->hasTo('victim@example.com') && $mail->user->id === $user->id;
         });
     }

@@ -11,9 +11,11 @@ use App\Models\Star;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class UserObserverTest extends TestCase
@@ -226,11 +228,17 @@ class UserObserverTest extends TestCase
         $hashKey = config('plugins.trending.keys.objects');
         $bufferKey = config('plugins.views_buffer_key');
         $todayKey = "trending:active_plugins:{$date}";
+        $viewsKey = "trending:stats:views:{$date}:{$plugin->id}";
+        $commentsKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        $starsKey = "trending:stats:stars:{$date}:{$plugin->id}";
 
         Redis::zadd($zsetKey, 50, $plugin->id);
         Redis::hset($hashKey, $plugin->id, serialize($plugin));
         Redis::hset($bufferKey, $plugin->id, 10);
         Redis::sadd($todayKey, $plugin->id);
+        Redis::set($viewsKey, 20);
+        Redis::set($commentsKey, 10);
+        Redis::set($starsKey, 5);
 
         // Act: lock user
         $user->update(['locked_at' => now()]);
@@ -243,6 +251,11 @@ class UserObserverTest extends TestCase
         $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
         $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+
+        // 3. Historical stat keys are preserved during account locking
+        $this->assertTrue((bool) Redis::exists($viewsKey));
+        $this->assertTrue((bool) Redis::exists($commentsKey));
+        $this->assertTrue((bool) Redis::exists($starsKey));
     }
 
     public function test_unlocking_user_does_not_mark_plugins_active_without_interactions(): void
@@ -280,7 +293,7 @@ class UserObserverTest extends TestCase
         // Act: lock user
         $user->update(['locked_at' => now()]);
 
-        Mail::assertSent(AccountLockedMail::class, function (AccountLockedMail $mail) use ($user) {
+        Mail::assertQueued(AccountLockedMail::class, function (AccountLockedMail $mail) use ($user) {
             return $mail->hasTo('locked_user@example.com')
                 && $mail->user->id === $user->id;
         });
@@ -298,7 +311,7 @@ class UserObserverTest extends TestCase
         // Act: unlock user
         $user->update(['locked_at' => null]);
 
-        Mail::assertNotSent(AccountLockedMail::class);
+        Mail::assertNotQueued(AccountLockedMail::class);
     }
 
     public function test_updating_other_user_attributes_does_not_send_account_locked_email(): void
@@ -313,7 +326,28 @@ class UserObserverTest extends TestCase
         // Act: update name only
         $user->update(['name' => 'Updated Name']);
 
-        Mail::assertNotSent(AccountLockedMail::class);
+        Mail::assertNotQueued(AccountLockedMail::class);
+    }
+
+    public function test_locking_user_in_rolled_back_transaction_does_not_queue_account_locked_email(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'email' => 'rollback_user@example.com',
+            'locked_at' => null,
+        ]);
+
+        try {
+            DB::transaction(function () use ($user) {
+                $user->update(['locked_at' => now()]);
+                throw new \Exception('Forced rollback');
+            });
+        } catch (\Exception $e) {
+            // Rollback caught
+        }
+
+        Mail::assertNotQueued(AccountLockedMail::class);
     }
 
     public function test_soft_deleting_user_cascades_all_comments_when_more_than_one_chunk(): void
@@ -329,7 +363,7 @@ class UserObserverTest extends TestCase
         $records = [];
         for ($i = 0; $i < $totalComments; $i++) {
             $records[] = [
-                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'plugin_id' => $plugin->id,
                 'author_id' => $user->id,
                 'content' => "Comment {$i}",

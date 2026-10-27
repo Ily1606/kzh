@@ -6,6 +6,7 @@ use App\Jobs\CascadeDeleteUserData;
 use App\Mail\AccountLockedMail;
 use App\Models\User;
 use App\Services\TrendingTracker;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
 
@@ -21,7 +22,7 @@ class UserObserver
 
             $pluginIds = $user->plugins()->pluck('id')->all();
             if (! empty($pluginIds)) {
-                TrendingTracker::cleanupPlugins($pluginIds);
+                TrendingTracker::cleanupPlugins($pluginIds, false);
             }
 
             $this->sendAccountLockedEmail($user);
@@ -38,7 +39,11 @@ class UserObserver
         }
 
         try {
-            Mail::to($user->email)->send(new AccountLockedMail($user));
+            DB::afterCommit(function () use ($user): void {
+                Mail::to($user->email)->queue(
+                    (new AccountLockedMail($user))->afterCommit()
+                );
+            });
         } catch (Throwable $e) {
             report($e);
         }

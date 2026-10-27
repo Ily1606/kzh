@@ -9,10 +9,12 @@ use App\Models\CommentReport;
 use App\Models\Plugin;
 use App\Models\Star;
 use App\Models\User;
+use App\Services\StarService;
 use App\Services\TrendingTracker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
@@ -45,30 +47,69 @@ class CascadeDeleteUserData implements ShouldQueue
 
         $deletedAt = $user->deleted_at ?? now();
 
-        // 1. Revoke API tokens
-        $this->revokeTokens($user);
+        // 1. Perform all database cascade soft-deletes atomically in a single transaction.
+        // Collect exact stats and IDs that were actually soft-deleted for post-commit processing.
+        $deletionData = DB::transaction(function () use ($user, $deletedAt) {
+            $this->revokeTokens($user);
 
-        // 2. Cascade delete user's own plugins (and comments/stars on them)
-        $this->cascadeDeleteOwnPlugins($user, $deletedAt);
+            $ownPluginIds = $this->cascadeDeleteOwnPlugins($user, $deletedAt);
 
-        // 3. Cascade delete user's comments on other plugins (and their replies)
-        $commentPluginIds = $this->cascadeDeleteUserComments($user, $deletedAt);
+            $commentDeletion = $this->cascadeDeleteUserComments($user, $deletedAt);
 
-        // 4. Cascade delete user's stars on other plugins
-        $starPluginIds = $this->cascadeDeleteUserStars($user, $deletedAt);
+            $starDeletion = $this->cascadeDeleteUserStars($user, $deletedAt);
 
-        // 5. Cascade delete user's comment reports
-        $this->cascadeDeleteUserReports($user, $deletedAt);
+            $this->cascadeDeleteUserReports($user, $deletedAt);
 
-        // 6. Refresh trending cache objects for affected plugins
-        $affectedPluginIds = array_values(array_unique(array_merge(
-            $commentPluginIds,
-            $starPluginIds
-        )));
+            $affectedPluginIds = array_values(array_unique(array_merge(
+                $commentDeletion['affectedPluginIds'],
+                $starDeletion['affectedPluginIds']
+            )));
 
-        $this->refreshCachedPluginObjects($affectedPluginIds, $pluginRepository);
+            return [
+                'ownPluginIds' => $ownPluginIds,
+                'commentStats' => $commentDeletion['stats'],
+                'starStats' => $starDeletion['stats'],
+                'affectedPluginIds' => $affectedPluginIds,
+            ];
+        });
 
-        // 6. Send account deletion notification email to user
+        // 2. Perform Redis and Cache cleanup operations post-commit.
+        // This ensures atomicity and idempotency: if the DB transaction rolled back, Redis is untouched.
+        // If the job retries, already-deleted records will not be found, so stats won't be decremented again.
+
+        // 2a. Clean up Redis trending caches for user's own plugins
+        if (! empty($deletionData['ownPluginIds'])) {
+            $chunkSize = $this->getChunkSize();
+            foreach (array_chunk($deletionData['ownPluginIds'], $chunkSize) as $chunk) {
+                TrendingTracker::cleanupPlugins($chunk, true);
+            }
+        }
+
+        // 2b. Decrement daily Redis trending stats for deleted comments on other plugins
+        if (! empty($deletionData['commentStats'])) {
+            TrendingTracker::bulkDecrementInteractions(
+                TrendingTracker::INTERACTION_COMMENTS,
+                $deletionData['commentStats']
+            );
+        }
+
+        // 2c. Decrement daily Redis trending stats for deleted stars on other plugins
+        if (! empty($deletionData['starStats'])) {
+            TrendingTracker::bulkDecrementInteractions(
+                TrendingTracker::INTERACTION_STARS,
+                $deletionData['starStats']
+            );
+        }
+
+        // 2d. Flush star timeline caches for affected external plugins
+        foreach ($deletionData['affectedPluginIds'] as $pluginId) {
+            Cache::forget(StarService::timelineCacheKey($pluginId));
+        }
+
+        // 2e. Refresh trending cache objects for affected plugins
+        $this->refreshCachedPluginObjects($deletionData['affectedPluginIds'], $pluginRepository);
+
+        // 3. Send account deletion notification email to user
         $this->sendAccountDeletedEmail($user);
     }
 
@@ -97,10 +138,11 @@ class CascadeDeleteUserData implements ShouldQueue
     }
 
     /**
-     * Cascade delete plugins owned by the user, including all comments/stars on them
-     * and their Redis trending caches.
+     * Cascade soft-delete plugins owned by the user, including all comments/stars on them.
+     *
+     * @return array<int, string> The owned plugin IDs that were soft-deleted
      */
-    private function cascadeDeleteOwnPlugins(User $user, mixed $deletedAt): void
+    private function cascadeDeleteOwnPlugins(User $user, mixed $deletedAt): array
     {
         $ownPluginIds = Plugin::where('user_id', $user->id)
             ->whereNull('deleted_at')
@@ -108,49 +150,80 @@ class CascadeDeleteUserData implements ShouldQueue
             ->all();
 
         if (empty($ownPluginIds)) {
-            return;
+            return [];
         }
 
         $chunkSize = $this->getChunkSize();
 
         foreach (array_chunk($ownPluginIds, $chunkSize) as $chunk) {
-            // Soft-delete plugins and all comments/stars on them
             Plugin::whereIn('id', $chunk)->update(['deleted_at' => $deletedAt]);
             Comment::whereIn('plugin_id', $chunk)->whereNull('deleted_at')->update(['deleted_at' => $deletedAt]);
             CommentReport::whereIn('plugin_id', $chunk)->whereNull('deleted_at')->update(['deleted_at' => $deletedAt]);
             Star::whereIn('plugin_id', $chunk)->whereNull('deleted_at')->update(['deleted_at' => $deletedAt]);
-
-            // Clean up Redis trending caches for these plugins
-            TrendingTracker::cleanupPlugins($chunk);
         }
+
+        return $ownPluginIds;
     }
 
     /**
-     * Cascade delete all comments written by the user and all descendant replies,
-     * decrementing daily trending stats in Redis.
+     * Cascade soft-delete all comments written by the user and all descendant replies.
      *
-     * @return array<int, string> Affected plugin IDs
+     * @return array{affectedPluginIds: array<int, string>, stats: array<int, array{plugin_id: string, date: string, count: int}>}
      */
     private function cascadeDeleteUserComments(User $user, mixed $deletedAt): array
     {
         $commentIds = $this->resolveCommentThreadIds($user->id);
 
         if (empty($commentIds)) {
-            return [];
+            return [
+                'affectedPluginIds' => [],
+                'stats' => [],
+            ];
         }
-
-        // 1. Decrement daily Redis trending stats for deleted comments
-        $this->decrementCommentTrendingStats($commentIds);
-
-        // 2. Collect affected plugin IDs before soft deleting
-        $affectedPluginIds = Comment::whereIn('id', $commentIds)
-            ->distinct()
-            ->pluck('plugin_id')
-            ->all();
 
         $chunkSize = $this->getChunkSize();
 
-        // 3. Bulk soft-delete comments and replies
+        // 1. Collect affected plugin IDs in chunks before soft deleting
+        $affectedPluginIds = [];
+        foreach (array_chunk($commentIds, $chunkSize) as $chunk) {
+            $pluginIds = Comment::whereIn('id', $chunk)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->pluck('plugin_id')
+                ->all();
+
+            if (! empty($pluginIds)) {
+                $affectedPluginIds = array_merge($affectedPluginIds, $pluginIds);
+            }
+        }
+        $affectedPluginIds = array_values(array_unique($affectedPluginIds));
+
+        // 2. Aggregate visible comments by (plugin_id, date) in chunks for post-commit Redis stats decrement
+        $statsMap = [];
+        foreach (array_chunk($commentIds, $chunkSize) as $chunk) {
+            $chunkStats = Comment::whereIn('id', $chunk)
+                ->whereNull('deleted_at')
+                ->whereNull('hidden_at')
+                ->selectRaw('plugin_id, DATE(created_at) as date, COUNT(*) as count')
+                ->groupBy('plugin_id')
+                ->groupByRaw('DATE(created_at)')
+                ->get();
+
+            foreach ($chunkStats as $r) {
+                $key = "{$r->plugin_id}:{$r->date}";
+                if (! isset($statsMap[$key])) {
+                    $statsMap[$key] = [
+                        'plugin_id' => (string) $r->plugin_id,
+                        'date' => (string) $r->date,
+                        'count' => 0,
+                    ];
+                }
+                $statsMap[$key]['count'] += (int) $r->count;
+            }
+        }
+        $stats = array_values($statsMap);
+
+        // 3. Bulk soft-delete comments and replies in chunks
         foreach (array_chunk($commentIds, $chunkSize) as $chunk) {
             Comment::whereIn('id', $chunk)
                 ->whereNull('deleted_at')
@@ -161,7 +234,10 @@ class CascadeDeleteUserData implements ShouldQueue
                 ->update(['deleted_at' => $deletedAt]);
         }
 
-        return $affectedPluginIds;
+        return [
+            'affectedPluginIds' => $affectedPluginIds,
+            'stats' => $stats,
+        ];
     }
 
     /**
@@ -171,6 +247,8 @@ class CascadeDeleteUserData implements ShouldQueue
      */
     private function resolveCommentThreadIds(string $userId): array
     {
+        $chunkSize = $this->getChunkSize();
+
         $userCommentIds = Comment::where('author_id', $userId)
             ->whereNull('deleted_at')
             ->pluck('id')
@@ -180,52 +258,34 @@ class CascadeDeleteUserData implements ShouldQueue
         $currentParentIds = $userCommentIds;
 
         while (! empty($currentParentIds)) {
-            $childIds = Comment::whereIn('parent_comment_id', $currentParentIds)
-                ->whereNull('deleted_at')
-                ->pluck('id')
-                ->all();
+            $nextChildIds = [];
 
-            if (empty($childIds)) {
+            foreach (array_chunk($currentParentIds, $chunkSize) as $parentChunk) {
+                $childIds = Comment::whereIn('parent_comment_id', $parentChunk)
+                    ->whereNull('deleted_at')
+                    ->pluck('id')
+                    ->all();
+
+                if (! empty($childIds)) {
+                    $nextChildIds = array_merge($nextChildIds, $childIds);
+                }
+            }
+
+            if (empty($nextChildIds)) {
                 break;
             }
 
-            $allCommentIds = array_merge($allCommentIds, $childIds);
-            $currentParentIds = $childIds;
+            $allCommentIds = array_merge($allCommentIds, $nextChildIds);
+            $currentParentIds = $nextChildIds;
         }
 
         return array_values(array_unique($allCommentIds));
     }
 
     /**
-     * Aggregate visible comments by (plugin_id, date) and decrement Redis trending stats.
+     * Cascade soft-delete all stars given by the user, returning stats for post-commit Redis decrement.
      *
-     * @param  array<int, string>  $commentIds
-     */
-    private function decrementCommentTrendingStats(array $commentIds): void
-    {
-        $commentStats = Comment::whereIn('id', $commentIds)
-            ->whereNull('hidden_at')
-            ->selectRaw('plugin_id, DATE(created_at) as date, COUNT(*) as count')
-            ->groupBy('plugin_id')
-            ->groupByRaw('DATE(created_at)')
-            ->get();
-
-        if ($commentStats->isNotEmpty()) {
-            TrendingTracker::bulkDecrementInteractions(
-                TrendingTracker::INTERACTION_COMMENTS,
-                $commentStats->map(fn ($r) => [
-                    'plugin_id' => (string) $r->plugin_id,
-                    'date' => (string) $r->date,
-                    'count' => (int) $r->count,
-                ])->all()
-            );
-        }
-    }
-
-    /**
-     * Cascade delete all stars given by the user, decrementing daily trending stats in Redis.
-     *
-     * @return array<int, string> Affected plugin IDs
+     * @return array{affectedPluginIds: array<int, string>, stats: array<int, array{plugin_id: string, date: string, count: int}>}
      */
     private function cascadeDeleteUserStars(User $user, mixed $deletedAt): array
     {
@@ -237,37 +297,34 @@ class CascadeDeleteUserData implements ShouldQueue
             ->get();
 
         if ($starStats->isEmpty()) {
-            return [];
+            return [
+                'affectedPluginIds' => [],
+                'stats' => [],
+            ];
         }
 
-        // 1. Decrement daily Redis trending stats for deleted stars
-        TrendingTracker::bulkDecrementInteractions(
-            TrendingTracker::INTERACTION_STARS,
-            $starStats->map(fn ($r) => [
-                'plugin_id' => (string) $r->plugin_id,
-                'date' => (string) $r->date,
-                'count' => (int) $r->count,
-            ])->all()
-        );
-
-        // 2. Collect affected plugin IDs
+        // 1. Collect affected plugin IDs
         $affectedPluginIds = Star::where('user_id', $user->id)
             ->whereNull('deleted_at')
             ->distinct()
             ->pluck('plugin_id')
             ->all();
 
-        // 3. Bulk soft-delete stars
+        $stats = $starStats->map(fn ($r) => [
+            'plugin_id' => (string) $r->plugin_id,
+            'date' => (string) $r->date,
+            'count' => (int) $r->count,
+        ])->all();
+
+        // 2. Bulk soft-delete stars
         Star::where('user_id', $user->id)
             ->whereNull('deleted_at')
             ->update(['deleted_at' => $deletedAt]);
 
-        // 4. Flush star timeline caches for affected plugins
-        foreach ($affectedPluginIds as $pluginId) {
-            Cache::forget("plugin:star_timeline:{$pluginId}");
-        }
-
-        return $affectedPluginIds;
+        return [
+            'affectedPluginIds' => $affectedPluginIds,
+            'stats' => $stats,
+        ];
     }
 
     /**
@@ -294,14 +351,18 @@ class CascadeDeleteUserData implements ShouldQueue
             return;
         }
 
-        // Check which plugins actually exist in the trending objects hash in one call
-        $cachedFlags = Redis::hmget($hashKey, $pluginIds);
+        // Check which plugins actually exist in the trending objects hash in chunks
         $cachedPluginIds = [];
-        if (is_array($cachedFlags)) {
-            foreach ($pluginIds as $index => $pluginId) {
-                $val = $cachedFlags[$pluginId] ?? $cachedFlags[$index] ?? null;
-                if (! empty($val)) {
-                    $cachedPluginIds[] = $pluginId;
+        $chunkSize = $this->getChunkSize();
+
+        foreach (array_chunk($pluginIds, $chunkSize) as $chunk) {
+            $cachedFlags = Redis::hmget($hashKey, $chunk);
+            if (is_array($cachedFlags)) {
+                foreach ($chunk as $index => $pluginId) {
+                    $val = $cachedFlags[$pluginId] ?? $cachedFlags[$index] ?? null;
+                    if (! empty($val)) {
+                        $cachedPluginIds[] = $pluginId;
+                    }
                 }
             }
         }
@@ -324,6 +385,6 @@ class CascadeDeleteUserData implements ShouldQueue
      */
     private function getChunkSize(): int
     {
-        return (int) config('plugins.cascade_delete.chunk_size');
+        return max(1, (int) config('plugins.cascade_delete.chunk_size', 500));
     }
 }

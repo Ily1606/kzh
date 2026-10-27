@@ -120,9 +120,4 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
 
         return $user->refresh();
     }
-
-    public function delete(User|Model $user): bool
-    {
-        return parent::delete($user);
-    }
 }

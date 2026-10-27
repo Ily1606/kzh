@@ -9,8 +9,10 @@ use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\Star;
 use App\Models\User;
+use App\Services\StarService;
 use App\Services\TrendingTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
@@ -299,5 +301,196 @@ class CascadeDeleteUserDataTest extends TestCase
             return $mail->hasTo('deleted_user@example.com')
                 && $mail->user->id === $user->id;
         });
+    }
+
+    public function test_job_is_idempotent_on_retry_without_double_decrementing_redis_stats(): void
+    {
+        $user = User::factory()->create();
+        $targetPlugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $today = now()->format('Y-m-d');
+
+        // Create 2 comments and 1 star by user
+        Comment::factory()->count(2)->create([
+            'plugin_id' => $targetPlugin->id,
+            'author_id' => $user->id,
+            'created_at' => now(),
+            'hidden_at' => null,
+        ]);
+        Star::create([
+            'plugin_id' => $targetPlugin->id,
+            'user_id' => $user->id,
+            'created_at' => now(),
+        ]);
+
+        $commentStatKey = TrendingTracker::statKey(TrendingTracker::INTERACTION_COMMENTS, $today, $targetPlugin->id);
+        $starStatKey = TrendingTracker::statKey(TrendingTracker::INTERACTION_STARS, $today, $targetPlugin->id);
+
+        Redis::set($commentStatKey, 10);
+        Redis::set($starStatKey, 5);
+
+        $user->delete();
+
+        // Run 1: first job execution
+        $job = new CascadeDeleteUserData($user);
+        app()->call([$job, 'handle']);
+
+        // Assert: decremented appropriately (10 - 2 = 8, 5 - 1 = 4)
+        $this->assertEquals(8, (int) Redis::get($commentStatKey));
+        $this->assertEquals(4, (int) Redis::get($starStatKey));
+
+        // Run 2: retry job execution (simulating queue retry)
+        app()->call([$job, 'handle']);
+
+        // Assert: stats MUST NOT be decremented again
+        $this->assertEquals(8, (int) Redis::get($commentStatKey));
+        $this->assertEquals(4, (int) Redis::get($starStatKey));
+    }
+
+    public function test_chunked_processing_of_large_comment_volume_and_nested_threads(): void
+    {
+        // Set small chunk size to verify multi-chunk logic across all queries
+        config(['plugins.cascade_delete.chunk_size' => 100]);
+
+        $user = User::factory()->create();
+        $pluginA = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+        $pluginB = Plugin::factory()->create(['status' => PluginStatus::Approved, 'approved_at' => now()]);
+
+        $today = now()->format('Y-m-d');
+        $now = now();
+
+        // 150 root comments by user on Plugin A
+        $rootRecords = [];
+        for ($i = 0; $i < 150; $i++) {
+            $rootRecords[] = [
+                'id' => (string) Str::uuid(),
+                'plugin_id' => $pluginA->id,
+                'author_id' => $user->id,
+                'parent_comment_id' => null,
+                'content' => "Root {$i}",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        foreach (array_chunk($rootRecords, 50) as $chunk) {
+            Comment::insert($chunk);
+        }
+
+        // 120 child replies on those root comments by other users on Plugin A
+        $otherUser = User::factory()->create();
+        $childRecords = [];
+        for ($i = 0; $i < 120; $i++) {
+            $childRecords[] = [
+                'id' => (string) Str::uuid(),
+                'plugin_id' => $pluginA->id,
+                'author_id' => $otherUser->id,
+                'parent_comment_id' => $rootRecords[$i]['id'],
+                'content' => "Child {$i}",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        foreach (array_chunk($childRecords, 50) as $chunk) {
+            Comment::insert($chunk);
+        }
+
+        // 50 root comments on Plugin B by user
+        $pluginBRecords = [];
+        for ($i = 0; $i < 50; $i++) {
+            $pluginBRecords[] = [
+                'id' => (string) Str::uuid(),
+                'plugin_id' => $pluginB->id,
+                'author_id' => $user->id,
+                'parent_comment_id' => null,
+                'content' => "Plugin B Comment {$i}",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        foreach (array_chunk($pluginBRecords, 50) as $chunk) {
+            Comment::insert($chunk);
+        }
+
+        $statKeyA = TrendingTracker::statKey(TrendingTracker::INTERACTION_COMMENTS, $today, $pluginA->id);
+        $statKeyB = TrendingTracker::statKey(TrendingTracker::INTERACTION_COMMENTS, $today, $pluginB->id);
+        Redis::set($statKeyA, 300);
+        Redis::set($statKeyB, 100);
+
+        $user->delete();
+
+        $job = new CascadeDeleteUserData($user);
+        app()->call([$job, 'handle']);
+
+        // Assert: All comments (150 + 120 on A, 50 on B) must be soft deleted
+        $this->assertEquals(0, Comment::whereIn('plugin_id', [$pluginA->id, $pluginB->id])->whereNull('deleted_at')->count());
+        $this->assertEquals(320, Comment::onlyTrashed()->whereIn('plugin_id', [$pluginA->id, $pluginB->id])->count());
+
+        // Assert: Redis stats decremented properly across chunks
+        // Plugin A had 150 + 120 = 270 comments removed: 300 - 270 = 30
+        $this->assertEquals(30, (int) Redis::get($statKeyA));
+        // Plugin B had 50 comments removed: 100 - 50 = 50
+        $this->assertEquals(50, (int) Redis::get($statKeyB));
+    }
+
+    public function test_cascade_delete_and_trending_tracker_tolerate_null_or_zero_chunk_size(): void
+    {
+        // When chunk_size is 0, null, or negative, both components must not throw ValueError
+        foreach ([null, 0, -1] as $invalidChunkSize) {
+            config(['plugins.cascade_delete.chunk_size' => $invalidChunkSize]);
+
+            $user = User::factory()->create();
+            $plugin = Plugin::factory()->create(['status' => PluginStatus::Approved, 'user_id' => $user->id]);
+            Comment::factory()->create(['author_id' => $user->id, 'plugin_id' => $plugin->id]);
+
+            // Test TrendingTracker::bulkDecrementInteractions
+            TrendingTracker::bulkDecrementInteractions('comments', [
+                ['date' => now()->format('Y-m-d'), 'plugin_id' => $plugin->id, 'count' => 1],
+            ]);
+
+            // Test TrendingTracker::cleanupPlugins
+            TrendingTracker::cleanupPlugins([$plugin->id], deleteStats: true);
+
+            // Test CascadeDeleteUserData job
+            $user->delete();
+            $job = new CascadeDeleteUserData($user);
+            app()->call([$job, 'handle']);
+
+            $this->assertTrue(true, 'Executed successfully without ValueError');
+        }
+    }
+
+    public function test_cascade_delete_and_trending_tracker_clear_star_timeline_cache_via_star_service_key(): void
+    {
+        $user = User::factory()->create();
+        $targetPlugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        Star::create([
+            'plugin_id' => $targetPlugin->id,
+            'user_id' => $user->id,
+            'created_at' => now(),
+        ]);
+
+        $timelineKey = StarService::timelineCacheKey($targetPlugin->id);
+        Cache::put($timelineKey, ['timeline_data'], 900);
+        $this->assertTrue(Cache::has($timelineKey));
+
+        $user->delete();
+        $job = new CascadeDeleteUserData($user);
+        app()->call([$job, 'handle']);
+
+        // Star timeline cache must have been forgotten
+        $this->assertFalse(Cache::has($timelineKey));
+
+        // Also verify TrendingTracker::cleanupPlugins clears it
+        Cache::put($timelineKey, ['timeline_data_again'], 900);
+        $this->assertTrue(Cache::has($timelineKey));
+        TrendingTracker::cleanupPlugins([$targetPlugin->id]);
+        $this->assertFalse(Cache::has($timelineKey));
     }
 }

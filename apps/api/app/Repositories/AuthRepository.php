@@ -38,23 +38,6 @@ final class AuthRepository extends UserRepository implements AuthRepositoryInter
         return parent::create($attributes);
     }
 
-    /**
-     * Credential verification is a rule this repository owns: the shared
-     * {@see BaseRepository::find()} must stay generic, so the locked-account
-     * and password checks live in a hook of their own.
-     */
-    public function findValidUser(string $email, string $password): ?User
-    {
-        $user = $this->newQuery()
-            ->where('email', $email)
-            ->whereNull('locked_at')
-            ->first();
-
-        return $user !== null && Hash::check($password, $user->password)
-            ? $user
-            : null;
-    }
-
     public function findByEmailWithTrashed(string $email): ?User
     {
         $normalizedEmail = Str::lower(trim($email));

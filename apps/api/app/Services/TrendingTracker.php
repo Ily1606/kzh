@@ -93,7 +93,7 @@ final class TrendingTracker
             return;
         }
 
-        $chunkSize = (int) config('plugins.cascade_delete.chunk_size');
+        $chunkSize = max(1, (int) config('plugins.cascade_delete.chunk_size', 500));
 
         foreach (array_chunk($items, $chunkSize) as $chunk) {
             $keys = [];
@@ -205,8 +205,9 @@ final class TrendingTracker
      * Remove multiple plugins from all trending caches in Redis in bulk and flush associated cache keys.
      *
      * @param  array<int, string>  $pluginIds
+     * @param  bool  $deleteStats  Whether to permanently delete historical trending:stats:* keys
      */
-    public static function cleanupPlugins(array $pluginIds): void
+    public static function cleanupPlugins(array $pluginIds, bool $deleteStats = false): void
     {
         if (empty($pluginIds)) {
             return;
@@ -217,7 +218,7 @@ final class TrendingTracker
         $bufferKey = config('plugins.views_buffer_key');
         $processingKey = $bufferKey ? $bufferKey.'_processing' : null;
         $daysLimit = (int) config('plugins.trending.days_limit', 30);
-        $chunkSize = (int) config('plugins.cascade_delete.chunk_size', 500);
+        $chunkSize = max(1, (int) config('plugins.cascade_delete.chunk_size', 500));
 
         // Execute all Redis operations in a single network roundtrip using pipeline
         $pipe = Redis::pipeline();
@@ -236,22 +237,24 @@ final class TrendingTracker
             $pipe->hdel($processingKey, ...$pluginIds);
         }
 
-        // 2. Bulk remove from active sets across the sliding window and collect stat keys
+        // 2. Bulk remove from active sets across the sliding window and optionally collect stat keys
         $statKeys = [];
 
         for ($i = 0; $i <= $daysLimit; $i++) {
             $date = now()->subDays($i)->format('Y-m-d');
             $pipe->srem(self::activeKey($date), ...$pluginIds);
 
-            foreach ($pluginIds as $pluginId) {
-                foreach (self::INTERACTION_TYPES as $type) {
-                    $statKeys[] = self::statKey($type, $date, $pluginId);
+            if ($deleteStats) {
+                foreach ($pluginIds as $pluginId) {
+                    foreach (self::INTERACTION_TYPES as $type) {
+                        $statKeys[] = self::statKey($type, $date, $pluginId);
+                    }
                 }
             }
         }
 
         // 3. Bulk delete daily stat keys in chunks to avoid blocking Redis with gigantic payload
-        if (! empty($statKeys)) {
+        if ($deleteStats && ! empty($statKeys)) {
             foreach (array_chunk($statKeys, $chunkSize) as $keysChunk) {
                 $pipe->del($keysChunk);
             }
@@ -261,16 +264,15 @@ final class TrendingTracker
 
         // 4. Clear star timeline caches
         foreach ($pluginIds as $pluginId) {
-            Cache::forget("plugin:star_timeline:{$pluginId}");
-            Cache::forget("plugins:{$pluginId}:star_timeline");
+            Cache::forget(StarService::timelineCacheKey($pluginId));
         }
     }
 
     /**
      * Remove a plugin from all trending caches in Redis and flush associated cache keys.
      */
-    public static function cleanupPlugin(string $pluginId): void
+    public static function cleanupPlugin(string $pluginId, bool $deleteStats = false): void
     {
-        self::cleanupPlugins([$pluginId]);
+        self::cleanupPlugins([$pluginId], $deleteStats);
     }
 }

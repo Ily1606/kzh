@@ -4,20 +4,24 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class AccountLockedMail extends Mailable
+class AccountLockedMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(public User $user) {}
+    public function __construct(public User $user)
+    {
+        $this->afterCommit();
+    }
 
     /**
      * Get the message envelope.
@@ -49,4 +53,3 @@ class AccountLockedMail extends Mailable
         return [];
     }
 }
-
