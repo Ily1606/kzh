@@ -67,17 +67,20 @@ class PluginsTable
                     ->label(__('plugin.table.columns.stars'))
                     ->alignCenter()
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('view_count')
                     ->label(__('plugin.table.columns.views'))
                     ->alignCenter()
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('comment_count')
                     ->label(__('plugin.table.columns.comments'))
                     ->alignCenter()
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('report_count')
                     ->label(__('plugin.table.columns.reports'))
                     ->alignCenter()
