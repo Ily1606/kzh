@@ -71,6 +71,48 @@ class CommentReportTest extends TestCase
         $this->assertDatabaseCount('comment_reports', 1);
     }
 
+    public function test_user_cannot_report_comment_again_after_report_is_dismissed(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create();
+        $comment = Comment::factory()->create(['plugin_id' => $plugin->id]);
+
+        // First report
+        $this->actingAs($user, 'sanctum')->postJson("/api/v1/plugins/{$plugin->id}/comments/{$comment->id}/reports", [
+            'reason' => 'This is a spam comment.',
+        ])->assertStatus(201);
+
+        // Admin dismisses the report (soft delete)
+        CommentReport::where('user_id', $user->id)->first()->delete();
+
+        // User attempts to report again
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/v1/plugins/{$plugin->id}/comments/{$comment->id}/reports", [
+            'reason' => 'Reporting again after dismissal.',
+        ]);
+
+        $response->assertStatus(409)
+            ->assertJsonPath('message', 'You have already reported this comment.');
+    }
+
+    public function test_author_cannot_report_their_own_comment(): void
+    {
+        $author = User::factory()->create();
+        $plugin = Plugin::factory()->create();
+        $comment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $author->id,
+        ]);
+
+        $response = $this->actingAs($author, 'sanctum')->postJson("/api/v1/plugins/{$plugin->id}/comments/{$comment->id}/reports", [
+            'reason' => 'Reporting my own comment.',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'You cannot report your own comment.');
+
+        $this->assertDatabaseCount('comment_reports', 0);
+    }
+
     public function test_report_fails_if_reason_is_missing(): void
     {
         $user = User::factory()->create();

@@ -66,6 +66,43 @@ class PluginReportTest extends TestCase
         $this->assertDatabaseCount('plugin_reports', 1);
     }
 
+    public function test_user_cannot_report_plugin_again_after_report_is_dismissed(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create();
+
+        // First report
+        $this->actingAs($user, 'sanctum')->postJson("/api/v1/plugins/{$plugin->id}/reports", [
+            'reason' => 'This is a spam plugin.',
+        ])->assertStatus(201);
+
+        // Admin dismisses the report (soft delete)
+        PluginReport::where('user_id', $user->id)->first()->delete();
+
+        // User attempts to report again
+        $response = $this->actingAs($user, 'sanctum')->postJson("/api/v1/plugins/{$plugin->id}/reports", [
+            'reason' => 'Reporting again after dismissal.',
+        ]);
+
+        $response->assertStatus(409)
+            ->assertJsonPath('message', 'You have already reported this plugin.');
+    }
+
+    public function test_author_cannot_report_their_own_plugin(): void
+    {
+        $author = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $author->id]);
+
+        $response = $this->actingAs($author, 'sanctum')->postJson("/api/v1/plugins/{$plugin->id}/reports", [
+            'reason' => 'Reporting my own plugin.',
+        ]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('message', 'You cannot report your own plugin.');
+
+        $this->assertDatabaseCount('plugin_reports', 0);
+    }
+
     public function test_different_users_can_report_the_same_plugin(): void
     {
         $user1 = User::factory()->create();

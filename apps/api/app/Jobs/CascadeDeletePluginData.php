@@ -10,6 +10,7 @@ use App\Models\Star;
 use App\Services\TrendingTracker;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 
 class CascadeDeletePluginData implements ShouldQueue
 {
@@ -40,20 +41,16 @@ class CascadeDeletePluginData implements ShouldQueue
         $deletedAt = $plugin->deleted_at ?? now();
         $chunkSize = $this->getChunkSize();
 
-        // 1. Cascade soft-delete comments
-        $this->cascadeDeleteComments($deletedAt, $chunkSize);
+        // 1. Cascade soft-delete related records atomically in a database transaction
+        DB::transaction(function () use ($deletedAt, $chunkSize): void {
+            $this->cascadeDeleteComments($deletedAt, $chunkSize);
+            $this->cascadeDeleteCommentReports($deletedAt, $chunkSize);
+            $this->cascadeDeletePluginReports($deletedAt, $chunkSize);
+            $this->cascadeDeleteStars($deletedAt, $chunkSize);
+        });
 
-        // 2. Cascade soft-delete comment reports
-        $this->cascadeDeleteCommentReports($deletedAt, $chunkSize);
-
-        // 3. Cascade soft-delete plugin reports
-        $this->cascadeDeletePluginReports($deletedAt, $chunkSize);
-
-        // 4. Cascade soft-delete stars
-        $this->cascadeDeleteStars($deletedAt, $chunkSize);
-
-        // 5. Clean up Redis trending caches and timeline cache
-        TrendingTracker::cleanupPlugin($this->pluginId);
+        // 2. Clean up Redis trending caches, daily stat keys, and timeline cache
+        TrendingTracker::cleanupPlugin($this->pluginId, deleteStats: true);
     }
 
     /**
@@ -64,6 +61,7 @@ class CascadeDeletePluginData implements ShouldQueue
         do {
             $commentIds = Comment::where('plugin_id', $this->pluginId)
                 ->whereNull('deleted_at')
+                ->orderBy('id')
                 ->limit($chunkSize)
                 ->pluck('id')
                 ->all();
@@ -82,6 +80,7 @@ class CascadeDeletePluginData implements ShouldQueue
         do {
             $reportIds = CommentReport::where('plugin_id', $this->pluginId)
                 ->whereNull('deleted_at')
+                ->orderBy('id')
                 ->limit($chunkSize)
                 ->pluck('id')
                 ->all();
@@ -100,6 +99,7 @@ class CascadeDeletePluginData implements ShouldQueue
         do {
             $reportIds = PluginReport::where('plugin_id', $this->pluginId)
                 ->whereNull('deleted_at')
+                ->orderBy('id')
                 ->limit($chunkSize)
                 ->pluck('id')
                 ->all();
@@ -118,6 +118,7 @@ class CascadeDeletePluginData implements ShouldQueue
         do {
             $userIds = Star::where('plugin_id', $this->pluginId)
                 ->whereNull('deleted_at')
+                ->orderBy('user_id')
                 ->limit($chunkSize)
                 ->pluck('user_id')
                 ->all();
@@ -135,6 +136,6 @@ class CascadeDeletePluginData implements ShouldQueue
      */
     private function getChunkSize(): int
     {
-        return (int) config('plugins.cascade_delete.chunk_size', 500);
+        return max(1, (int) config('plugins.cascade_delete.chunk_size', 500));
     }
 }

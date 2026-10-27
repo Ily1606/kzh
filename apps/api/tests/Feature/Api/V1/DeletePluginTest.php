@@ -8,6 +8,7 @@ use App\Models\CommentReport;
 use App\Models\Plugin;
 use App\Models\Star;
 use App\Models\User;
+use App\Services\StarService;
 use App\Services\TrendingTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -184,10 +185,8 @@ class DeletePluginTest extends TestCase
         Redis::set($commentsStatKey, 3);
         Redis::set($starsStatKey, 2);
 
-        $timelineKey1 = "plugin:star_timeline:{$plugin->id}";
-        $timelineKey2 = "plugins:{$plugin->id}:star_timeline";
-        Cache::put($timelineKey1, ['timeline_data'], 900);
-        Cache::put($timelineKey2, ['timeline_data'], 900);
+        $timelineKey = StarService::timelineCacheKey($plugin->id);
+        Cache::put($timelineKey, ['timeline_data'], 900);
 
         $this->assertEquals(150, Redis::zscore($zsetKey, $plugin->id));
         $this->assertTrue((bool) Redis::hexists($hashKey, $plugin->id));
@@ -195,8 +194,7 @@ class DeletePluginTest extends TestCase
         $this->assertTrue((bool) Redis::hexists($processingKey, $plugin->id));
         $this->assertTrue((bool) Redis::sismember($activeKey, $plugin->id));
         $this->assertEquals('10', Redis::get($viewsStatKey));
-        $this->assertTrue(Cache::has($timelineKey1));
-        $this->assertTrue(Cache::has($timelineKey2));
+        $this->assertTrue(Cache::has($timelineKey));
 
         Sanctum::actingAs($owner);
 
@@ -214,8 +212,7 @@ class DeletePluginTest extends TestCase
         $this->assertNull(Redis::get($starsStatKey));
 
         // Verify Cache cleanup
-        $this->assertFalse(Cache::has($timelineKey1));
-        $this->assertFalse(Cache::has($timelineKey2));
+        $this->assertFalse(Cache::has($timelineKey));
     }
 
     public function test_delete_by_admin_is_permitted_for_any_plugin(): void

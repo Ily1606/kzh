@@ -8,6 +8,7 @@ use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
 use App\Support\ApiResponse;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 
 class CommentReportController extends Controller
@@ -27,8 +28,14 @@ class CommentReportController extends Controller
 
         $userId = $request->user()->id;
 
-        // Check if the user has already reported this comment
-        $existingReport = CommentReport::where('user_id', $userId)
+        // An author cannot report their own comment
+        if ($comment->author_id === $userId) {
+            return ApiResponse::errorResponse('You cannot report your own comment.', 403);
+        }
+
+        // Check if the user has already reported this comment (including previously dismissed reports)
+        $existingReport = CommentReport::withTrashed()
+            ->where('user_id', $userId)
             ->where('comment_id', $comment->id)
             ->exists();
 
@@ -41,7 +48,12 @@ class CommentReportController extends Controller
         $report->comment_id = $comment->id;
         $report->plugin_id = $plugin->id;
         $report->reason = $request->validated('reason');
-        $report->save();
+
+        try {
+            $report->save();
+        } catch (UniqueConstraintViolationException) {
+            return ApiResponse::errorResponse('You have already reported this comment.', 409);
+        }
 
         return ApiResponse::successResponse(
             ['report' => $report],

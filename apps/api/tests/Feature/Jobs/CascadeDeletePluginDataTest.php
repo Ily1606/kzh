@@ -10,6 +10,7 @@ use App\Models\Plugin;
 use App\Models\PluginReport;
 use App\Models\Star;
 use App\Models\User;
+use App\Services\StarService;
 use App\Services\TrendingTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -239,16 +240,15 @@ class CascadeDeletePluginDataTest extends TestCase
             'approved_at' => now(),
         ]);
 
-        Cache::put("plugin:star_timeline:{$plugin->id}", ['timeline' => 'data_1'], 600);
-        Cache::put("plugins:{$plugin->id}:star_timeline", ['timeline' => 'data_2'], 600);
+        $timelineKey = StarService::timelineCacheKey($plugin->id);
+        Cache::put($timelineKey, ['timeline' => 'data_1'], 600);
 
         $plugin->delete();
 
         $job = new CascadeDeletePluginData($plugin);
         $job->handle();
 
-        $this->assertNull(Cache::get("plugin:star_timeline:{$plugin->id}"));
-        $this->assertNull(Cache::get("plugins:{$plugin->id}:star_timeline"));
+        $this->assertNull(Cache::get($timelineKey));
     }
 
     public function test_cleanup_respects_custom_configured_redis_keys_and_prefixes(): void
@@ -382,5 +382,31 @@ class CascadeDeletePluginDataTest extends TestCase
         $this->assertEquals(1, Star::where('plugin_id', $pluginB->id)->count());
         $this->assertEquals(200, (int) Redis::zscore($zsetKey, $pluginB->id));
         $this->assertTrue((bool) Redis::hexists($hashKey, $pluginB->id));
+    }
+
+    public function test_job_tolerates_null_or_zero_chunk_size(): void
+    {
+        foreach ([null, 0, -1] as $invalidChunkSize) {
+            config(['plugins.cascade_delete.chunk_size' => $invalidChunkSize]);
+
+            $owner = User::factory()->create();
+            $user = User::factory()->create();
+            $plugin = Plugin::factory()->create([
+                'user_id' => $owner->id,
+                'status' => PluginStatus::Approved,
+                'approved_at' => now(),
+            ]);
+
+            Comment::factory()->create(['plugin_id' => $plugin->id, 'author_id' => $user->id]);
+            Star::create(['plugin_id' => $plugin->id, 'user_id' => $user->id]);
+
+            $plugin->delete();
+
+            $job = new CascadeDeletePluginData($plugin);
+            $job->handle();
+
+            $this->assertEquals(0, Comment::where('plugin_id', $plugin->id)->count());
+            $this->assertEquals(0, Star::where('plugin_id', $plugin->id)->count());
+        }
     }
 }
