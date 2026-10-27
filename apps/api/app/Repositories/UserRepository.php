@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -100,14 +101,15 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     public function lock(User $user): User
     {
         return DB::transaction(function () use ($user): User {
-            $this->newQuery()
-                ->whereKey($user->getKey())
-                ->whereNull('locked_at')
-                ->update(['locked_at' => now()]);
+            $this->newQuery()->whereKey($user->getKey())->lockForUpdate()->first();
+            $user->refresh();
 
-            $user->tokens()->delete();
+            if ($user->locked_at === null) {
+                $user->locked_at = now();
+                $user->save();
+            }
 
-            return $user->refresh();
+            return $user;
         });
     }
 

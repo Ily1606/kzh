@@ -45,7 +45,7 @@ final class StarService
 
         if ($changed) {
             $this->dispatchStarEvent($starred, $plugin->id, $user, $requestContext);
-            Cache::forget($this->timelineCacheKey($plugin->id));
+            Cache::forget(self::timelineCacheKey($plugin->id));
             TrendingTracker::trackStar($plugin->id, $starred ? 1 : -1, $starCreatedAt);
             $this->refreshCachedPluginStarCount($plugin->id);
         }
@@ -89,7 +89,7 @@ final class StarService
 
     public function getTimeline(string $pluginId)
     {
-        return Cache::remember($this->timelineCacheKey($pluginId), config('plugins.star_timeline_cache_ttl'), function () use ($pluginId) {
+        return Cache::remember(self::timelineCacheKey($pluginId), config('plugins.star_timeline_cache_ttl'), function () use ($pluginId) {
             $plugin = $this->pluginRepository->findApprovedById($pluginId);
             $dateToCompare = $plugin->approved_at ?? $plugin->created_at;
             $byMonth = $dateToCompare ? $dateToCompare->diffInMonths(now()) > 2 : false;
@@ -98,7 +98,7 @@ final class StarService
         });
     }
 
-    private function timelineCacheKey(string $pluginId): string
+    public static function timelineCacheKey(string $pluginId): string
     {
         return 'plugin:star_timeline:'.$pluginId;
     }

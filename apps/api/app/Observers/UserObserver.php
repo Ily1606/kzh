@@ -2,7 +2,13 @@
 
 namespace App\Observers;
 
+use App\Jobs\CascadeDeleteUserData;
+use App\Mail\AccountLockedMail;
 use App\Models\User;
+use App\Services\TrendingTracker;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class UserObserver
 {
@@ -14,20 +20,41 @@ class UserObserver
         if ($user->wasChanged('locked_at') && $user->locked_at !== null) {
             $user->tokens()->delete();
 
-            $user->plugins()->each(function ($plugin) {
-                app(PluginObserver::class)->cleanupTrendingCache($plugin->id);
-            });
+            $pluginIds = $user->plugins()->pluck('id')->all();
+            if (! empty($pluginIds)) {
+                TrendingTracker::cleanupPlugins($pluginIds, false);
+            }
+
+            $this->sendAccountLockedEmail($user);
         }
     }
+
+    /**
+     * Send an email notifying the user that their account has been locked.
+     */
+    protected function sendAccountLockedEmail(User $user): void
+    {
+        if (empty($user->email)) {
+            return;
+        }
+
+        try {
+            DB::afterCommit(function () use ($user): void {
+                Mail::to($user->email)->queue(
+                    (new AccountLockedMail($user))->afterCommit()
+                );
+            });
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
     /**
      * Handle the User "deleted" event (soft delete).
      */
     public function deleted(User $user): void
     {
-        $user->tokens()->delete();
-        $user->plugins()->lazyById()->each(fn ($plugin) => $plugin->delete());
-        $user->comments()->lazyById()->each(fn ($comment) => $comment->delete());
-        $user->stars()->get()->each(fn ($star) => $star->delete());
+        CascadeDeleteUserData::dispatch($user);
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
 use App\Models\Plugin;
+use App\Services\TrendingTracker;
 use Illuminate\Support\Facades\Redis;
 
 class PluginObserver
@@ -18,7 +19,8 @@ class PluginObserver
 
         // 1. If the plugin is no longer approved, remove it immediately from trending
         if ($plugin->status !== PluginStatus::Approved || $plugin->approved_at === null) {
-            $this->cleanupTrendingCache($plugin->id);
+            $this->cleanupTrendingCache($plugin->id, false);
+
             return;
         }
 
@@ -39,7 +41,7 @@ class PluginObserver
      */
     public function deleted(Plugin $plugin): void
     {
-        $this->cleanupTrendingCache($plugin->id);
+        $this->cleanupTrendingCache($plugin->id, true);
     }
 
     /**
@@ -47,34 +49,14 @@ class PluginObserver
      */
     public function forceDeleted(Plugin $plugin): void
     {
-        $this->cleanupTrendingCache($plugin->id);
+        $this->cleanupTrendingCache($plugin->id, true);
     }
 
     /**
-     * Remove the plugin from all trending caches in Redis.
+     * Remove the plugin from all trending caches in Redis and flush associated cache keys.
      */
-    public function cleanupTrendingCache(string $pluginId): void
+    public function cleanupTrendingCache(string $pluginId, bool $deleteStats = false): void
     {
-        $zsetKey = config('plugins.trending.keys.zset');
-        $hashKey = config('plugins.trending.keys.objects');
-        $bufferKey = config('plugins.views_buffer_key');
-
-        // 1. Remove from ZSET, objects HASH, and views buffer
-        if ($zsetKey) {
-            Redis::zrem($zsetKey, $pluginId);
-        }
-        if ($hashKey) {
-            Redis::hdel($hashKey, $pluginId);
-        }
-        if ($bufferKey) {
-            Redis::hdel($bufferKey, $pluginId);
-        }
-
-        // 2. Remove from active sets across the sliding window
-        $daysLimit = (int) config('plugins.trending.days_limit', 30);
-        for ($i = 0; $i < $daysLimit; $i++) {
-            $date = now()->subDays($i)->format('Y-m-d');
-            Redis::srem("trending:active_plugins:{$date}", $pluginId);
-        }
+        TrendingTracker::cleanupPlugin($pluginId, $deleteStats);
     }
 }

@@ -6,6 +6,7 @@ use App\Contracts\AuthRepositoryInterface;
 use App\Models\User;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\NewAccessToken;
 
 /**
@@ -37,21 +38,25 @@ final class AuthRepository extends UserRepository implements AuthRepositoryInter
         return parent::create($attributes);
     }
 
-    /**
-     * Credential verification is a rule this repository owns: the shared
-     * {@see BaseRepository::find()} must stay generic, so the locked-account
-     * and password checks live in a hook of their own.
-     */
-    public function findValidUser(string $email, string $password): ?User
+    public function findByEmailWithTrashed(string $email): ?User
     {
-        $user = $this->newQuery()
-            ->where('email', $email)
-            ->whereNull('locked_at')
+        $normalizedEmail = Str::lower(trim($email));
+
+        // 1. Prioritize active (non-deleted) account
+        $activeUser = $this->newQuery()
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
             ->first();
 
-        return $user !== null && Hash::check($password, $user->password)
-            ? $user
-            : null;
+        if ($activeUser !== null) {
+            return $activeUser;
+        }
+
+        // 2. If no active account exists, find the most recently deleted account
+        return $this->newQuery()
+            ->onlyTrashed()
+            ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+            ->latest('deleted_at')
+            ->first();
     }
 
     public function createToken(User $user): NewAccessToken

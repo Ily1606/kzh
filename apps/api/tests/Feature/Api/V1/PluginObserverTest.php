@@ -36,27 +36,32 @@ class PluginObserverTest extends TestCase
         $zsetKey = config('plugins.trending.keys.zset');
         $hashKey = config('plugins.trending.keys.objects');
         $bufferKey = config('plugins.views_buffer_key');
-        $activeKey = 'trending:active_plugins:' . now()->format('Y-m-d');
+        $date = now()->format('Y-m-d');
+        $activeKey = 'trending:active_plugins:' . $date;
+        $statKey = "trending:stats:views:{$date}:{$plugin->id}";
 
         // Seed plugin into Redis trending caches
         Redis::zadd($zsetKey, 100, $plugin->id);
         Redis::hset($hashKey, $plugin->id, serialize($plugin));
         Redis::hset($bufferKey, $plugin->id, 5);
         Redis::sadd($activeKey, $plugin->id);
+        Redis::set($statKey, 10);
 
         $this->assertEquals(100, Redis::zscore($zsetKey, $plugin->id));
         $this->assertTrue((bool) Redis::hexists($hashKey, $plugin->id));
         $this->assertTrue((bool) Redis::hexists($bufferKey, $plugin->id));
         $this->assertTrue((bool) Redis::sismember($activeKey, $plugin->id));
+        $this->assertTrue((bool) Redis::exists($statKey));
 
         // Soft delete the plugin
         $plugin->delete();
 
-        // Verify it was removed from Redis trending caches
+        // Verify it was removed from Redis trending caches and stat keys were deleted
         $this->assertFalse((bool) Redis::zscore($zsetKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
         $this->assertFalse((bool) Redis::sismember($activeKey, $plugin->id));
+        $this->assertFalse((bool) Redis::exists($statKey));
     }
 
     public function test_force_deleting_plugin_removes_it_from_trending_redis_caches(): void
@@ -154,8 +159,12 @@ class PluginObserverTest extends TestCase
         $zsetKey = config('plugins.trending.keys.zset');
         $hashKey = config('plugins.trending.keys.objects');
 
+        $date = now()->format('Y-m-d');
+        $statKey = "trending:stats:views:{$date}:{$plugin->id}";
+
         Redis::zadd($zsetKey, 100, $plugin->id);
         Redis::hset($hashKey, $plugin->id, serialize($plugin));
+        Redis::set($statKey, 15);
 
         // Status changed away from Approved
         $plugin->status = PluginStatus::Pending;
@@ -163,6 +172,8 @@ class PluginObserverTest extends TestCase
 
         $this->assertFalse((bool) Redis::zscore($zsetKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
+        // Stat keys must be PRESERVED so that re-approving won't lose interaction history
+        $this->assertTrue((bool) Redis::exists($statKey));
     }
 
     public function test_owner_patching_plugin_updates_redis_trending_cache(): void

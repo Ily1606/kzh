@@ -3,13 +3,19 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Jobs\CascadeDeleteUserData;
+use App\Mail\AccountLockedMail;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\Star;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class UserObserverTest extends TestCase
@@ -62,6 +68,16 @@ class UserObserverTest extends TestCase
             'user_id' => $user->id,
         ]);
 
+        // Another user comments and stars on user's own plugin
+        $commentOnUserPlugin = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $otherUser->id,
+        ]);
+        $starOnUserPlugin = Star::create([
+            'plugin_id' => $plugin->id,
+            'user_id' => $otherUser->id,
+        ]);
+
         $date = now()->format('Y-m-d');
         $commentStatKey = "trending:stats:comments:{$date}:{$otherPlugin->id}";
         $starStatKey = "trending:stats:stars:{$date}:{$otherPlugin->id}";
@@ -79,6 +95,13 @@ class UserObserverTest extends TestCase
         Redis::set($commentStatKey, 1);
         Redis::set($starStatKey, 1);
 
+        $pluginViewsKey = "trending:stats:views:{$date}:{$plugin->id}";
+        $pluginCommentsKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        $pluginStarsKey = "trending:stats:stars:{$date}:{$plugin->id}";
+        Redis::set($pluginViewsKey, 20);
+        Redis::set($pluginCommentsKey, 10);
+        Redis::set($pluginStarsKey, 5);
+
         $otherPlugin->comment_count = 1;
         $otherPlugin->star_count = 1;
         Redis::zadd($zsetKey, 80, $otherPlugin->id);
@@ -92,10 +115,15 @@ class UserObserverTest extends TestCase
 
         // 2. User's plugins soft-deleted and removed from Redis trending
         $this->assertTrue($plugin->fresh()->trashed());
+        $this->assertTrue($commentOnUserPlugin->fresh()->trashed());
+        $this->assertTrue($starOnUserPlugin->fresh()->trashed());
         $this->assertFalse((bool) Redis::zscore($zsetKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
         $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+        $this->assertFalse((bool) Redis::exists($pluginViewsKey));
+        $this->assertFalse((bool) Redis::exists($pluginCommentsKey));
+        $this->assertFalse((bool) Redis::exists($pluginStarsKey));
 
         // 3. User's comments soft-deleted and trending stats decremented
         $this->assertTrue($comment->fresh()->trashed());
@@ -200,11 +228,17 @@ class UserObserverTest extends TestCase
         $hashKey = config('plugins.trending.keys.objects');
         $bufferKey = config('plugins.views_buffer_key');
         $todayKey = "trending:active_plugins:{$date}";
+        $viewsKey = "trending:stats:views:{$date}:{$plugin->id}";
+        $commentsKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        $starsKey = "trending:stats:stars:{$date}:{$plugin->id}";
 
         Redis::zadd($zsetKey, 50, $plugin->id);
         Redis::hset($hashKey, $plugin->id, serialize($plugin));
         Redis::hset($bufferKey, $plugin->id, 10);
         Redis::sadd($todayKey, $plugin->id);
+        Redis::set($viewsKey, 20);
+        Redis::set($commentsKey, 10);
+        Redis::set($starsKey, 5);
 
         // Act: lock user
         $user->update(['locked_at' => now()]);
@@ -217,6 +251,11 @@ class UserObserverTest extends TestCase
         $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
         $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
+
+        // 3. Historical stat keys are preserved during account locking
+        $this->assertTrue((bool) Redis::exists($viewsKey));
+        $this->assertTrue((bool) Redis::exists($commentsKey));
+        $this->assertTrue((bool) Redis::exists($starsKey));
     }
 
     public function test_unlocking_user_does_not_mark_plugins_active_without_interactions(): void
@@ -242,6 +281,75 @@ class UserObserverTest extends TestCase
         $this->assertFalse((bool) Redis::sismember($todayKey, $plugin->id));
     }
 
+    public function test_locking_user_sends_account_locked_email(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'email' => 'locked_user@example.com',
+            'locked_at' => null,
+        ]);
+
+        // Act: lock user
+        $user->update(['locked_at' => now()]);
+
+        Mail::assertQueued(AccountLockedMail::class, function (AccountLockedMail $mail) use ($user) {
+            return $mail->hasTo('locked_user@example.com')
+                && $mail->user->id === $user->id;
+        });
+    }
+
+    public function test_unlocking_user_does_not_send_account_locked_email(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'user_to_unlock@example.com',
+            'locked_at' => now(),
+        ]);
+
+        Mail::fake();
+
+        // Act: unlock user
+        $user->update(['locked_at' => null]);
+
+        Mail::assertNotQueued(AccountLockedMail::class);
+    }
+
+    public function test_updating_other_user_attributes_does_not_send_account_locked_email(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'normal_user@example.com',
+            'locked_at' => null,
+        ]);
+
+        Mail::fake();
+
+        // Act: update name only
+        $user->update(['name' => 'Updated Name']);
+
+        Mail::assertNotQueued(AccountLockedMail::class);
+    }
+
+    public function test_locking_user_in_rolled_back_transaction_does_not_queue_account_locked_email(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'email' => 'rollback_user@example.com',
+            'locked_at' => null,
+        ]);
+
+        try {
+            DB::transaction(function () use ($user) {
+                $user->update(['locked_at' => now()]);
+                throw new \Exception('Forced rollback');
+            });
+        } catch (\Exception $e) {
+            // Rollback caught
+        }
+
+        Mail::assertNotQueued(AccountLockedMail::class);
+    }
+
     public function test_soft_deleting_user_cascades_all_comments_when_more_than_one_chunk(): void
     {
         $user = User::factory()->create();
@@ -255,7 +363,7 @@ class UserObserverTest extends TestCase
         $records = [];
         for ($i = 0; $i < $totalComments; $i++) {
             $records[] = [
-                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'plugin_id' => $plugin->id,
                 'author_id' => $user->id,
                 'content' => "Comment {$i}",
@@ -346,5 +454,17 @@ class UserObserverTest extends TestCase
 
         $this->assertFalse($activePlugin->fresh()->trashed());
         $this->assertTrue($previouslyDeletedPlugin->fresh()->trashed());
+    }
+
+    public function test_soft_deleting_user_dispatches_cascade_delete_job(): void
+    {
+        Queue::fake([CascadeDeleteUserData::class]);
+
+        $user = User::factory()->create();
+        $user->delete();
+
+        Queue::assertPushed(CascadeDeleteUserData::class, function ($job) use ($user) {
+            return $job->userId === $user->id;
+        });
     }
 }

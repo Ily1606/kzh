@@ -31,3 +31,9 @@ Thumbs.db
 
 /dsh
 
+# Local test commands and seeders
+/app/Console/Commands/CheckUserDeletionData.php
+/app/Console/Commands/CleanPluginViewsCache.php
+/database/seeders/UserDeletionTestSeeder.php
+/tests/Feature/UserDeletionTestSeederTest.php
+

@@ -9,7 +9,7 @@ interface AuthRepositoryInterface
 {
     public function createUser(array $attributes): User;
 
-    public function findValidUser(string $email, string $password): ?User;
+    public function findByEmailWithTrashed(string $email): ?User;
 
     public function createToken(User $user): NewAccessToken;
 
