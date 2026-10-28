@@ -33,7 +33,7 @@ final class AuthService
     public function register(array $attributes, RequestContext $requestContext): array
     {
         $attributes['email'] = Str::lower(trim($attributes['email']));
-        $result = $this->issueToken($this->authRepository->createUser($attributes));
+        $result = $this->issueToken($this->createUser($attributes));
 
         UserRegistered::dispatch($result['user'], $requestContext);
 
