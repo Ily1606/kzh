@@ -64,16 +64,9 @@ interface PluginRepositoryInterface
      *
      * @param  string|null  $category  Restrict to one category by name, or null for all of them.
      * @param  string|null  $search  Match against name and title, or null to skip the filter.
+     * @param  string|null  $userId  Restrict to plugins by this user, or null for all users.
      */
-    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null): LengthAwarePaginator;
-
-    /**
-     * List the published plugins of one author, newest published first.
-     *
-     * @param  string  $userId  Owner the list is scoped to.
-     * @param  int  $perPage  Page size to paginate with.
-     */
-    public function getPaginatedApprovedPluginsByUser(string $userId, int $perPage): LengthAwarePaginator;
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null, ?string $userId = null): LengthAwarePaginator;
 
     /**
      * List one owner's plugins, whatever their review status.

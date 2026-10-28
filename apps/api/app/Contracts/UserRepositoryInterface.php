@@ -3,6 +3,7 @@
 namespace App\Contracts;
 
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 interface UserRepositoryInterface
 {
@@ -17,6 +18,13 @@ interface UserRepositoryInterface
      * The user carrying this username, or null when the username is unknown.
      */
     public function findByUsername(string $username): ?User;
+
+    /**
+     * The ID of the user carrying this username.
+     *
+     * @throws ModelNotFoundException when no user carries that username.
+     */
+    public function findIdByUsername(string $username): string;
 
     /**
      * Return the user matching the given credentials, or null when the email

@@ -319,10 +319,11 @@ final class PluginService
      *                           each plugin carries the viewer-specific `is_star` flag.
      * @param  string|null  $category  Restrict to one category, or null for all of them.
      * @param  string|null  $search  Match against plugin name and title, or null to skip the filter.
+     * @param  string|null  $userId  Restrict to plugins by this user, or null for all users.
      */
-    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null, ?string $category = null, ?string $search = null): LengthAwarePaginator
+    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null, ?string $category = null, ?string $search = null, ?string $userId = null): LengthAwarePaginator
     {
-        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage, $category, $search);
+        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage, $category, $search, $userId);
 
         // A guest has no stars, so there is nothing to resolve and no flag to
         // set. Skipping here is also what keeps the public list query count at
@@ -350,17 +351,6 @@ final class PluginService
             $this->pluginRepository->findByUsernameAndPluginName($username, $name),
             $user,
         );
-    }
-
-    /**
-     * The published plugins of one author, for their public profile.
-     *
-     * @param  string  $userId  The publisher the list belongs to.
-     * @param  int  $perPage  Page size to paginate with.
-     */
-    public function getPaginatedApprovedPluginsByUser(string $userId, int $perPage): LengthAwarePaginator
-    {
-        return $this->pluginRepository->getPaginatedApprovedPluginsByUser($userId, $perPage);
     }
 
     /**

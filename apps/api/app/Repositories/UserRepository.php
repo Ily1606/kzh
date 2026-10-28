@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -54,6 +55,24 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
             ->first();
 
         return $user;
+    }
+
+    /**
+     * The ID of the user carrying this username.
+     *
+     * @throws ModelNotFoundException when no user carries that username.
+     */
+    public function findIdByUsername(string $username): string
+    {
+        $id = $this->newQuery()
+            ->where('username', $username)
+            ->value('id');
+
+        if ($id === null) {
+            throw (new ModelNotFoundException)->setModel(User::class, [$username]);
+        }
+
+        return $id;
     }
 
     /**

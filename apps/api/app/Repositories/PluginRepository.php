@@ -126,13 +126,15 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         );
     }
 
-    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null): LengthAwarePaginator
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null, ?string $userId = null): LengthAwarePaginator
     {
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             // Exclude plugins whose author has been soft-deleted.
             ->whereHas('user')
+            // Restrict to plugins by this user, when given.
+            ->when($userId !== null, fn (Builder $query) => $query->where('user_id', $userId))
             // Keep only the plugins filed under this category, when given.
             ->when($category !== null, fn (Builder $query) => $query->whereHas(
                 'categories',
@@ -144,21 +146,6 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
                     ->where(fn (Builder $name) => LikeHelper::whereContains($name, 'name', $search))
                     ->orWhere(fn (Builder $title) => LikeHelper::whereContains($title, 'title', $search)),
             ))
-            ->withCount([
-                'stars as star_count',
-                'comments as comment_count' => fn (Builder $comments) => $comments->visible(),
-            ])
-            ->orderByDesc('approved_at')
-            ->paginate($perPage);
-    }
-
-    public function getPaginatedApprovedPluginsByUser(string $userId, int $perPage): LengthAwarePaginator
-    {
-        return $this->baseQuery()
-            ->where('user_id', $userId)
-            ->approved()
-            // Exclude plugins whose author has been soft-deleted.
-            ->whereHas('user')
             ->withCount([
                 'stars as star_count',
                 'comments as comment_count' => fn (Builder $comments) => $comments->visible(),

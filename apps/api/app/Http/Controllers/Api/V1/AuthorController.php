@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Contracts\UserRepositoryInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\AuthorRequest;
 use App\Http\Requests\Api\V1\ListAuthorPluginsRequest;
@@ -19,6 +20,7 @@ class AuthorController extends Controller
     public function __construct(
         private readonly ProfileService $profileService,
         private readonly PluginService $pluginService,
+        private readonly UserRepositoryInterface $userRepository,
     ) {}
 
     /**
@@ -42,14 +44,11 @@ class AuthorController extends Controller
     #[Response(status: 404, description: 'No user carries that username.')]
     public function plugins(ListAuthorPluginsRequest $request, string $username): AnonymousResourceCollection
     {
-        $author = $this->profileService->getProfileByUsername($username);
+        $userId = $this->userRepository->findIdByUsername($username);
 
         $perPage = $request->perPage();
 
-        $paginator = $this->pluginService->getPaginatedApprovedPluginsByUser(
-            (string) $author->getAuthIdentifier(),
-            $perPage,
-        );
+        $paginator = $this->pluginService->getPaginatedApprovedPlugins($perPage, userId: $userId);
 
         return PluginResource::collection($paginator);
     }
