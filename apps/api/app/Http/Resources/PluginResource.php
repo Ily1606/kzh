@@ -18,19 +18,19 @@ class PluginResource extends JsonResource
             $this->load('user');
         }
 
-        /** @var User $author */
+        /** @var User|null $author */
         $author = $this->user;
 
         return [
             'id' => $this->id,
             'name' => $this->name,
             'user_id' => $this->user_id,
-            'author' => [
+            'author' => $author ? [
                 'id' => $author->id,
                 'name' => $author->name,
                 'username' => $author->username,
                 'avatar_url' => $author->avatar_url,
-            ],
+            ] : null,
             'title' => $this->title,
             'license' => $this->license,
             // Null for a plugin submitted before categories existed.

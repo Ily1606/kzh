@@ -42,7 +42,7 @@ export const AuthorPluginsParams = zod.object({
 
 export const AuthorPluginsQueryParams = zod.object({
   "page": zod.number().int().min(1).nullish(),
-  "per_page": zod.number().int().min(1).nullish()
+  "per_page": zod.number().int().min(1).optional()
 })
 
 
@@ -65,7 +65,7 @@ export const AuthorPluginsResponse = zod.object({
   "name": zod.string(),
   "username": zod.string(),
   "avatar_url": zod.string()
-}),
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),

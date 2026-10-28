@@ -86,7 +86,7 @@ async function save(values: PluginFields) {
   notifySuccess('Plugin updated successfully.')
 
   // An edit can rename the plugin, so the URL that got us here may now 404.
-  if (saved.author.username === username.value && saved.name === pluginName.value) {
+  if (saved.author && saved.author.username === username.value && saved.name === pluginName.value) {
     goBack()
 
     return
@@ -95,7 +95,7 @@ async function save(values: PluginFields) {
   router.replace({
     name: 'plugin-detail',
     params: {
-      username: saved.author.username,
+      username: saved.author?.username ?? username.value,
       pluginName: saved.name,
     },
   })

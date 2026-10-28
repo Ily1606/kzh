@@ -51,7 +51,7 @@ function goToDetail(username: string | undefined, pluginName: string | undefined
 <template>
   <Card
     v-if="plugin"
-    @click="goToDetail(plugin.author.username, plugin.name)"
+    @click="goToDetail(plugin.author?.username, plugin.name)"
     class="@container relative gap-0 py-4.5 group px-4 sm:px-5 transition-all duration-200 hover:-translate-y-1 flex flex-col h-full min-w-65 sm:min-w-70 max-w-85 w-full shrink-0 snap-start cursor-pointer"
     :class="{
       'border-amber-400/50 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10': rank === 1,

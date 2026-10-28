@@ -5,9 +5,12 @@
  * OpenAPI spec version: 0.0.1
  */
 
+/**
+ * @nullable
+ */
 export type PluginResourceAuthor = {
   id: string;
   name: string;
   username: string;
   avatar_url: string;
-};
+} | null;

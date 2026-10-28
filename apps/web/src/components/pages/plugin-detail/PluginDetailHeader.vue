@@ -135,7 +135,8 @@ async function handleDelete() {
             >
               {{ plugin.author.name }}
             </RouterLink>
-            <span v-else class="font-medium text-foreground">{{ plugin.author?.name }}</span>
+            <span v-else-if="plugin.author" class="font-medium text-foreground">{{ plugin.author.name }}</span>
+            <span v-else class="font-medium text-foreground">Deleted</span>
           </span>
         </span>
         <span class="flex items-center gap-x-2">
@@ -173,7 +174,7 @@ async function handleDelete() {
 
       <!-- Owner-only. -->
       <RouterLink
-        v-if="showHistoryLink"
+        v-if="showHistoryLink && plugin.author"
         :to="{ name: 'plugin-history', params: { username: plugin.author.username, pluginName: plugin.name } }"
         class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
       >

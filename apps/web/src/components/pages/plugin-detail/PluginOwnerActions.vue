@@ -14,9 +14,9 @@ const { canEdit } = usePluginDetailAccess(toRef(props, 'plugin'))
 </script>
 
 <template>
-  <!-- Rendered only when an edit is possible -->
+  <!-- Rendered only when an edit is possible and author exists -->
   <Button
-    v-if="canEdit"
+    v-if="canEdit && plugin.author"
     as-child
     variant="outline"
     class="flex-1 cursor-pointer gap-2 font-medium border-gray-400 bg-background text-foreground hover:bg-foreground hover:text-background"

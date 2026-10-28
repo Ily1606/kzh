@@ -13,7 +13,6 @@ export type AuthorPluginsParams = {
 page?: number | null;
 /**
  * @minimum 1
- * @nullable
  */
-per_page?: number | null;
+per_page?: number;
 };

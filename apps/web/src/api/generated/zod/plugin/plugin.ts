@@ -41,7 +41,7 @@ export const PluginMyPluginsResponse = zod.object({
   "name": zod.string(),
   "username": zod.string(),
   "avatar_url": zod.string()
-}),
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
@@ -115,7 +115,7 @@ export const PluginStoreResponse = zod.object({
   "name": zod.string(),
   "username": zod.string(),
   "avatar_url": zod.string()
-}),
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
@@ -171,7 +171,7 @@ export const PluginIndexResponse = zod.object({
   "name": zod.string(),
   "username": zod.string(),
   "avatar_url": zod.string()
-}),
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
@@ -249,7 +249,7 @@ export const PluginUpdateResponse = zod.object({
   "name": zod.string(),
   "username": zod.string(),
   "avatar_url": zod.string()
-}),
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
@@ -326,7 +326,7 @@ export const PluginUpdateBySlugResponse = zod.object({
   "name": zod.string(),
   "username": zod.string(),
   "avatar_url": zod.string()
-}),
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
@@ -369,7 +369,7 @@ export const PluginShowResponse = zod.object({
   "name": zod.string(),
   "username": zod.string(),
   "avatar_url": zod.string()
-}),
+}).nullable(),
   "title": zod.string(),
   "license": zod.string(),
   "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),

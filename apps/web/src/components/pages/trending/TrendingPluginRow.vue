@@ -41,6 +41,7 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
         <!-- Author / Plugin Name -->
         <h2 class="text-base sm:text-lg font-normal tracking-tight min-w-0 font-mono">
           <RouterLink
+            v-if="plugin.author"
             :to="{ name: 'plugin-detail', params: { username: plugin.author.username, pluginName: plugin.name } }"
             class="inline-flex items-baseline gap-1 text-foreground"
           >
@@ -48,6 +49,11 @@ const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.cr
             <span class="text-foreground font-normal group-hover:text-primary">/</span>
             <span class="font-normal text-foreground group-hover:text-primary">{{ plugin.name }}</span>
           </RouterLink>
+          <span v-else class="inline-flex items-baseline gap-1 text-foreground">
+            <span class="font-normal text-foreground">{{ authorName }}</span>
+            <span class="text-foreground font-normal">/</span>
+            <span class="font-normal text-foreground">{{ plugin.name }}</span>
+          </span>
         </h2>
       </div>
 
