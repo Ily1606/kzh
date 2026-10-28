@@ -28,7 +28,15 @@ class AuthorRequest extends FormRequest
     {
         return [
             /** @ignoreParam */
-            'username' => ['required', 'string', 'max:39', 'regex:'.UsernameHelper::PATTERN],
+            'username' => [
+            'required',
+            'string',
+            'max:39',
+            'regex:'.UsernameHelper::PATTERN,
+            // Prevent username that looks like a UUID to avoid route conflicts
+            // with /plugins/{pluginId}/comments and /plugins/{pluginId}/events
+            'not_regex:'.UsernameHelper::UUID_PATTERN,
+        ],
         ];
     }
 

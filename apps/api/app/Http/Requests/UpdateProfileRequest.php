@@ -31,6 +31,9 @@ class UpdateProfileRequest extends FormRequest
                 'string',
                 'max:39',
                 'regex:'.UsernameHelper::PATTERN,
+                // Prevent username that looks like a UUID to avoid route conflicts
+                // with /plugins/{pluginId}/comments and /plugins/{pluginId}/events
+                'not_regex:'.UsernameHelper::UUID_PATTERN,
                 // Excludes the user's own row so they can keep their username.
                 Rule::unique('users', 'username')->ignore($this->user()?->getKey()),
             ],
