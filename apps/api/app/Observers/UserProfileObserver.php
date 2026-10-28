@@ -2,7 +2,9 @@
 
 namespace App\Observers;
 
+use App\Models\Plugin;
 use App\Models\UserProfile;
+use App\Services\TrendingTracker;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -19,6 +21,15 @@ class UserProfileObserver
                 DB::afterCommit(function () use ($oldAvatar): void {
                     Storage::disk(UserProfile::AVATAR_DISK)->delete($oldAvatar);
                 });
+            }
+
+            // Refresh trending cache when avatar changes
+            $userId = $profile->user_id;
+            if ($userId) {
+                $ids = Plugin::where('user_id', $userId)->pluck('id')->all();
+                if ($ids) {
+                    TrendingTracker::refreshPlugins($ids);
+                }
             }
         }
     }

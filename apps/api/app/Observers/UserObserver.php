@@ -29,13 +29,16 @@ class UserObserver
             $this->sendAccountLockedEmail($user);
         }
 
-        // If username changed, record history and refresh trending cache for user's plugins
-        if ($user->wasChanged('username')) {
-            $this->recordUsernameHistory($user);
+        // If username or name changed, record history (for username) and refresh trending cache for user's plugins
+        if ($user->wasChanged(['username', 'name'])) {
+            if ($user->wasChanged('username')) {
+                $this->recordUsernameHistory($user);
+            }
 
-            $user->plugins()->each(function ($plugin) {
-                app(PluginObserver::class)->refreshTrendingCacheIfCached($plugin->id);
-            });
+            $ids = $user->plugins()->pluck('id')->all();
+            if ($ids) {
+                TrendingTracker::refreshPlugins($ids);
+            }
         }
     }
 

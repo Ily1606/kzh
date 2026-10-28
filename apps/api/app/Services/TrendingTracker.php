@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\PluginRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
@@ -274,5 +275,55 @@ final class TrendingTracker
     public static function cleanupPlugin(string $pluginId, bool $deleteStats = false): void
     {
         self::cleanupPlugins([$pluginId], $deleteStats);
+    }
+
+    /**
+     * Bulk refresh trending cache for multiple plugins.
+     * Fetches all approved plugins in a single query and updates the cache hash.
+     *
+     * @param  array<int, string>  $pluginIds
+     */
+    public static function refreshPlugins(array $pluginIds): void
+    {
+        if (empty($pluginIds)) {
+            return;
+        }
+
+        $hashKey = config('plugins.trending.keys.objects');
+
+        if (! $hashKey) {
+            return;
+        }
+
+        // Only refresh plugins that are actually in the cache
+        $existingIds = Redis::hmget($hashKey, ...$pluginIds);
+        $cachedIds = [];
+
+        foreach ($existingIds as $index => $value) {
+            if ($value !== null && $value !== false) {
+                $cachedIds[] = $pluginIds[$index];
+            }
+        }
+
+        if (empty($cachedIds)) {
+            return;
+        }
+
+        // Single query to fetch all approved plugins
+        $freshPlugins = app(PluginRepositoryInterface::class)
+            ->findApprovedByIds($cachedIds)
+            ->keyBy('id');
+
+        if ($freshPlugins->isEmpty()) {
+            return;
+        }
+
+        // Bulk update the cache hash
+        $data = [];
+        foreach ($freshPlugins as $plugin) {
+            $data[$plugin->id] = serialize($plugin);
+        }
+
+        Redis::hset($hashKey, $data);
     }
 }
