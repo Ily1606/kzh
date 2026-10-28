@@ -153,7 +153,8 @@ final class PluginService
      */
     public function delete(User $user, string $pluginId): void
     {
-        $plugin = $this->pluginRepository->findById($pluginId);
+        $plugin = $this->pluginRepository->find($pluginId)
+            ?? throw (new ModelNotFoundException)->setModel(Plugin::class, [$pluginId]);
 
         if (! $user->is_admin && $plugin->user_id !== $user->getAuthIdentifier()) {
             throw new AuthorizationException;

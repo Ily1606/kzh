@@ -189,11 +189,6 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             and {$prefix}comments.deleted_at is null)";
     }
 
-    public function delete(Plugin|Model $plugin): bool
-    {
-        return parent::delete($plugin);
-    }
-
     public function getTopAllTimePlugins(int $limit): Collection
     {
         return $this->baseQuery()

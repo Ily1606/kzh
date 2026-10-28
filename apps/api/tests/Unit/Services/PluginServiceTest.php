@@ -169,7 +169,7 @@ class PluginServiceTest extends TestCase
         $plugin = Plugin::factory()->make(['user_id' => $owner->id]);
 
         $repository = Mockery::mock(PluginRepositoryInterface::class);
-        $repository->shouldReceive('findById')
+        $repository->shouldReceive('find')
             ->once()
             ->andReturn($plugin);
         $repository->shouldNotReceive('delete');
@@ -188,7 +188,7 @@ class PluginServiceTest extends TestCase
         $pluginId = (string) $plugin->getKey();
 
         $repository = Mockery::mock(PluginRepositoryInterface::class);
-        $repository->shouldReceive('findById')
+        $repository->shouldReceive('find')
             ->once()
             ->with($pluginId)
             ->andReturn($plugin);

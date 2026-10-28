@@ -24,6 +24,11 @@ interface PluginRepositoryInterface
     public function incrementViewCount(string $id, int $count): void;
 
     /**
+     * Find a plugin by ID without eager-loaded relations.
+     */
+    public function find(mixed $id): ?Model;
+
+    /**
      * Find any plugin by ID, whatever its review status, or fail with a 404.
      */
     public function findById(string $id): Plugin;
