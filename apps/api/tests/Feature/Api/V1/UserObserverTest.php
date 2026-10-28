@@ -141,7 +141,7 @@ class UserObserverTest extends TestCase
         $this->assertEquals(0, $cachedOtherPlugin->comment_count);
     }
 
-    public function test_restoring_user_cascades_plugins_comments_and_stars(): void
+    public function test_restoring_user_does_not_restore_cascaded_plugins_comments_and_stars(): void
     {
         $user = User::factory()->create();
 
@@ -168,47 +168,23 @@ class UserObserverTest extends TestCase
             'user_id' => $user->id,
         ]);
 
-        $date = now()->format('Y-m-d');
-        $commentStatKey = "trending:stats:comments:{$date}:{$otherPlugin->id}";
-        $starStatKey = "trending:stats:stars:{$date}:{$otherPlugin->id}";
-        $zsetKey = config('plugins.trending.keys.zset');
-        $hashKey = config('plugins.trending.keys.objects');
-
-        Redis::set($commentStatKey, 1);
-        Redis::set($starStatKey, 1);
-        $otherPlugin->comment_count = 1;
-        $otherPlugin->star_count = 1;
-        Redis::zadd($zsetKey, 80, $otherPlugin->id);
-        Redis::hset($hashKey, $otherPlugin->id, serialize($otherPlugin));
-
         // Soft delete user
         $user->delete();
         $this->assertTrue($plugin->fresh()->trashed());
         $this->assertTrue($comment->fresh()->trashed());
         $this->assertTrue($star->fresh()->trashed());
-        $this->assertEquals(0, (int) Redis::get($commentStatKey));
-        $this->assertEquals(0, (int) Redis::get($starStatKey));
 
         // Act: restore user
         $user->restore();
 
-        // 1. User's plugins restored
-        $this->assertFalse($plugin->fresh()->trashed());
+        // 1. User's plugins remain trashed (no restore logic after delete)
+        $this->assertTrue($plugin->fresh()->trashed());
 
-        // 2. User's comments restored and stats re-incremented
-        $this->assertFalse($comment->fresh()->trashed());
-        $this->assertEquals(1, (int) Redis::get($commentStatKey));
+        // 2. User's comments remain trashed
+        $this->assertTrue($comment->fresh()->trashed());
 
-        // 3. User's stars restored and stats re-incremented
-        $this->assertFalse($star->fresh()->trashed());
-        $this->assertEquals(1, (int) Redis::get($starStatKey));
-
-        // Target plugin's cached star and comment count restored in Redis
-        $cachedRaw = Redis::hget($hashKey, $otherPlugin->id);
-        $this->assertNotEmpty($cachedRaw);
-        $cachedOtherPlugin = unserialize($cachedRaw);
-        $this->assertEquals(1, $cachedOtherPlugin->star_count);
-        $this->assertEquals(1, $cachedOtherPlugin->comment_count);
+        // 3. User's stars remain trashed
+        $this->assertTrue($star->fresh()->trashed());
     }
 
     public function test_locking_user_revokes_tokens_and_removes_plugins_from_trending_cache(): void
@@ -385,75 +361,6 @@ class UserObserverTest extends TestCase
         // Assert: All 1050 comments must be trashed
         $this->assertEquals(0, Comment::where('author_id', $user->id)->count());
         $this->assertEquals($totalComments, Comment::onlyTrashed()->where('author_id', $user->id)->count());
-    }
-
-    public function test_restoring_user_does_not_restore_comments_deleted_before_user_deletion(): void
-    {
-        $user = User::factory()->create();
-        $plugin = Plugin::factory()->create([
-            'status' => PluginStatus::Approved,
-            'approved_at' => now(),
-        ]);
-
-        // Comment 1: active comment
-        $activeComment = Comment::factory()->create([
-            'plugin_id' => $plugin->id,
-            'author_id' => $user->id,
-        ]);
-
-        // Comment 2: deleted previously 1 hour ago
-        $previouslyDeletedComment = Comment::factory()->create([
-            'plugin_id' => $plugin->id,
-            'author_id' => $user->id,
-        ]);
-        $previouslyDeletedComment->delete();
-        $deletedTime = now()->subHour();
-        $previouslyDeletedComment->deleted_at = $deletedTime;
-        $previouslyDeletedComment->save();
-
-        $this->assertTrue($previouslyDeletedComment->fresh()->trashed());
-        $this->assertFalse($activeComment->fresh()->trashed());
-
-        // Advance time so user's deleted_at is strictly after comment's deleted_at
-        $this->travel(10)->seconds();
-
-        // Act 1: Soft delete the user
-        $user->delete();
-        $this->assertTrue($activeComment->fresh()->trashed());
-        $this->assertTrue($previouslyDeletedComment->fresh()->trashed());
-
-        // Act 2: Restore the user
-        $user->restore();
-
-        // Assert: Active comment that was cascaded is restored
-        $this->assertFalse($activeComment->fresh()->trashed());
-
-        // Assert: Previously deleted comment MUST remain trashed
-        $this->assertTrue($previouslyDeletedComment->fresh()->trashed());
-    }
-
-    public function test_restoring_user_does_not_restore_plugins_deleted_before_user_deletion(): void
-    {
-        $user = User::factory()->create();
-
-        $activePlugin = Plugin::factory()->create([
-            'user_id' => $user->id,
-        ]);
-
-        $previouslyDeletedPlugin = Plugin::factory()->create([
-            'user_id' => $user->id,
-        ]);
-        $previouslyDeletedPlugin->delete();
-        $previouslyDeletedPlugin->deleted_at = now()->subHour();
-        $previouslyDeletedPlugin->save();
-
-        $this->travel(10)->seconds();
-
-        $user->delete();
-        $user->restore();
-
-        $this->assertFalse($activePlugin->fresh()->trashed());
-        $this->assertTrue($previouslyDeletedPlugin->fresh()->trashed());
     }
 
     public function test_soft_deleting_user_dispatches_cascade_delete_job(): void

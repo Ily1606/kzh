@@ -24,6 +24,11 @@ interface PluginRepositoryInterface
     public function incrementViewCount(string $id, int $count): void;
 
     /**
+     * Find a plugin by ID without eager-loaded relations.
+     */
+    public function find(mixed $id): ?Model;
+
+    /**
      * Find any plugin by ID, whatever its review status, or fail with a 404.
      */
     public function findById(string $id): Plugin;
@@ -64,6 +69,11 @@ interface PluginRepositoryInterface
      * @param  PluginStatus|null  $status  Restrict to one status, or null for all of them.
      */
     public function getPaginatedPluginsByUser(string $userId, ?PluginStatus $status, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Delete the given plugin.
+     */
+    public function delete(Plugin $plugin): bool;
 
     /**
      * @return Collection<int, Plugin>

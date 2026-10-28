@@ -161,4 +161,43 @@ class PluginServiceTest extends TestCase
                 ->update($user, $pluginId, $attributes, new RequestContext(null, null)),
         );
     }
+
+    public function test_deleting_a_plugin_owned_by_another_user_is_refused(): void
+    {
+        $owner = User::factory()->make()->forceFill(['id' => 'owner-id']);
+        $intruder = User::factory()->make()->forceFill(['id' => 'intruder-id']);
+        $plugin = Plugin::factory()->make(['user_id' => $owner->id]);
+
+        $repository = Mockery::mock(PluginRepositoryInterface::class);
+        $repository->shouldReceive('find')
+            ->once()
+            ->andReturn($plugin);
+        $repository->shouldNotReceive('delete');
+
+        $this->expectException(AuthorizationException::class);
+
+        app(PluginService::class, ['pluginRepository' => $repository])
+            ->delete($intruder, (string) $plugin->getKey());
+    }
+
+    public function test_deleting_a_plugin_calls_repository_delete(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        $pluginId = (string) $plugin->getKey();
+
+        $repository = Mockery::mock(PluginRepositoryInterface::class);
+        $repository->shouldReceive('find')
+            ->once()
+            ->with($pluginId)
+            ->andReturn($plugin);
+        $repository->shouldReceive('delete')
+            ->once()
+            ->with($plugin)
+            ->andReturn(true);
+
+        app(PluginService::class, ['pluginRepository' => $repository])
+            ->delete($user, $pluginId);
+    }
 }

@@ -36,4 +36,7 @@ Thumbs.db
 /app/Console/Commands/CleanPluginViewsCache.php
 /database/seeders/UserDeletionTestSeeder.php
 /tests/Feature/UserDeletionTestSeederTest.php
+/app/Console/Commands/CheckPluginDeletionData.php
+/database/seeders/PluginDeletionTestSeeder.php
+/tests/Feature/PluginDeletionTestSeederTest.php
 

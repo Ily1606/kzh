@@ -16,4 +16,9 @@ page?: number | null;
  * @nullable
  */
 per_page?: number | null;
+/**
+ * @minimum 1
+ * @nullable
+ */
+limit?: number | null;
 };

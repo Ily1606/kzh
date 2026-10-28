@@ -43,7 +43,7 @@ async function toggleStar() {
 <template>
   <!-- The star button is disabled for a guest -->
   <Popover v-if="!auth.isAuthenticated">
-    <PopoverTrigger as-child>
+    <PopoverTrigger as-child data-test="star-popover-trigger">
       <span class="inline-flex" :class="{ 'flex-1': fullWidth }">
         <Button
           variant="outline"

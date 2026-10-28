@@ -18,7 +18,8 @@ const { canEdit } = usePluginDetailAccess(toRef(props, 'plugin'))
   <Button
     v-if="canEdit"
     as-child
-    class="flex-1 cursor-pointer gap-2 font-medium border border-gray-400 bg-background text-foreground hover:bg-foreground hover:text-background"
+    variant="outline"
+    class="flex-1 cursor-pointer gap-2 font-medium border-gray-400 bg-background text-foreground hover:bg-foreground hover:text-background"
   >
     <RouterLink :to="{ name: 'plugin-edit', params: { id: plugin.id } }">
       <Pencil class="size-4" />

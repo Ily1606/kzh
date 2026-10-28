@@ -262,15 +262,32 @@ export const PluginUpdateResponse = zod.object({
 })
 
 /**
+ * @summary Delete a plugin you own
+ */
+export const PluginDestroyParams = zod.object({
+  "pluginId": zod.string()
+})
+
+export const PluginDestroyResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Plugin deleted successfully."),
+  "data": zod.null(),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
  * @summary Trending
  */
 
 
 
 
+
 export const PluginTrendingQueryParams = zod.object({
   "page": zod.number().int().min(1).nullish(),
-  "per_page": zod.number().int().min(1).nullish()
+  "per_page": zod.number().int().min(1).nullish(),
+  "limit": zod.number().int().min(1).nullish()
 })
 
 export const PluginTrendingResponse = zod.object({

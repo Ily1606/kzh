@@ -4,8 +4,10 @@ namespace App\Observers;
 
 use App\Contracts\PluginRepositoryInterface;
 use App\Enums\PluginStatus;
+use App\Jobs\CascadeDeletePluginData;
 use App\Models\Plugin;
 use App\Services\TrendingTracker;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
 class PluginObserver
@@ -42,6 +44,7 @@ class PluginObserver
     public function deleted(Plugin $plugin): void
     {
         $this->cleanupTrendingCache($plugin->id, true);
+        CascadeDeletePluginData::dispatch($plugin);
     }
 
     /**

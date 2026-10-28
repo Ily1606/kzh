@@ -77,6 +77,16 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Star::class);
     }
 
+    public function commentReports(): HasMany
+    {
+        return $this->hasMany(CommentReport::class);
+    }
+
+    public function pluginReports(): HasMany
+    {
+        return $this->hasMany(PluginReport::class);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         return (bool) $this->is_admin && $this->locked_at === null && $this->deleted_at === null;

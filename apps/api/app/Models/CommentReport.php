@@ -20,7 +20,7 @@ class CommentReport extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function comment(): BelongsTo
@@ -30,6 +30,6 @@ class CommentReport extends Model
 
     public function plugin(): BelongsTo
     {
-        return $this->belongsTo(Plugin::class);
+        return $this->belongsTo(Plugin::class)->withTrashed();
     }
 }

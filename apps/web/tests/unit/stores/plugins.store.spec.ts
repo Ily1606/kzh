@@ -11,6 +11,7 @@ const mockPluginTrending = vi.fn();
 const mockPluginMyPlugins = vi.fn();
 const mockPluginShow = vi.fn();
 const mockPluginUpdate = vi.fn();
+const mockPluginDestroy = vi.fn();
 const mockPluginTrackView = vi.fn();
 const mockStarStore = vi.fn();
 const mockNotifyError = vi.fn();
@@ -22,6 +23,7 @@ vi.mock('@/api/generated/endpoints', () => ({
     pluginMyPlugins: mockPluginMyPlugins,
     pluginShow: mockPluginShow,
     pluginUpdate: mockPluginUpdate,
+    pluginDestroy: mockPluginDestroy,
     pluginTrackView: mockPluginTrackView,
   }),
   getStar: () => ({ starStore: mockStarStore }),
@@ -542,6 +544,77 @@ describe('Plugins Store', () => {
       await store.trackView('');
 
       expect(mockPluginTrackView).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deletePlugin()', () => {
+    it('calls destroyPlugin, removes plugin from entities and list queries, and returns true on success', async () => {
+      const store = usePluginsStore();
+      const plugin = makePlugin({ id: 'plugin-1' });
+
+      store.put([plugin]);
+      store.list.ids = ['plugin-1', 'plugin-2'];
+      store.list.total = 2;
+      store.mine.ids = ['plugin-1'];
+      store.mine.total = 1;
+      store.trending.ids = ['plugin-1'];
+      store.trending.total = 1;
+
+      mockPluginDestroy.mockResolvedValue({ status: 200, data: {} });
+
+      const result = await store.deletePlugin('plugin-1');
+
+      expect(result).toBe(true);
+      expect(mockPluginDestroy).toHaveBeenCalledWith('plugin-1');
+      expect(store.findById('plugin-1')).toBeNull();
+      expect(store.list.ids).toEqual(['plugin-2']);
+      expect(store.list.total).toBe(1);
+      expect(store.mine.ids).toEqual([]);
+      expect(store.mine.total).toBe(0);
+      expect(store.trending.ids).toEqual([]);
+      expect(store.trending.total).toBe(0);
+    });
+
+    it('only decrements total on lists that actually contain the deleted plugin id', async () => {
+      const store = usePluginsStore();
+      const pendingPlugin = makePlugin({ id: 'pending-1', status: 'pending' });
+
+      store.put([pendingPlugin]);
+      store.list.ids = ['approved-1', 'approved-2'];
+      store.list.total = 10;
+      store.trending.ids = ['approved-1'];
+      store.trending.total = 5;
+      store.mine.ids = ['pending-1', 'approved-1'];
+      store.mine.total = 2;
+
+      mockPluginDestroy.mockResolvedValue({ status: 200, data: {} });
+
+      const result = await store.deletePlugin('pending-1');
+
+      expect(result).toBe(true);
+      expect(store.findById('pending-1')).toBeNull();
+      // list and trending did not have pending-1, so their ids and total remain unchanged
+      expect(store.list.ids).toEqual(['approved-1', 'approved-2']);
+      expect(store.list.total).toBe(10);
+      expect(store.trending.ids).toEqual(['approved-1']);
+      expect(store.trending.total).toBe(5);
+      // mine had pending-1, so it is removed and total decremented
+      expect(store.mine.ids).toEqual(['approved-1']);
+      expect(store.mine.total).toBe(1);
+    });
+
+    it('notifies error and returns false when api call fails', async () => {
+      const store = usePluginsStore();
+      const plugin = makePlugin({ id: 'plugin-1' });
+      store.put([plugin]);
+
+      mockPluginDestroy.mockRejectedValue({ response: { data: { message: 'Unauthorized' } } });
+
+      const result = await store.deletePlugin('plugin-1');
+
+      expect(result).toBe(false);
+      expect(mockNotifyError).toHaveBeenCalledWith('Unauthorized');
+      expect(store.findById('plugin-1')).not.toBeNull();
     });
   });
 

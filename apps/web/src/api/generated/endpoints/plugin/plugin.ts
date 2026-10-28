@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.0.1
  */
 import type {
+  PluginDestroy200,
   PluginIndex200,
   PluginIndexParams,
   PluginMyPlugins200,
@@ -79,6 +80,17 @@ const pluginUpdate = (
       options);
     }
   /**
+ * @summary Delete a plugin you own
+ */
+const pluginDestroy = (
+    pluginId: string,
+ options?: SecondParameter<typeof customInstance<PluginDestroy200>>,) => {
+      return customInstance<PluginDestroy200>(
+      {url: `/v1/plugins/${pluginId}`, method: 'DELETE'
+    },
+      options);
+    }
+  /**
  * @summary Trending
  */
 const pluginTrending = (
@@ -115,11 +127,12 @@ const pluginTrackView = (
     },
       options);
     }
-  return {pluginMyPlugins,pluginStore,pluginIndex,pluginUpdate,pluginTrending,pluginShow,pluginTrackView}};
+  return {pluginMyPlugins,pluginStore,pluginIndex,pluginUpdate,pluginDestroy,pluginTrending,pluginShow,pluginTrackView}};
 export type PluginMyPluginsResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginMyPlugins']>>>
 export type PluginStoreResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginStore']>>>
 export type PluginIndexResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginIndex']>>>
 export type PluginUpdateResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginUpdate']>>>
+export type PluginDestroyResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginDestroy']>>>
 export type PluginTrendingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrending']>>>
 export type PluginShowResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginShow']>>>
 export type PluginTrackViewResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getPlugin>['pluginTrackView']>>>
