@@ -178,17 +178,21 @@ class ShowAuthorProfileTest extends TestCase
         $this->getJson('/api/v1/users/nobody/plugins')->assertNotFound();
     }
 
-    public function test_returns_404_for_an_admin(): void
+    public function test_can_show_admin_profile_and_plugins(): void
     {
         $admin = User::factory()->create(['username' => 'ada', 'is_admin' => true]);
 
-        Plugin::factory()->create([
+        $plugin = Plugin::factory()->create([
             'user_id' => $admin->id,
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
         ]);
 
-        $this->getJson('/api/v1/users/ada')->assertNotFound();
-        $this->getJson('/api/v1/users/ada/plugins')->assertNotFound();
+        $this->getJson('/api/v1/users/ada')->assertOk()
+            ->assertJsonPath('data.username', 'ada');
+
+        $this->getJson('/api/v1/users/ada/plugins')->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $plugin->id);
     }
 }
