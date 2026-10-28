@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\UsernameHistory;
 use App\Support\UsernameHelper;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -23,6 +24,8 @@ class UpdateProfileRequest extends FormRequest
 
     public function rules(): array
     {
+        $currentUserId = $this->user()?->getKey();
+
         return [
             'name' => ['sometimes', 'string', 'max:255'],
             'username' => [
@@ -31,13 +34,34 @@ class UpdateProfileRequest extends FormRequest
                 'string',
                 'max:39',
                 'regex:'.UsernameHelper::PATTERN,
-                // Prevent username that looks like a UUID to avoid route conflicts
-                // with /plugins/{pluginId}/comments and /plugins/{pluginId}/events
                 'not_regex:'.UsernameHelper::UUID_PATTERN,
-                // Excludes the user's own row so they can keep their username.
-                Rule::unique('users', 'username')->ignore($this->user()?->getKey()),
+                // Reserved usernames từ config
+                Rule::notIn(config('users.reserved_usernames', [])),
+                // Kiểm tra unique trong bảng users (trừ user hiện tại)
+                Rule::unique('users', 'username')->ignore($currentUserId),
+                // Kiểm tra username history - chặn nếu đang trong thời gian khóa
+                // Ngoại lệ: user hiện tại được lấy lại username của chính mình
+                function ($attribute, $value, $fail) use ($currentUserId) {
+                    $reservedRecord = UsernameHistory::byUsername($value)
+                        ->stillReserved()
+                        ->where('user_id', '!=', $currentUserId)
+                        ->first();
+
+                    if ($reservedRecord) {
+                        $daysLeft = now()->diffInDays($reservedRecord->available_at, false) + 1;
+                        $fail(__('validation.username_reserved', ['days' => $daysLeft]));
+                    }
+                },
             ],
             'githubLink' => ['sometimes', 'nullable', 'url', 'max:255'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'username.not_in' => 'Username này được dành riêng cho hệ thống.',
+            'username.unique' => 'Username này đã được sử dụng.',
         ];
     }
 }

@@ -7,6 +7,8 @@ use App\Support\UsernameHelper;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AuthorRequest extends FormRequest
@@ -19,7 +21,8 @@ class AuthorRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // The username is a route param: merge it into the input to validate it.
-        $this->merge(['username' => (string) $this->route('username')]);
+        // Lowercase for case-insensitive validation (reserved usernames, history check).
+        $this->merge(['username' => Str::lower((string) $this->route('username'))]);
     }
 
     /**
@@ -37,6 +40,8 @@ class AuthorRequest extends FormRequest
             // Prevent username that looks like a UUID to avoid route conflicts
             // with /plugins/{pluginId}/comments and /plugins/{pluginId}/events
             'not_regex:'.UsernameHelper::UUID_PATTERN,
+            // Reserved usernames từ config
+            Rule::notIn(config('users.reserved_usernames', [])),
         ],
         ];
     }
