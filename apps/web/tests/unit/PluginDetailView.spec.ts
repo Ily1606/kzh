@@ -810,6 +810,39 @@ describe('PluginDetailView.vue', () => {
         expect(mockRouterPush).toHaveBeenCalledWith({ name: 'my-plugins' })
       })
 
+      it('redirects to the query redirect target when provided on delete', async () => {
+        signIn()
+        seedStore(makePlugin({ id: 'plugin-123', user_id: 'user-456' }))
+        mockRoute.value.query = { redirect: '/plugins?category=tools' }
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        const optionsBtn = wrapper.find('button[aria-label="More options"]')
+        await optionsBtn.trigger('click')
+        await flushPromises()
+        await new Promise((resolve) => setTimeout(resolve, 30))
+
+        const deleteBtn = Array.from(document.body.querySelectorAll('button')).find((b) =>
+          /Delete/i.test(b.textContent ?? '')
+        )
+        deleteBtn!.click()
+        await flushPromises()
+
+        const modal = document.body.querySelector('[role="dialog"]')
+        const confirmBtn = Array.from(modal!.querySelectorAll('button')).find((b) =>
+          /Delete Plugin/i.test(b.textContent ?? '')
+        )
+        confirmBtn!.click()
+        await flushPromises()
+
+        expect(mockPluginDestroy).toHaveBeenCalledWith('plugin-123')
+        expect(mockNotifySuccess).toHaveBeenCalledWith('Plugin deleted successfully.')
+        expect(mockRouterPush).toHaveBeenCalledWith('/plugins?category=tools')
+
+        mockRoute.value.query = {}
+      })
+
       it('cancels deletion when cancel button in modal is clicked', async () => {
         signIn()
         seedStore(makePlugin({ id: 'plugin-123', user_id: 'user-456' }))

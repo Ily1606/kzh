@@ -575,6 +575,34 @@ describe('Plugins Store', () => {
       expect(store.trending.total).toBe(0);
     });
 
+    it('only decrements total on lists that actually contain the deleted plugin id', async () => {
+      const store = usePluginsStore();
+      const pendingPlugin = makePlugin({ id: 'pending-1', status: 'pending' });
+
+      store.put([pendingPlugin]);
+      store.list.ids = ['approved-1', 'approved-2'];
+      store.list.total = 10;
+      store.trending.ids = ['approved-1'];
+      store.trending.total = 5;
+      store.mine.ids = ['pending-1', 'approved-1'];
+      store.mine.total = 2;
+
+      mockPluginDestroy.mockResolvedValue({ status: 200, data: {} });
+
+      const result = await store.deletePlugin('pending-1');
+
+      expect(result).toBe(true);
+      expect(store.findById('pending-1')).toBeNull();
+      // list and trending did not have pending-1, so their ids and total remain unchanged
+      expect(store.list.ids).toEqual(['approved-1', 'approved-2']);
+      expect(store.list.total).toBe(10);
+      expect(store.trending.ids).toEqual(['approved-1']);
+      expect(store.trending.total).toBe(5);
+      // mine had pending-1, so it is removed and total decremented
+      expect(store.mine.ids).toEqual(['approved-1']);
+      expect(store.mine.total).toBe(1);
+    });
+
     it('notifies error and returns false when api call fails', async () => {
       const store = usePluginsStore();
       const plugin = makePlugin({ id: 'plugin-1' });

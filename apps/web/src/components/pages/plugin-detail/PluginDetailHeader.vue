@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, toRef } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { ArrowUpRight, BookOpen, Calendar, Eye, Flag, Folder, History, MoreVertical, Scale, Star, Trash2 } from '@lucide/vue'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
+import { safeRedirect } from '@/utils/safe-redirect'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { usePluginDetailAccess } from '@/composables/usePluginDetailAccess'
@@ -21,6 +22,7 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const route = useRoute()
 const store = usePluginsStore()
 
 const showReportModal = ref(false)
@@ -51,7 +53,17 @@ async function handleDelete() {
     if (success) {
       showDeleteModal.value = false
       notifySuccess('Plugin deleted successfully.')
-      await router.push({ name: 'my-plugins' })
+
+      const rawRedirect = Array.isArray(route.query.redirect)
+        ? route.query.redirect[0]
+        : route.query.redirect
+      const redirect = safeRedirect(rawRedirect, '')
+
+      if (redirect) {
+        await router.push(redirect)
+      } else {
+        await router.push({ name: 'my-plugins' })
+      }
     }
   } finally {
     isDeleting.value = false

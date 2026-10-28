@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\PluginStatus;
+use App\Jobs\CascadeDeletePluginData;
 use App\Models\Comment;
 use App\Models\CommentReport;
 use App\Models\Plugin;
@@ -10,6 +11,7 @@ use App\Models\Star;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -33,6 +35,8 @@ class PluginObserverTest extends TestCase
 
     public function test_deleting_plugin_removes_it_from_trending_redis_caches(): void
     {
+        Queue::fake([CascadeDeletePluginData::class]);
+
         $plugin = Plugin::factory()->create([
             'status' => PluginStatus::Approved,
             'approved_at' => now(),
@@ -42,7 +46,7 @@ class PluginObserverTest extends TestCase
         $hashKey = config('plugins.trending.keys.objects');
         $bufferKey = config('plugins.views_buffer_key');
         $date = now()->format('Y-m-d');
-        $activeKey = 'trending:active_plugins:' . $date;
+        $activeKey = 'trending:active_plugins:'.$date;
         $statKey = "trending:stats:views:{$date}:{$plugin->id}";
 
         // Seed plugin into Redis trending caches
@@ -61,12 +65,15 @@ class PluginObserverTest extends TestCase
         // Soft delete the plugin
         $plugin->delete();
 
-        // Verify it was removed from Redis trending caches and stat keys were deleted
+        // Verify it was removed synchronously from Redis trending caches without waiting for queue worker
         $this->assertFalse((bool) Redis::zscore($zsetKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($hashKey, $plugin->id));
         $this->assertFalse((bool) Redis::hexists($bufferKey, $plugin->id));
         $this->assertFalse((bool) Redis::sismember($activeKey, $plugin->id));
         $this->assertFalse((bool) Redis::exists($statKey));
+
+        // Verify cascade job was still dispatched for heavy operations
+        Queue::assertPushed(CascadeDeletePluginData::class);
     }
 
     public function test_deleting_plugin_cascades_soft_delete_to_comments_and_stars(): void

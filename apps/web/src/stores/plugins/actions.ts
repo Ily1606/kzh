@@ -242,28 +242,25 @@ export function usePluginsActions(state: PluginsState) {
   }
 
 
+  function withoutId<T extends { ids: string[]; total: number }>(list: T, id: string): T {
+    if (!list.ids.includes(id)) {
+      return list;
+    }
+
+    return {
+      ...list,
+      ids: list.ids.filter((pluginId) => pluginId !== id),
+      total: Math.max(0, list.total - 1),
+    };
+  }
+
   /** Removes a plugin from the store cache and all list queries. */
   function removePluginFromCache(id: string): void {
     delete state.entities.value[id];
 
-    state.trending.value = {
-      ...state.trending.value,
-      ids: state.trending.value.ids.filter((pluginId) => pluginId !== id),
-      total: Math.max(0, state.trending.value.total - 1),
-    };
-
-    state.list.value = {
-      ...state.list.value,
-      ids: state.list.value.ids.filter((pluginId) => pluginId !== id),
-      total: Math.max(0, state.list.value.total - 1),
-    };
-
-    state.mine.value = {
-      ...state.mine.value,
-      ids: state.mine.value.ids.filter((pluginId) => pluginId !== id),
-      total: Math.max(0, state.mine.value.total - 1),
-    };
-
+    state.trending.value = withoutId(state.trending.value, id);
+    state.list.value = withoutId(state.list.value, id);
+    state.mine.value = withoutId(state.mine.value, id);
     state.starringIds.value = state.starringIds.value.filter((starringId) => starringId !== id);
   }
 

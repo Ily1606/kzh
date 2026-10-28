@@ -137,5 +137,49 @@ describe('PluginReportModal.vue', () => {
 
     expect(wrapper.emitted('close')).toBeTruthy()
   })
+
+  it('clears close timer when modal is closed manually before 1400ms', async () => {
+    vi.useFakeTimers()
+    mockPluginReportStore.mockResolvedValueOnce({
+      message: 'Plugin reported successfully.',
+    })
+
+    const wrapper = mount(PluginReportModal, {
+      props: {
+        show: true,
+        pluginId: 'p-1',
+        pluginName: 'Test Plugin',
+      },
+    })
+
+    const textarea = document.body.querySelector('textarea') as HTMLTextAreaElement
+    textarea.value = 'Malicious code detected in plugin repository.'
+    textarea.dispatchEvent(new Event('input'))
+    await flushPromises()
+
+    const form = document.body.querySelector('form') as HTMLFormElement
+    form.dispatchEvent(new Event('submit'))
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('Report Received')
+
+    // Manually close the modal before 1400ms timer completes
+    const closeBtn = document.body.querySelector('button[aria-label="Close"]') as HTMLButtonElement
+    closeBtn.click()
+    await flushPromises()
+    expect(wrapper.emitted('close')?.length).toBe(1)
+
+    // Reopen the modal
+    await wrapper.setProps({ show: true })
+
+    // Advance time past the original 1400ms
+    vi.advanceTimersByTime(1500)
+    await flushPromises()
+
+    // The modal must not have emitted another close from the old timer
+    expect(wrapper.emitted('close')?.length).toBe(1)
+
+    vi.useRealTimers()
+  })
 })
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { ArrowUpRight, Boxes, Check, Download, Search, ShieldCheck } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +26,7 @@ const authorName = computed(() => props.plugin?.author?.name ?? "community");
 const authorAvatar = computed(() => props.plugin?.author?.avatar_url ?? null);
 
 const router = useRouter();
+const route = useRoute();
 const copied = ref(false);
 
 async function copyPluginCommand(pluginName: string, event?: Event) {
@@ -43,7 +44,11 @@ async function copyPluginCommand(pluginName: string, event?: Event) {
 
 function goToDetail(id: string | undefined) {
   if (id) {
-    router.push({ name: 'plugin-detail', params: { id } });
+    router.push({
+      name: 'plugin-detail',
+      params: { id },
+      query: { redirect: route.fullPath },
+    });
   }
 }
 </script>

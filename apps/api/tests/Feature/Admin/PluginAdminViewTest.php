@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Enums\PluginStatus;
 use App\Filament\Resources\Plugins\Pages\ListPlugins;
 use App\Filament\Resources\Plugins\Pages\ViewPlugin;
 use App\Filament\Resources\Plugins\PluginReportResource\Pages\ViewPluginReport;
+use App\Filament\Resources\Plugins\PluginResource;
 use App\Models\Category;
 use App\Models\Plugin;
 use App\Models\PluginReport;
@@ -61,8 +63,24 @@ class PluginAdminViewTest extends TestCase
         $plugin = Plugin::factory()->create(['name' => 'tool-to-delete-from-view']);
 
         Livewire::test(ViewPlugin::class, ['record' => $plugin->id])
+            ->set('previousUrl', 'http://localhost/admin/plugins?tablePage=2')
             ->assertActionVisible('delete')
-            ->callAction('delete');
+            ->callAction('delete')
+            ->assertNotified('Plugin deleted successfully.')
+            ->assertRedirect('http://localhost/admin/plugins?tablePage=2');
+
+        $this->assertTrue($plugin->fresh()->trashed());
+    }
+
+    public function test_delete_plugin_redirects_to_index_when_previous_url_is_same_view_page(): void
+    {
+        $plugin = Plugin::factory()->create(['name' => 'plugin-self-ref-view']);
+        $viewUrl = PluginResource::getUrl('view', ['record' => $plugin]);
+
+        Livewire::test(ViewPlugin::class, ['record' => $plugin->id])
+            ->set('previousUrl', $viewUrl)
+            ->callAction('delete')
+            ->assertRedirect(PluginResource::getUrl('index'));
 
         $this->assertTrue($plugin->fresh()->trashed());
     }
@@ -74,13 +92,16 @@ class PluginAdminViewTest extends TestCase
 
         Livewire::test(ViewPlugin::class, ['record' => $plugin->id])
             ->assertActionDoesNotExist('restore');
+
+        $this->assertFalse(PluginResource::canRestore($plugin));
+        $this->assertFalse(PluginResource::canRestoreAny());
     }
 
     public function test_admin_can_navigate_to_view_page_from_plugins_table(): void
     {
         $plugin = Plugin::factory()->create(['name' => 'navigable-plugin']);
 
-        $expectedUrl = \App\Filament\Resources\Plugins\PluginResource::getUrl('view', ['record' => $plugin]);
+        $expectedUrl = PluginResource::getUrl('view', ['record' => $plugin]);
 
         $this->assertStringContainsString($plugin->id, $expectedUrl);
     }
@@ -89,14 +110,15 @@ class PluginAdminViewTest extends TestCase
     {
         $approvedPlugin = Plugin::factory()->create([
             'name' => 'approved-plugin-to-delete',
-            'status' => \App\Enums\PluginStatus::Approved,
+            'status' => PluginStatus::Approved,
             'approved_at' => now(),
         ]);
 
         Livewire::test(ListPlugins::class)
             ->assertTableActionExists('delete')
             ->assertTableActionVisible('delete', $approvedPlugin)
-            ->callTableAction('delete', $approvedPlugin);
+            ->callTableAction('delete', $approvedPlugin)
+            ->assertNotified('Plugin deleted successfully.');
 
         $this->assertTrue($approvedPlugin->fresh()->trashed());
     }
@@ -113,10 +135,55 @@ class PluginAdminViewTest extends TestCase
         ]);
 
         Livewire::test(ViewPluginReport::class, ['record' => $report->id])
+            ->set('previousUrl', 'http://localhost/admin/plugins/plugin-reports?tablePage=3')
             ->assertActionExists('deletePlugin')
-            ->callAction('deletePlugin');
+            ->callAction('deletePlugin')
+            ->assertNotified('Plugin deleted successfully.')
+            ->assertRedirect('http://localhost/admin/plugins/plugin-reports?tablePage=3');
 
         $this->assertTrue($plugin->fresh()->trashed());
+    }
+
+    public function test_admin_can_dismiss_report_from_view_report_page_and_redirect_to_previous_page(): void
+    {
+        $reporter = User::factory()->create();
+        $plugin = Plugin::factory()->create(['name' => 'reported-plugin']);
+
+        $report = PluginReport::create([
+            'user_id' => $reporter->id,
+            'plugin_id' => $plugin->id,
+            'reason' => 'Inappropriate content.',
+        ]);
+
+        Livewire::test(ViewPluginReport::class, ['record' => $report->id])
+            ->set('previousUrl', 'http://localhost/admin/plugins/plugin-reports?tablePage=2')
+            ->assertActionExists('delete')
+            ->callAction('delete')
+            ->assertNotified('Report dismissed successfully')
+            ->assertRedirect('http://localhost/admin/plugins/plugin-reports?tablePage=2');
+
+        $this->assertTrue($report->fresh()->trashed());
+    }
+
+    public function test_dismiss_report_redirects_to_index_when_previous_url_is_same_view_page(): void
+    {
+        $reporter = User::factory()->create();
+        $plugin = Plugin::factory()->create(['name' => 'reported-plugin-self']);
+
+        $report = PluginReport::create([
+            'user_id' => $reporter->id,
+            'plugin_id' => $plugin->id,
+            'reason' => 'Inappropriate content.',
+        ]);
+
+        $viewUrl = ViewPluginReport::getResource()::getUrl('view', ['record' => $report]);
+
+        Livewire::test(ViewPluginReport::class, ['record' => $report->id])
+            ->set('previousUrl', $viewUrl)
+            ->callAction('delete')
+            ->assertRedirect(ViewPluginReport::getResource()::getUrl('index'));
+
+        $this->assertTrue($report->fresh()->trashed());
     }
 
     public function test_admin_can_view_plugin_report_details_and_full_plugin_context(): void

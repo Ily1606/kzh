@@ -43,6 +43,7 @@ class PluginObserver
      */
     public function deleted(Plugin $plugin): void
     {
+        $this->cleanupTrendingCache($plugin->id, true);
         CascadeDeletePluginData::dispatch($plugin);
     }
 
