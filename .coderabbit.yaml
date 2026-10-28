@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit config: https://docs.coderabbit.ai/reference/configuration
+language: "vi-VN"
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - develop
