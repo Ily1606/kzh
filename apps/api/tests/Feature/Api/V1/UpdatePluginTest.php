@@ -267,12 +267,14 @@ class UpdatePluginTest extends TestCase
     {
         $owner = User::factory()->create();
         $intruder = User::factory()->create();
-        $plugin = $this->pluginFor($owner);
+        $plugin = $this->pluginFor($owner); // pending by default
         Sanctum::actingAs($intruder);
 
+        // Non-approved plugins are hidden from non-owners (404, not 403)
+        // to avoid confirming their existence.
         $this->patchJson("/api/v1/plugins/{$owner->username}/{$plugin->name}", [
             'title' => 'Đã bị chiếm',
-        ])->assertForbidden();
+        ])->assertNotFound();
     }
 
     public function test_unknown_slug_is_a_not_found_on_update(): void

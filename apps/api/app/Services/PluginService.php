@@ -168,8 +168,9 @@ final class PluginService
     /**
      * Same edit, addressed by the author and plugin name instead of the id.
      *
-     * Resolved without the visibility filter on purpose: update() already
-     * answers 403 for someone else's plugin, and that has to stay true here.
+     * Uses the visibility filter so non-owners of unapproved plugins
+     * receive 404 (as if the plugin does not exist), matching the behavior
+     * of getPluginByUsernameAndPluginName and PluginEventController.
      *
      * @param  array<string, mixed>  $attributes  Validated patch payload.
      */
@@ -180,7 +181,7 @@ final class PluginService
         array $attributes,
         RequestContext $requestContext,
     ): Plugin {
-        $plugin = $this->pluginRepository->findByUsernameAndPluginName($username, $pluginName);
+        $plugin = $this->getPluginByUsernameAndPluginName($username, $pluginName, $user);
 
         return $this->update($user, $plugin->id, $attributes, $requestContext);
     }
