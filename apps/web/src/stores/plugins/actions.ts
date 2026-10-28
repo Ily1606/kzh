@@ -144,8 +144,9 @@ export function usePluginsActions(state: PluginsState) {
 
   /** Find a cached plugin by its author username and plugin name. */
   function findBySlug(username: string, pluginName: string): PluginResource | null {
+    const u = username.toLowerCase();
     return Object.values(state.entities.value).find(
-      (p) => p.author?.username === username && p.name === pluginName
+      (p) => p.author?.username?.toLowerCase() === u && p.name === pluginName
     ) ?? null;
   }
 

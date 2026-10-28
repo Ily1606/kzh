@@ -127,4 +127,14 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } };
   }
+
+  // Normalize username route param to lowercase
+  const username = to.params.username;
+  if (typeof username === 'string' && username !== username.toLowerCase()) {
+    return {
+      ...to,
+      params: { ...to.params, username: username.toLowerCase() },
+      replace: true,
+    };
+  }
 });
