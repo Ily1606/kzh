@@ -5,7 +5,5 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    # Chỉ định các branch nhận auto review
     base_branches:
       - develop
-      - main
