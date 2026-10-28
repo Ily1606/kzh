@@ -44,11 +44,7 @@ class AuthorController extends Controller
     {
         $author = $this->profileService->getProfileByUsername($username);
 
-        $defaultPerPage = config('plugins.pagination.default_per_page');
-        $maxPerPage = config('plugins.pagination.max_per_page');
-
-        $perPage = (int) $request->query('per_page', $defaultPerPage);
-        $perPage = max(1, min($perPage, $maxPerPage));
+        $perPage = $request->perPage();
 
         $paginator = $this->pluginService->getPaginatedApprovedPluginsByUser(
             (string) $author->getAuthIdentifier(),

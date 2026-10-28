@@ -12,7 +12,14 @@ class ListAuthorPluginsRequest extends AuthorRequest
         return [
             ...parent::rules(),
             'page' => ['nullable', 'integer', 'min:1'],
-            'per_page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1'],
         ];
+    }
+
+    public function perPage(): int
+    {
+        $perPage = (int) $this->validated('per_page', config('plugins.pagination.default_per_page'));
+
+        return min($perPage, (int) config('plugins.pagination.max_per_page'));
     }
 }
