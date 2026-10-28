@@ -13,4 +13,5 @@ return [
     */
 
     'username_reserved' => 'This username was recently released and is reserved for :days day(s). Please choose a different username.',
+    'username_reserved_system' => 'This username is reserved for system use.',
 ];

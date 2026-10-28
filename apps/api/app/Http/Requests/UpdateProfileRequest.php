@@ -60,8 +60,8 @@ class UpdateProfileRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'username.not_in' => 'Username này được dành riêng cho hệ thống.',
-            'username.unique' => 'Username này đã được sử dụng.',
+            'username.not_in' => __('validation.username_reserved_system'),
+            'username.unique' => __('api.username_taken'),
         ];
     }
 }
