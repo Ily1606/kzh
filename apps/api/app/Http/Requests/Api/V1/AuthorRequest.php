@@ -7,6 +7,7 @@ use App\Support\UsernameHelper;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\ValidationException;
 
 class AuthorRequest extends FormRequest
 {
@@ -42,6 +43,14 @@ class AuthorRequest extends FormRequest
 
     protected function failedValidation(Validator $validator): void
     {
-        throw (new ModelNotFoundException)->setModel(User::class, [$this->route('username')]);
+        // Only convert to 404 if the validation error is on the username field
+        $failedFields = $validator->failed();
+
+        if (isset($failedFields['username'])) {
+            throw (new ModelNotFoundException)->setModel(User::class, [$this->route('username')]);
+        }
+
+        // For other fields (page, per_page, etc.), throw ValidationException for 422
+        throw new ValidationException($validator);
     }
 }
