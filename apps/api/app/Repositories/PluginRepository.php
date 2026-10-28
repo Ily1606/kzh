@@ -90,7 +90,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     public function findByUsernameAndPluginName(string $username, string $name): Plugin
     {
         return $this->baseQuery()
-            ->whereHas('user', fn (Builder $query) => $query->where('username', $username))
+            ->whereHas('user', fn (Builder $query) => $query->where('username', strtolower($username)))
             ->where('name', $name)
             ->firstOrFail();
     }
