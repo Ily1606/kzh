@@ -111,16 +111,12 @@ final class AuthService
                     'username' => UsernameHelper::generate(),
                 ]);
             } catch (UniqueConstraintViolationException $e) {
-                $isUsernameViolation = in_array('username', $e->columns, true)
-                    || str_contains((string) $e->index, 'username');
-
-                if ($isUsernameViolation) {
-                    // Another registration took the username in the meantime:
-                    // try again with a new one.
-                    continue;
+                if (! UsernameHelper::isViolation($e)) {
+                    throw $e;
                 }
-
-                throw $e;
+                // Another registration took the username in the meantime:
+                // try again with a new one.
+                continue;
             }
         }
 

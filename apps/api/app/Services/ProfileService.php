@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Support\UsernameHelper;
 use Laravel\Sanctum\PersonalAccessToken;
 use Throwable;
 
@@ -64,7 +65,10 @@ class ProfileService
 
         try {
             $user = $this->userRepository->updateProfile($user, $userData, $profileData);
-        } catch (UniqueConstraintViolationException) {
+        } catch (UniqueConstraintViolationException $e) {
+            if (! UsernameHelper::isViolation($e)) {
+                throw $e;
+            }
             throw ValidationException::withMessages([
                 'username' => __('api.username_taken'),
             ]);

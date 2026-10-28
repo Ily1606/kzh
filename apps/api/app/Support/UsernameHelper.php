@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Illuminate\Database\UniqueConstraintViolationException;
+
 class UsernameHelper
 {
     /**
@@ -40,5 +42,15 @@ class UsernameHelper
         }
 
         return 'user-'.$suffix;
+    }
+
+    /**
+     * Check if the given unique constraint violation exception is related
+     * to the username column or index.
+     */
+    public static function isViolation(UniqueConstraintViolationException $e): bool
+    {
+        return in_array('username', $e->columns, true)
+            || str_contains((string) $e->index, 'username');
     }
 }

@@ -106,8 +106,10 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create();
 
         $this->mock(UserRepositoryInterface::class, function ($mock) {
+            $exception = (new UniqueConstraintViolationException('sqlite', 'update users', [], new Exception('unique')))
+                ->setColumns(['username']);
             $mock->shouldReceive('updateProfile')
-                ->andThrow(new UniqueConstraintViolationException('sqlite', 'update users', [], new Exception('unique')));
+                ->andThrow($exception);
         });
 
         Sanctum::actingAs($user);
