@@ -22,6 +22,7 @@ const {
   total,
   loadProfile,
   loadPlugins,
+  retry,
 } = useAuthorProfile()
 
 const username = computed(() => {
@@ -67,9 +68,6 @@ async function goToPage(target: number) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-async function retry() {
-  await Promise.all([loadProfile(username.value), loadPlugins(username.value, page.value)])
-}
 </script>
 
 <template>
@@ -101,7 +99,7 @@ async function retry() {
       </div>
       <h1 class="text-lg font-semibold">Something went wrong</h1>
       <p class="text-sm text-muted-foreground max-w-sm mx-auto">{{ error }}</p>
-      <Button variant="outline" size="sm" @click="retry">Try again</Button>
+      <Button variant="outline" size="sm" @click="retry(username, page)">Try again</Button>
     </div>
 
     <div v-else-if="author" class="grid gap-8 md:grid-cols-[16rem_minmax(0,1fr)]">
