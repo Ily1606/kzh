@@ -29,6 +29,7 @@ class UpdateProfileRequest extends FormRequest
         return [
             'name' => ['sometimes', 'string', 'max:255'],
             'username' => [
+                'bail',
                 'sometimes',
                 'required',
                 'string',
