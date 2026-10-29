@@ -52,6 +52,3 @@ docker-data/
 .superpowers/
 docs/superpowers
 
-# Agent skills
-.agents/skills/
-.agent/skills/
