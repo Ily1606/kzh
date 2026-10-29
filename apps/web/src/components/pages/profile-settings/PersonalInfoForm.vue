@@ -5,6 +5,7 @@ import { useAuth } from "@/composables/useAuth";
 import { getProfile } from "@/api/generated/endpoints";
 import { profileSchema } from "@/schemas/profile.schema";
 import { notifyError, notifySuccess } from "@/utils/toast";
+import { usePluginsStore } from "@/stores/plugins";
 import Avatar from "@/components/pages/profile-settings/Avatar.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
 const auth = useAuth();
+const pluginsStore = usePluginsStore();
 const { profileUpdateProfile, profileUpdateAvatar } = getProfile();
 
 const avatarPreview = ref<string | null>(null);
@@ -78,12 +80,19 @@ const githubLinkModel = computed({
 
 const onSubmit = handleSubmit(async (values) => {
   try {
+    const oldUsername = auth.user?.username;
     const response = await profileUpdateProfile({
       name: values.name,
       username: values.username,
       githubLink: values.githubLink || null,
     });
     if (auth.user) Object.assign(auth.user, response.data);
+
+    // If username changed, update cached plugin author usernames
+    if (oldUsername && oldUsername !== values.username) {
+      pluginsStore.updateCachedPluginAuthorUsername(values.username);
+    }
+
     notifySuccess("Profile updated successfully.");
   } catch (e: any) {
     notifyError(e?.response?.data?.message || "Failed to update profile. Please try again.");

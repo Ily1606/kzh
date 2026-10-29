@@ -26,6 +26,31 @@ export function usePluginsActions(state: PluginsState) {
     }
   }
 
+  /**
+   * Update the author username in all cached plugins owned by the current user.
+   * Call this when the authenticated user changes their username.
+   */
+  function updateCachedPluginAuthorUsername(newUsername: string): void {
+    const auth = useAuthStore();
+    const currentUserId = auth.user?.id;
+
+    if (!currentUserId) {
+      return;
+    }
+
+    for (const plugin of Object.values(state.entities.value)) {
+      if (plugin.author?.id === currentUserId) {
+        state.entities.value[plugin.id] = {
+          ...plugin,
+          author: {
+            ...plugin.author,
+            username: newUsername,
+          },
+        };
+      }
+    }
+  }
+
   function isStarring(id: string): boolean {
     return state.starringIds.value.includes(id);
   }
@@ -311,6 +336,7 @@ export function usePluginsActions(state: PluginsState) {
     setStar,
     updatePlugin,
     deletePlugin,
-    trackView
+    trackView,
+    updateCachedPluginAuthorUsername
   };
 }
