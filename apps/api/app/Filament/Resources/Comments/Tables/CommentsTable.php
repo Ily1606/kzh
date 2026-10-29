@@ -165,7 +165,11 @@ class CommentsTable
                     ->visible(fn (Comment $record) => !$record->trashed())
                     ->modalHeading('Delete Comment')
                     ->modalDescription('Are you sure you want to delete this comment and its replies? Once deleted, it cannot be restored.')
-                    ->using(fn (Comment $record) => $record->cascadeDelete()),
+                    ->using(function (Comment $record): bool {
+                        $record->cascadeDelete();
+
+                        return true;
+                    }),
             ]);
     }
 }

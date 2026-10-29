@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Comments\CommentReportResource\Pages;
 
 use App\Filament\Resources\Comments\CommentReportResource;
+use App\Models\CommentReport;
+use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\ViewRecord;
 use Livewire\Attributes\On;
 
@@ -28,7 +30,7 @@ class ViewCommentReport extends ViewRecord
 
     public function getSubheading(): ?string
     {
-        /** @var \App\Models\CommentReport $record */
+        /** @var CommentReport $record */
         $record = $this->getRecord();
 
         $reporter = $record->user?->name ?? 'Unknown Reporter';
@@ -50,14 +52,16 @@ class ViewCommentReport extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            \Filament\Actions\DeleteAction::make()
+            DeleteAction::make()
                 ->label('Dismiss')
                 ->visible(fn ($record) => ! $record->trashed())
                 ->successNotificationTitle('Report dismissed successfully')
-                ->using(function ($record) {
-                    $record->delete();
+                ->using(function ($record): bool {
+                    $deleted = (bool) $record->delete();
                     $this->record = $this->resolveRecord($record->getKey());
                     $this->dispatch('comment-state-updated');
+
+                    return $deleted;
                 })
                 ->successRedirectUrl(null),
         ];

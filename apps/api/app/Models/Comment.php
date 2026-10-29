@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable([
     'plugin_id',
@@ -89,46 +90,52 @@ class Comment extends Model
 
     public function cascadeDelete(): void
     {
-        $ids = $this->getDescendantIds();
+        DB::transaction(function (): void {
+            $ids = $this->getDescendantIds();
 
-        if (!empty($ids)) {
-            static::whereIn('id', $ids)->delete();
-            CommentReport::whereIn('comment_id', $ids)->delete();
-        }
+            if (!empty($ids)) {
+                static::whereIn('id', $ids)->delete();
+                CommentReport::whereIn('comment_id', $ids)->delete();
+            }
 
-        $this->delete();
+            $this->delete();
 
-        CommentReport::where('comment_id', $this->id)->delete();
+            CommentReport::where('comment_id', $this->id)->delete();
+        });
     }
 
     public function cascadeHide(): void
     {
-        $now = now();
-        $ids = $this->getDescendantIds();
-        if (!empty($ids)) {
-            static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => $now]);
-        }
+        DB::transaction(function (): void {
+            $now = now();
+            $ids = $this->getDescendantIds();
+            if (!empty($ids)) {
+                static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => $now]);
+            }
 
-        $this->update(['hidden_at' => $now]);
+            $this->update(['hidden_at' => $now]);
+        });
     }
 
     public function cascadeUnhide(): void
     {
-        $hiddenAt = $this->hidden_at;
-        if (!$hiddenAt) {
+        DB::transaction(function (): void {
+            $hiddenAt = $this->hidden_at;
+            if (!$hiddenAt) {
+                $this->update(['hidden_at' => null]);
+                return;
+            }
+
+            $cutoff = $hiddenAt instanceof CarbonInterface
+                ? $hiddenAt->copy()->subSecond()
+                : Carbon::parse($hiddenAt)->subSecond();
+
+            $ids = $this->getDescendantIds();
+            if (!empty($ids)) {
+                static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $cutoff)->update(['hidden_at' => null]);
+            }
+
             $this->update(['hidden_at' => null]);
-            return;
-        }
-
-        $cutoff = $hiddenAt instanceof CarbonInterface
-            ? $hiddenAt->copy()->subSecond()
-            : Carbon::parse($hiddenAt)->subSecond();
-
-        $ids = $this->getDescendantIds();
-        if (!empty($ids)) {
-            static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $cutoff)->update(['hidden_at' => null]);
-        }
-
-        $this->update(['hidden_at' => null]);
+        });
     }
 }

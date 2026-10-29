@@ -85,10 +85,12 @@ class ViewComment extends ViewRecord
                 ->visible(fn (Comment $record): bool => ! $record->trashed())
                 ->modalHeading('Delete Comment')
                 ->modalDescription('Are you sure you want to delete this comment and its replies? Once deleted, it cannot be restored.')
-                ->using(function (Comment $record) {
+                ->using(function (Comment $record): bool {
                     $record->cascadeDelete();
                     $this->record = $this->resolveRecord($record->getKey());
                     $this->dispatch('comment-state-updated');
+
+                    return true;
                 })
                 ->successRedirectUrl(null),
         ];
