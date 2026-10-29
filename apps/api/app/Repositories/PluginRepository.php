@@ -57,7 +57,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             // Exclude plugins whose author has been soft-deleted.
-            ->whereHas('user')
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed())
             ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
             ->whereIn('id', $ids)
             ->get();
@@ -90,7 +90,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     public function findByUsernameAndPluginName(string $username, string $name): Plugin
     {
         return $this->baseQuery()
-            ->whereHas('user', fn (Builder $query) => $query->where('username', strtolower($username)))
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed()->where('username', strtolower($username)))
             ->where('name', $name)
             ->firstOrFail();
     }
@@ -132,7 +132,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             // Exclude plugins whose author has been soft-deleted.
-            ->whereHas('user')
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed())
             // Restrict to plugins by this user, when given.
             ->when($userId !== null, fn (Builder $query) => $query->where('user_id', $userId))
             // Keep only the plugins filed under this category, when given.
@@ -209,7 +209,7 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
             // Exclude plugins whose author has been soft-deleted.
-            ->whereHas('user')
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed())
             ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
             ->orderByDesc('view_count')
             ->orderByRaw($this->starCountSql().' desc')
