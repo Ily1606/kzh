@@ -50,7 +50,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     {
         /** @var User|null $user */
         $user = $this->newQuery()
-            ->where('username', $username)
+            ->where('username', strtolower($username))
             ->with('profile')
             ->first();
 
@@ -65,7 +65,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     public function findIdByUsername(string $username): string
     {
         $id = $this->newQuery()
-            ->where('username', $username)
+            ->where('username', strtolower($username))
             ->value('id');
 
         if ($id === null) {
