@@ -54,12 +54,10 @@ class UserObserver
             $reservationDays = config('users.username_reservation_days', 30);
             $availableAt = now()->addDays($reservationDays);
 
-            UsernameHistory::create([
-                'user_id' => $user->getKey(),
-                'username' => strtolower($oldUsername),
-                'released_at' => now(),
-                'available_at' => $availableAt,
-            ]);
+            UsernameHistory::updateOrCreate(
+                ['user_id' => $user->getKey(), 'username' => strtolower($oldUsername)],
+                ['released_at' => now(), 'available_at' => $availableAt]
+            );
         }
     }
 
