@@ -324,6 +324,6 @@ final class TrendingTracker
             $data[$plugin->id] = serialize($plugin);
         }
 
-        Redis::hset($hashKey, $data);
+        Redis::hmset($hashKey, $data);
     }
 }
