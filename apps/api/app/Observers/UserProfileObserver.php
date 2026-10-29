@@ -11,6 +11,14 @@ use Illuminate\Support\Facades\Storage;
 class UserProfileObserver
 {
     /**
+     * Handle the UserProfile "created" event.
+     */
+    public function created(UserProfile $profile): void
+    {
+        $this->refreshTrendingCacheIfAvatarExists($profile);
+    }
+
+    /**
      * Handle the UserProfile "updated" event.
      */
     public function updated(UserProfile $profile): void
@@ -23,14 +31,7 @@ class UserProfileObserver
                 });
             }
 
-            // Refresh trending cache when avatar changes
-            $userId = $profile->user_id;
-            if ($userId) {
-                $ids = Plugin::where('user_id', $userId)->pluck('id')->all();
-                if ($ids) {
-                    TrendingTracker::refreshPlugins($ids);
-                }
-            }
+            $this->refreshTrendingCacheIfAvatarExists($profile);
         }
     }
 
@@ -45,6 +46,22 @@ class UserProfileObserver
             DB::afterCommit(function () use ($avatar): void {
                 Storage::disk(UserProfile::AVATAR_DISK)->delete($avatar);
             });
+        }
+    }
+
+    /**
+     * Refresh trending cache for user's plugins when avatar exists.
+     */
+    private function refreshTrendingCacheIfAvatarExists(UserProfile $profile): void
+    {
+        if ($profile->avatar_link) {
+            $userId = $profile->user_id;
+            if ($userId) {
+                $ids = Plugin::where('user_id', $userId)->pluck('id')->all();
+                if ($ids) {
+                    TrendingTracker::refreshPlugins($ids);
+                }
+            }
         }
     }
 }
