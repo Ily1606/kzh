@@ -53,7 +53,7 @@ class UpdateProfileRequest extends FormRequest
                     }
                 },
             ],
-            'githubLink' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'githubLink' => ['sometimes', 'nullable', 'url:https', 'max:255'],
         ];
     }
 
