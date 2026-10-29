@@ -296,7 +296,7 @@ final class TrendingTracker
         }
 
         // Only refresh plugins that are actually in the cache
-        $existingIds = Redis::hmget($hashKey, ...$pluginIds);
+        $existingIds = Redis::hmget($hashKey, $pluginIds);
         $cachedIds = [];
 
         foreach ($existingIds as $index => $value) {
