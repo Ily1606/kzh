@@ -61,8 +61,10 @@ const [name, nameProps] = defineField('name');
 const [username, usernameProps] = defineField('username');
 const [githubLink, githubLinkProps] = defineField('githubLink');
 
-// Track if username was manually edited by user
+// Track if fields were manually edited by user
 const usernameEdited = ref(false);
+const nameEdited = ref(false);
+const githubLinkEdited = ref(false);
 
 const usernameModel = computed({
   get: () => username.value ?? '',
@@ -72,10 +74,21 @@ const usernameModel = computed({
   },
 });
 
+const nameModel = computed({
+  get: () => name.value ?? '',
+  set: (value: string) => {
+    name.value = value;
+    nameEdited.value = true;
+  },
+});
+
 // Schema cho phép null, còn Input chỉ nhận string.
 const githubLinkModel = computed({
   get: () => githubLink.value ?? '',
-  set: (value: string) => { githubLink.value = value; },
+  set: (value: string) => {
+    githubLink.value = value;
+    githubLinkEdited.value = true;
+  },
 });
 
 const onSubmit = handleSubmit(async (values) => {
@@ -116,9 +129,15 @@ watch(
   (newUser) => {
     if (!newUser) return;
 
-    // Always update name and githubLink (less sensitive)
-    setFieldValue('name', newUser.name ?? "");
-    setFieldValue('githubLink', newUser.githubLink ?? "");
+    // Only update name if user hasn't manually edited it
+    if (!nameEdited.value) {
+      setFieldValue('name', newUser.name ?? "");
+    }
+
+    // Only update githubLink if user hasn't manually edited it
+    if (!githubLinkEdited.value) {
+      setFieldValue('githubLink', newUser.githubLink ?? "");
+    }
 
     // Only update username if user hasn't manually edited it
     if (!usernameEdited.value) {
@@ -149,7 +168,7 @@ watch(
     <form class="space-y-4" @submit.prevent="onSubmit">
       <div class="space-y-1.5">
         <Label for="profileName">Name</Label>
-        <Input id="profileName" v-model="name" v-bind="nameProps" type="text" autocomplete="name" placeholder="Your name" :aria-invalid="Boolean(errors.name)" />
+        <Input id="profileName" v-model="nameModel" v-bind="nameProps" type="text" autocomplete="name" placeholder="Your name" :aria-invalid="Boolean(errors.name)" />
         <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
       </div>
 
