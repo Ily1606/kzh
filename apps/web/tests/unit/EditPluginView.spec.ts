@@ -268,7 +268,7 @@ describe('EditPluginView.vue', () => {
   })
 
   describe('saving', () => {
-    const values = {
+    const baseValues = {
       name: '@dsh/my-plugin',
       title: 'Renamed',
       license: 'MIT',
@@ -288,10 +288,10 @@ describe('EditPluginView.vue', () => {
 
       // Called through the form's own prop, which is the contract the form uses:
       // resolve and the form emits `submitted`, reject and the form stays.
-      await wrapper.findComponent(PluginFieldsForm).props('submit')(values)
+      await wrapper.findComponent(PluginFieldsForm).props('submit')(baseValues)
       await flushPromises()
 
-      expect(mockPluginUpdateBySlug).toHaveBeenCalledWith('janedev', '@dsh/my-plugin', values)
+      expect(mockPluginUpdateBySlug).toHaveBeenCalledWith('janedev', '@dsh/my-plugin', baseValues)
       expect(mockNotifySuccess).toHaveBeenCalledWith('Plugin updated successfully.')
       // Back, not a fresh push: pushing the detail route again would leave this
       // page in the history and send the browser Back button straight back into it.
@@ -308,8 +308,19 @@ describe('EditPluginView.vue', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      await wrapper.findComponent(PluginFieldsForm).props('submit')(values)
+      // Submit with the NEW name in the payload to exercise the rename logic.
+      // The form's submit prop is the contract between the page and the form.
+      const renamedValues = { ...baseValues, name: 'renamed-plugin' }
+      await wrapper.findComponent(PluginFieldsForm).props('submit')(renamedValues)
       await flushPromises()
+
+      // The update request should use the OLD slug (janedev/@dsh/my-plugin) but
+      // send the NEW name (renamed-plugin) in the payload.
+      expect(mockPluginUpdateBySlug).toHaveBeenCalledWith(
+        'janedev',
+        '@dsh/my-plugin',
+        expect.objectContaining({ name: 'renamed-plugin' })
+      )
 
       // Back would land on the URL built from the old name, which now 404s.
       expect(mockBack).not.toHaveBeenCalled()
@@ -326,7 +337,7 @@ describe('EditPluginView.vue', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      await wrapper.findComponent(PluginFieldsForm).props('submit')(values)
+      await wrapper.findComponent(PluginFieldsForm).props('submit')(baseValues)
       await flushPromises()
 
       // A bookmark or a new tab: `back()` would drop the reader out of the app.
@@ -348,7 +359,7 @@ describe('EditPluginView.vue', () => {
 
       // The rejection is what stops the form emitting `submitted`; the page
       // state is what the author actually sees afterwards.
-      await expect(wrapper.findComponent(PluginFieldsForm).props('submit')(values)).rejects.toThrow()
+      await expect(wrapper.findComponent(PluginFieldsForm).props('submit')(baseValues)).rejects.toThrow()
       await flushPromises()
 
       // Redirecting away from a form whose save failed would throw the author's
