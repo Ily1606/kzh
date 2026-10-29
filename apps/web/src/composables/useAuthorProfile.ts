@@ -119,10 +119,12 @@ export function useAuthorProfile() {
   }
 
   async function retry(username: string, page: number): Promise<void> {
-    // Each load function manages its own generation; retry creates new generations
+    // Pass current username ticket to both loaders so they share the same generation.
+    // Only onUsernameChange should advance usernameGen.
+    const ticket = currentUsernameTicket.value ?? undefined
     await Promise.all([
-      loadProfile(username),
-      loadPlugins(username, page),
+      loadProfile(username, ticket),
+      loadPlugins(username, page, ticket),
     ])
   }
 
