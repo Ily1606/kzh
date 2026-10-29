@@ -22,7 +22,7 @@ export const profileSchema = toTypedSchema(
       .max(profileUpdateProfileBodyUsernameMax, `Username must be at most ${profileUpdateProfileBodyUsernameMax} characters`)
       .regex(
         profileUpdateProfileBodyUsernameRegExp,
-        'Username may only contain letters, numbers and hyphens, and cannot start or end with a hyphen',
+        'Username may only contain letters, numbers and hyphens, and cannot start or end with a hyphen, or contain consecutive hyphens',
       ),
 
     // Ô text luôn trả về '' khi để trống, API kỳ vọng null nên phải cho qua ''
