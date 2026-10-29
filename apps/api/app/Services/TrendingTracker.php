@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
+use App\Jobs\RefreshTrendingCacheJob;
 use Carbon\CarbonInterface;
 use Exception;
 use Illuminate\Support\Facades\Cache;
@@ -335,6 +336,10 @@ final class TrendingTracker
                 'error' => $e->getMessage(),
                 'exception' => get_class($e),
             ]);
+
+            // Dispatch retry job with 1 minute delay (job handles its own retries via $backoff)
+            RefreshTrendingCacheJob::dispatch($pluginIds)
+                ->delay(now()->addMinute());
         }
     }
 }
