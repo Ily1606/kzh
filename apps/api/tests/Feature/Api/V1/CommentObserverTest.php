@@ -170,8 +170,11 @@ class CommentObserverTest extends TestCase
         $comment->delete();
         $this->assertEquals(0, (int) Redis::get($statKey));
 
-        // Restore the comment -> stat becomes 1, cached comment_count becomes 1
-        $comment->restore();
+        // In business rules, deleted comments cannot be restored via model restore(),
+        // but if restored event is dispatched, observer re-increments trending stats and refreshes cache.
+        $comment->deleted_at = null;
+        $comment->saveQuietly();
+        (new \App\Observers\CommentObserver())->restored($comment);
 
         $this->assertEquals(1, (int) Redis::get($statKey));
 
@@ -455,6 +458,43 @@ class CommentObserverTest extends TestCase
         $this->assertFalse((bool) Redis::exists($expiredStatKey));
         // Today's bucket remains 5
         $this->assertEquals(5, (int) Redis::get($todayStatKey));
+    }
+
+    public function test_observer_events_deferred_until_transaction_commits_and_ignored_on_rollback(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create([
+            'status' => PluginStatus::Approved,
+            'approved_at' => now(),
+        ]);
+
+        $comment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+
+        $date = now()->format('Y-m-d');
+        $statKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        Redis::set($statKey, 1);
+
+        // 1. Transaction rolls back -> Redis should NOT be decremented
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($comment) {
+                $comment->delete();
+                throw new \RuntimeException('Simulated failure during transaction');
+            });
+        } catch (\RuntimeException $e) {
+            // expected
+        }
+
+        $this->assertEquals(1, (int) Redis::get($statKey), 'Redis should not change when transaction is rolled back');
+
+        // 2. Transaction succeeds -> Redis should be decremented after commit
+        \Illuminate\Support\Facades\DB::transaction(function () use ($comment) {
+            $comment->delete();
+        });
+
+        $this->assertEquals(0, (int) Redis::get($statKey), 'Redis should decrement after transaction successfully commits');
     }
 }
 

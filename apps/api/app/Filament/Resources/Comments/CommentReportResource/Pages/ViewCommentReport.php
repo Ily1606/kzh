@@ -63,7 +63,7 @@ class ViewCommentReport extends ViewRecord
 
                     return $deleted;
                 })
-                ->successRedirectUrl(null),
+                ->successRedirectUrl(''),
         ];
     }
 }

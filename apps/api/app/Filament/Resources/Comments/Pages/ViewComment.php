@@ -92,7 +92,7 @@ class ViewComment extends ViewRecord
 
                     return true;
                 })
-                ->successRedirectUrl(null),
+                ->successRedirectUrl(''),
         ];
     }
 }

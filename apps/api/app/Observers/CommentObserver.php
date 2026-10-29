@@ -5,10 +5,18 @@ namespace App\Observers;
 use App\Contracts\PluginRepositoryInterface;
 use App\Models\Comment;
 use App\Services\TrendingTracker;
+use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Throwable;
 
-class CommentObserver
+class CommentObserver implements ShouldHandleEventsAfterCommit
 {
+    /**
+     * Dispatch observer events only after database transactions commit.
+     */
+    public bool $afterCommit = true;
+
     /**
      * Handle the Comment "created" event.
      */
@@ -16,11 +24,17 @@ class CommentObserver
     {
         // Only track visible comments (skip moderated/hidden on creation)
         if ($comment->hidden_at === null) {
-            // 1. Increment daily comment interaction count in Redis
-            TrendingTracker::trackComment($comment->plugin_id, 1, $comment->created_at);
+            try {
+                // 1. Increment daily comment interaction count in Redis
+                TrendingTracker::trackComment($comment->plugin_id, 1, $comment->created_at);
 
-            // 2. If the plugin is currently cached in trending objects, update its cached comment count
-            $this->refreshCachedPluginCommentCount($comment->plugin_id);
+                // 2. If the plugin is currently cached in trending objects, update its cached comment count
+                $this->refreshCachedPluginCommentCount($comment->plugin_id);
+            } catch (Throwable $e) {
+                Log::warning("Failed to track comment creation in Redis for comment {$comment->id}: " . $e->getMessage(), [
+                    'exception' => $e,
+                ]);
+            }
         }
     }
 
@@ -69,11 +83,17 @@ class CommentObserver
      */
     private function handleCommentDeleted(Comment $comment): void
     {
-        // 1. Decrement daily comment interaction count in Redis
-        TrendingTracker::trackComment($comment->plugin_id, -1, $comment->created_at);
+        try {
+            // 1. Decrement daily comment interaction count in Redis
+            TrendingTracker::trackComment($comment->plugin_id, -1, $comment->created_at);
 
-        // 2. If the plugin is currently cached in trending objects, update its cached comment count
-        $this->refreshCachedPluginCommentCount($comment->plugin_id);
+            // 2. If the plugin is currently cached in trending objects, update its cached comment count
+            $this->refreshCachedPluginCommentCount($comment->plugin_id);
+        } catch (Throwable $e) {
+            Log::warning("Failed to track comment deletion/hide in Redis for comment {$comment->id}: " . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+        }
     }
 
     /**
@@ -81,11 +101,17 @@ class CommentObserver
      */
     private function handleCommentRestored(Comment $comment): void
     {
-        // 1. Re-increment daily comment interaction count in Redis
-        TrendingTracker::trackComment($comment->plugin_id, 1, $comment->created_at);
+        try {
+            // 1. Re-increment daily comment interaction count in Redis
+            TrendingTracker::trackComment($comment->plugin_id, 1, $comment->created_at);
 
-        // 2. If the plugin is currently cached in trending objects, update its cached comment count
-        $this->refreshCachedPluginCommentCount($comment->plugin_id);
+            // 2. If the plugin is currently cached in trending objects, update its cached comment count
+            $this->refreshCachedPluginCommentCount($comment->plugin_id);
+        } catch (Throwable $e) {
+            Log::warning("Failed to track comment restore/unhide in Redis for comment {$comment->id}: " . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+        }
     }
 
     /**
@@ -93,15 +119,21 @@ class CommentObserver
      */
     private function refreshCachedPluginCommentCount(string $pluginId): void
     {
-        $hashKey = config('plugins.trending.keys.objects');
-        if ($hashKey && Redis::hexists($hashKey, $pluginId)) {
-            $fresh = app(PluginRepositoryInterface::class)
-                ->findApprovedByIds([$pluginId])
-                ->first();
+        try {
+            $hashKey = config('plugins.trending.keys.objects');
+            if ($hashKey && Redis::hexists($hashKey, $pluginId)) {
+                $fresh = app(PluginRepositoryInterface::class)
+                    ->findApprovedByIds([$pluginId])
+                    ->first();
 
-            if ($fresh) {
-                Redis::hset($hashKey, $pluginId, serialize($fresh));
+                if ($fresh) {
+                    Redis::hset($hashKey, $pluginId, serialize($fresh));
+                }
             }
+        } catch (Throwable $e) {
+            Log::warning("Failed to refresh cached plugin comment count in Redis for plugin {$pluginId}: " . $e->getMessage(), [
+                'exception' => $e,
+            ]);
         }
     }
 }
