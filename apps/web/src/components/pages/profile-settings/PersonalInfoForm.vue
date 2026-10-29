@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useForm } from 'vee-validate';
 import { useAuth } from "@/composables/useAuth";
 import { getProfile } from "@/api/generated/endpoints";
@@ -50,6 +50,7 @@ const {
   errors,
   isSubmitting,
   setValues,
+  setFieldValue,
 } = useForm({
   validationSchema: profileSchema,
 });
@@ -58,9 +59,15 @@ const [name, nameProps] = defineField('name');
 const [username, usernameProps] = defineField('username');
 const [githubLink, githubLinkProps] = defineField('githubLink');
 
+// Track if username was manually edited by user
+const usernameEdited = ref(false);
+
 const usernameModel = computed({
   get: () => username.value ?? '',
-  set: (value: string) => { username.value = value; },
+  set: (value: string) => {
+    username.value = value;
+    usernameEdited.value = true;
+  },
 });
 
 // Schema cho phép null, còn Input chỉ nhận string.
@@ -83,7 +90,7 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-// Pre-fill from current user
+// Pre-fill from current user on mount
 onMounted(() => {
   if (auth.user) {
     setValues({
@@ -93,6 +100,24 @@ onMounted(() => {
     });
   }
 });
+
+// Sync form when auth.user refreshes, but only if field is pristine
+watch(
+  () => auth.user,
+  (newUser) => {
+    if (!newUser) return;
+
+    // Always update name and githubLink (less sensitive)
+    setFieldValue('name', newUser.name ?? "");
+    setFieldValue('githubLink', newUser.githubLink ?? "");
+
+    // Only update username if user hasn't manually edited it
+    if (!usernameEdited.value) {
+      setFieldValue('username', newUser.username ?? "");
+    }
+  },
+  { deep: true }
+);
 </script>
 
 <template>
