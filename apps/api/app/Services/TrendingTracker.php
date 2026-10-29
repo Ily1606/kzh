@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Contracts\PluginRepositoryInterface;
 use Carbon\CarbonInterface;
+use Exception;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 
 final class TrendingTracker
@@ -295,35 +297,44 @@ final class TrendingTracker
             return;
         }
 
-        // Only refresh plugins that are actually in the cache
-        $existingIds = Redis::hmget($hashKey, $pluginIds);
-        $cachedIds = [];
+        try {
+            // Only refresh plugins that are actually in the cache
+            $existingIds = Redis::hmget($hashKey, $pluginIds);
+            $cachedIds = [];
 
-        foreach ($existingIds as $index => $value) {
-            if ($value !== null && $value !== false) {
-                $cachedIds[] = $pluginIds[$index];
+            foreach ($existingIds as $index => $value) {
+                if ($value !== null && $value !== false) {
+                    $cachedIds[] = $pluginIds[$index];
+                }
             }
+
+            if (empty($cachedIds)) {
+                return;
+            }
+
+            // Single query to fetch all approved plugins
+            $freshPlugins = app(PluginRepositoryInterface::class)
+                ->findApprovedByIds($cachedIds)
+                ->keyBy('id');
+
+            if ($freshPlugins->isEmpty()) {
+                return;
+            }
+
+            // Bulk update the cache hash
+            $data = [];
+            foreach ($freshPlugins as $plugin) {
+                $data[$plugin->id] = serialize($plugin);
+            }
+
+            Redis::hmset($hashKey, $data);
+        } catch (Exception $e) {
+            // Log the error but don't throw - cache refresh should not block avatar updates
+            Log::error('Failed to refresh trending cache for plugins', [
+                'plugin_ids' => $pluginIds,
+                'error' => $e->getMessage(),
+                'exception' => get_class($e),
+            ]);
         }
-
-        if (empty($cachedIds)) {
-            return;
-        }
-
-        // Single query to fetch all approved plugins
-        $freshPlugins = app(PluginRepositoryInterface::class)
-            ->findApprovedByIds($cachedIds)
-            ->keyBy('id');
-
-        if ($freshPlugins->isEmpty()) {
-            return;
-        }
-
-        // Bulk update the cache hash
-        $data = [];
-        foreach ($freshPlugins as $plugin) {
-            $data[$plugin->id] = serialize($plugin);
-        }
-
-        Redis::hmset($hashKey, $data);
     }
 }

@@ -31,7 +31,9 @@ class UserProfileObserver
                 });
             }
 
-            $this->refreshTrendingCacheForAvatarChange($profile);
+            DB::afterCommit(function () use ($profile): void {
+                $this->refreshTrendingCacheForAvatarChange($profile);
+            });
         }
     }
 
