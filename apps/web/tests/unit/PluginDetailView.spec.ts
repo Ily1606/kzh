@@ -796,7 +796,7 @@ describe('PluginDetailView.vue', () => {
         const modal = document.body.querySelector('[role="dialog"]')
         expect(modal).not.toBeNull()
         expect(modal?.textContent).toContain('Delete Plugin')
-        expect(modal?.textContent).toContain('@dsh/test-plugin')
+        expect(modal?.textContent).toContain('@dsh/my-plugin')
 
         // Find the confirm button in the modal and click it
         const confirmBtn = Array.from(modal!.querySelectorAll('button')).find((b) =>

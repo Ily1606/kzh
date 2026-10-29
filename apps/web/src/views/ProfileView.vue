@@ -23,6 +23,7 @@ const {
   loadProfile,
   loadPlugins,
   retry,
+  onUsernameChange
 } = useAuthorProfile()
 
 const username = computed(() => {
@@ -46,7 +47,8 @@ watch(username, async (name) => {
     return
   }
 
-  await loadProfile(name)
+  const usernameTicket = onUsernameChange()
+  await loadProfile(name, usernameTicket)
 }, { immediate: true })
 
 // Load author's plugins
@@ -55,6 +57,8 @@ watch([username, page], async ([name, targetPage]) => {
     return
   }
 
+  // Don't call onUsernameChange here - it would reset state on page changes.
+  // loadPlugins will use the current username ticket from the composable (set by the username watcher).
   await loadPlugins(name, targetPage)
 }, { immediate: true })
 

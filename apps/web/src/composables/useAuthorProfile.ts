@@ -36,15 +36,17 @@ export function useAuthorProfile() {
   // Generation counters for race condition handling
   // usernameGen: monotonic, shared by both loaders (increments only when username changes)
   const usernameGen = latestOnly()
+  // Current username ticket (updated by onUsernameChange, read by loaders)
+  const currentUsernameTicket = ref<(() => boolean) | null>(null)
   // profileGen: per profile load or retry
   const profileGen = latestOnly()
   // pluginGen: per username/page load
   const pluginGen = latestOnly()
 
-  async function loadProfile(username: string): Promise<void> {
+  async function loadProfile(username: string, usernameTicket?: () => boolean): Promise<void> {
     // Get tickets for both generations
     const isLatestProfile = profileGen()
-    const isLatestUsername = usernameGen()
+    const isLatestUsername = usernameTicket ?? usernameGen()
 
     isLoadingProfile.value = true
     profileError.value = ''
@@ -75,10 +77,11 @@ export function useAuthorProfile() {
     }
   }
 
-  async function loadPlugins(username: string, page = 1): Promise<void> {
+  async function loadPlugins(username: string, page = 1, usernameTicket?: () => boolean): Promise<void> {
     // Get tickets for both generations
     const isLatestPlugin = pluginGen()
-    const isLatestUsername = usernameGen()
+    // Use provided ticket, or current username ticket, or create new one (for backward compat)
+    const isLatestUsername = usernameTicket ?? currentUsernameTicket.value ?? usernameGen()
 
     isLoadingPlugins.value = true
     pluginsError.value = ''
@@ -123,6 +126,16 @@ export function useAuthorProfile() {
     ])
   }
 
+  function onUsernameChange(): () => boolean {
+    author.value = null
+    plugins.value = []
+    // Increment username generation so any in-flight requests for the old username become stale.
+    // Store and return the ticket checker for the new generation.
+    const ticket = usernameGen()
+    currentUsernameTicket.value = ticket
+    return ticket
+  }
+
   return {
     author,
     plugins,
@@ -136,5 +149,6 @@ export function useAuthorProfile() {
     loadProfile,
     loadPlugins,
     retry,
+    onUsernameChange,
   }
 }
