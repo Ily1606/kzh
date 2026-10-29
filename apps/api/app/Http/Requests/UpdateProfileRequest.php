@@ -49,7 +49,7 @@ class UpdateProfileRequest extends FormRequest
                         ->first();
 
                     if ($reservedRecord) {
-                        $daysLeft = now()->diffInDays($reservedRecord->available_at, false) + 1;
+                        $daysLeft = max(1, (int) ceil(now()->diffInDays($reservedRecord->available_at, false)));
                         $fail(__('validation.username_reserved', ['days' => $daysLeft]));
                     }
                 },
