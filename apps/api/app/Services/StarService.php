@@ -57,6 +57,26 @@ final class StarService
     }
 
     /**
+     * Same set-state, addressed by the author and plugin name instead of the id.
+     *
+     * The approval check stays inside setStarred(), so an unpublished plugin is
+     * still a 404 here.
+     *
+     * @return array{starred: bool, star_count: int}
+     */
+    public function setStarredBySlug(
+        User $user,
+        string $username,
+        string $pluginName,
+        bool $starred,
+        RequestContext $requestContext,
+    ): array {
+        $plugin = $this->pluginRepository->findByUsernameAndPluginName($username, $pluginName);
+
+        return $this->setStarred($user, $plugin->id, $starred, $requestContext);
+    }
+
+    /**
      * If the plugin is cached in Redis trending objects, update its cached star count.
      */
     private function refreshCachedPluginStarCount(string $pluginId): void

@@ -34,6 +34,11 @@ interface PluginRepositoryInterface
     public function findById(string $id): Plugin;
 
     /**
+     * Find a plugin by its author's username and its name
+     */
+    public function findByUsernameAndPluginName(string $username, string $name): Plugin;
+
+    /**
      * Write the given attributes onto the plugin and return it re-read.
      *
      * @param  array<string, mixed>  $attributes
@@ -59,8 +64,9 @@ interface PluginRepositoryInterface
      *
      * @param  string|null  $category  Restrict to one category by name, or null for all of them.
      * @param  string|null  $search  Match against name and title, or null to skip the filter.
+     * @param  string|null  $userId  Restrict to plugins by this user, or null for all users.
      */
-    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null): LengthAwarePaginator;
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null, ?string $userId = null): LengthAwarePaginator;
 
     /**
      * List one owner's plugins, whatever their review status.

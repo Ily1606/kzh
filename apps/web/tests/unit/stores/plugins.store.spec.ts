@@ -12,8 +12,9 @@ const mockPluginMyPlugins = vi.fn();
 const mockPluginShow = vi.fn();
 const mockPluginUpdate = vi.fn();
 const mockPluginDestroy = vi.fn();
+const mockPluginUpdateBySlug = vi.fn();
 const mockPluginTrackView = vi.fn();
-const mockStarStore = vi.fn();
+const mockStarStoreBySlug = vi.fn();
 const mockNotifyError = vi.fn();
 
 vi.mock('@/api/generated/endpoints', () => ({
@@ -24,9 +25,10 @@ vi.mock('@/api/generated/endpoints', () => ({
     pluginShow: mockPluginShow,
     pluginUpdate: mockPluginUpdate,
     pluginDestroy: mockPluginDestroy,
+    pluginUpdateBySlug: mockPluginUpdateBySlug,
     pluginTrackView: mockPluginTrackView,
   }),
-  getStar: () => ({ starStore: mockStarStore }),
+  getStar: () => ({ starStoreBySlug: mockStarStoreBySlug }),
 }));
 
 vi.mock('@/utils/toast', () => ({
@@ -38,7 +40,7 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     id: 'plugin-1',
     name: '@dsh/my-plugin',
     user_id: 'user-1',
-    author: null,
+    author: { id: 'user-1', name: 'John Doe', username: 'johndoe', avatar_url: '' },
     title: 'My awesome plugin',
     license: 'MIT',
     category: 'Integrations',
@@ -280,26 +282,15 @@ describe('Plugins Store', () => {
     });
   });
 
-  describe('ensurePlugin()', () => {
-    it('returns the cached plugin without calling the API', async () => {
+  describe('ensurePluginBySlug()', () => {
+    it('fetches by slug and caches the result into entities', async () => {
       const store = usePluginsStore();
 
-      store.put([makePlugin()]);
+      mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin({ id: 'plugin-1', is_star: true }) } });
 
-      const plugin = await store.ensurePlugin('plugin-1');
+      const plugin = await store.ensurePluginBySlug('johndoe', '@dsh/my-plugin');
 
-      expect(plugin?.id).toBe('plugin-1');
-      expect(mockPluginShow).not.toHaveBeenCalled();
-    });
-
-    it('fetches on a miss and caches the result', async () => {
-      const store = usePluginsStore();
-
-      mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin({ is_star: true }) } });
-
-      const plugin = await store.ensurePlugin('plugin-1');
-
-      expect(mockPluginShow).toHaveBeenCalledWith('plugin-1');
+      expect(mockPluginShow).toHaveBeenCalledWith('johndoe', '@dsh/my-plugin');
       expect(plugin?.is_star).toBe(true);
       expect(store.findById('plugin-1')?.is_star).toBe(true);
     });
@@ -309,7 +300,7 @@ describe('Plugins Store', () => {
 
       mockPluginShow.mockRejectedValue({ response: { data: { message: 'Not found.' } } });
 
-      const plugin = await store.ensurePlugin('plugin-1');
+      const plugin = await store.ensurePluginBySlug('johndoe', '@dsh/my-plugin');
 
       expect(plugin).toBeNull();
       expect(store.fetchError).toBe('Not found.');
@@ -319,22 +310,22 @@ describe('Plugins Store', () => {
 
   describe('setStar()', () => {
     beforeEach(() => {
-      mockStarStore.mockResolvedValue({ data: { starred: true, star_count: 6 } });
+      mockStarStoreBySlug.mockResolvedValue({ data: { starred: true, star_count: 6 } });
     });
 
     it('applies the optimistic count at once, then the server count', async () => {
       const store = usePluginsStore();
       store.put([makePlugin({ star_count: 5, is_star: false })]);
 
-      mockStarStore.mockImplementation(async () => {
+      mockStarStoreBySlug.mockImplementation(async () => {
         expect(store.findById('plugin-1')).toMatchObject({ is_star: true, star_count: 6 });
 
         return { data: { starred: true, star_count: 6 } };
       });
 
-      await store.setStar('plugin-1', true);
+      await store.setStar('johndoe', '@dsh/my-plugin', true);
 
-      expect(mockStarStore).toHaveBeenCalledWith('plugin-1', { starred: true });
+      expect(mockStarStoreBySlug).toHaveBeenCalledWith('johndoe', '@dsh/my-plugin', { starred: true });
       expect(store.findById('plugin-1')).toMatchObject({ is_star: true, star_count: 6 });
       expect(store.isStarring('plugin-1')).toBe(false);
     });
@@ -343,9 +334,9 @@ describe('Plugins Store', () => {
       const store = usePluginsStore();
       store.put([makePlugin({ star_count: 5, is_star: false })]);
 
-      mockStarStore.mockResolvedValue({ data: { starred: true, star_count: 17 } });
+      mockStarStoreBySlug.mockResolvedValue({ data: { starred: true, star_count: 17 } });
 
-      await store.setStar('plugin-1', true);
+      await store.setStar('johndoe', '@dsh/my-plugin', true);
 
       expect(store.findById('plugin-1')?.star_count).toBe(17);
     });
@@ -354,9 +345,9 @@ describe('Plugins Store', () => {
       const store = usePluginsStore();
       store.put([makePlugin({ star_count: 5, is_star: false })]);
 
-      mockStarStore.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } });
+      mockStarStoreBySlug.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } });
 
-      await store.setStar('plugin-1', true);
+      await store.setStar('johndoe', '@dsh/my-plugin', true);
 
       expect(store.findById('plugin-1')).toMatchObject({ is_star: false, star_count: 5 });
       expect(mockNotifyError).toHaveBeenCalledWith('Too many requests.');
@@ -367,9 +358,9 @@ describe('Plugins Store', () => {
       const store = usePluginsStore();
       store.put([makePlugin({ star_count: 5, is_star: true })]);
 
-      mockStarStore.mockResolvedValue({ data: { starred: false, star_count: 4 } });
+      mockStarStoreBySlug.mockResolvedValue({ data: { starred: false, star_count: 4 } });
 
-      await store.setStar('plugin-1', false);
+      await store.setStar('johndoe', '@dsh/my-plugin', false);
 
       expect(store.findById('plugin-1')).toMatchObject({ is_star: false, star_count: 4 });
       expect(mockNotifyError).not.toHaveBeenCalled();
@@ -379,13 +370,13 @@ describe('Plugins Store', () => {
       const store = usePluginsStore();
       store.put([makePlugin({ star_count: 0, is_star: true })]);
 
-      mockStarStore.mockImplementation(async () => {
+      mockStarStoreBySlug.mockImplementation(async () => {
         expect(store.findById('plugin-1')?.star_count).toBe(0);
 
         return { data: { starred: false, star_count: 0 } };
       });
 
-      await store.setStar('plugin-1', false);
+      await store.setStar('johndoe', '@dsh/my-plugin', false);
 
       expect(store.findById('plugin-1')?.star_count).toBe(0);
     });
@@ -395,14 +386,14 @@ describe('Plugins Store', () => {
       store.put([makePlugin({ star_count: 5, is_star: false })]);
 
       let release!: () => void;
-      mockStarStore.mockImplementation(() => new Promise((resolve) => {
+      mockStarStoreBySlug.mockImplementation(() => new Promise((resolve) => {
         release = () => resolve({ data: { starred: true, star_count: 6 } });
       }));
 
-      const first = store.setStar('plugin-1', true);
-      await store.setStar('plugin-1', false);
+      const first = store.setStar('johndoe', '@dsh/my-plugin', true);
+      await store.setStar('johndoe', '@dsh/my-plugin', false);
 
-      expect(mockStarStore).toHaveBeenCalledTimes(1);
+      expect(mockStarStoreBySlug).toHaveBeenCalledTimes(1);
       expect(store.isStarring('plugin-1')).toBe(true);
 
       release();
@@ -414,9 +405,9 @@ describe('Plugins Store', () => {
     it('does nothing for an unknown plugin', async () => {
       const store = usePluginsStore();
 
-      await store.setStar('nope', true);
+      await store.setStar('nobody', 'unknown-plugin', true);
 
-      expect(mockStarStore).not.toHaveBeenCalled();
+      expect(mockStarStoreBySlug).not.toHaveBeenCalled();
     });
   });
 
@@ -425,11 +416,11 @@ describe('Plugins Store', () => {
       const store = usePluginsStore();
       store.put([makePlugin()]);
 
-      mockPluginUpdate.mockResolvedValue({ data: { plugin: makePlugin({ title: 'Renamed' }) } });
+      mockPluginUpdateBySlug.mockResolvedValue({ data: { plugin: makePlugin({ title: 'Renamed' }) } });
 
-      await store.updatePlugin('plugin-1', { title: 'Renamed' });
+      await store.updatePlugin('johndoe', '@dsh/my-plugin', { title: 'Renamed' });
 
-      expect(mockPluginUpdate).toHaveBeenCalledWith('plugin-1', { title: 'Renamed' });
+      expect(mockPluginUpdateBySlug).toHaveBeenCalledWith('johndoe', '@dsh/my-plugin', { title: 'Renamed' });
     });
 
     it('writes the server response through, so every list sees the edit', async () => {
@@ -439,7 +430,7 @@ describe('Plugins Store', () => {
       // The server owns the fields the form never touched — `updated_at`, the
       // comment recount — so the stored copy has to come from the response
       // rather than from what the form happened to submit.
-      mockPluginUpdate.mockResolvedValue({
+      mockPluginUpdateBySlug.mockResolvedValue({
         data: {
           plugin: makePlugin({
             title: 'Renamed',
@@ -449,9 +440,9 @@ describe('Plugins Store', () => {
         },
       });
 
-      const ok = await store.updatePlugin('plugin-1', { title: 'Renamed' });
+      const saved = await store.updatePlugin('johndoe', '@dsh/my-plugin', { title: 'Renamed' });
 
-      expect(ok).toBe(true);
+      expect(saved).not.toBeNull();
       expect(store.findById('plugin-1')).toMatchObject({
         title: 'Renamed',
         updated_at: '2026-10-09T00:00:00Z',
@@ -463,13 +454,13 @@ describe('Plugins Store', () => {
       const store = usePluginsStore();
       store.put([makePlugin({ title: 'My awesome plugin' })]);
 
-      mockPluginUpdate.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } });
+      mockPluginUpdateBySlug.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } });
 
       // A thrown error would leave the caller unable to tell "nothing happened"
       // from "it changed and the cache is now stale".
-      const ok = await store.updatePlugin('plugin-1', { title: 'Renamed' });
+      const saved = await store.updatePlugin('johndoe', '@dsh/my-plugin', { title: 'Renamed' });
 
-      expect(ok).toBe(false);
+      expect(saved).toBeNull();
       expect(mockNotifyError).toHaveBeenCalledWith('Too many requests.');
       expect(store.findById('plugin-1')?.title).toBe('My awesome plugin');
     });
@@ -477,9 +468,9 @@ describe('Plugins Store', () => {
     it('falls back to a generic message when the response carries none', async () => {
       const store = usePluginsStore();
 
-      mockPluginUpdate.mockRejectedValue({});
+      mockPluginUpdateBySlug.mockRejectedValue({});
 
-      await store.updatePlugin('plugin-1', { title: 'Renamed' });
+      await store.updatePlugin('johndoe', '@dsh/my-plugin', { title: 'Renamed' });
 
       expect(mockNotifyError).toHaveBeenCalledWith('Could not save the plugin. Please try again.');
     });
@@ -488,13 +479,13 @@ describe('Plugins Store', () => {
       const store = usePluginsStore();
       store.put([makePlugin()]);
 
-      mockPluginUpdate.mockResolvedValue({ data: {} });
+      mockPluginUpdateBySlug.mockResolvedValue({ data: {} });
 
-      // Nothing to write, so the cache keeps what it had — and the page is told
-      // the request itself went through.
-      const ok = await store.updatePlugin('plugin-1', { title: 'Renamed' });
+      // Nothing to write, so the cache keeps what it had — and the caller is
+      // told there is no saved plugin to navigate with.
+      const saved = await store.updatePlugin('johndoe', '@dsh/my-plugin', { title: 'Renamed' });
 
-      expect(ok).toBe(false);
+      expect(saved).toBeNull();
       expect(store.findById('plugin-1')?.title).toBe('My awesome plugin');
     });
   });

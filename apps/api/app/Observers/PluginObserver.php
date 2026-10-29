@@ -17,8 +17,6 @@ class PluginObserver
      */
     public function updated(Plugin $plugin): void
     {
-        $hashKey = config('plugins.trending.keys.objects');
-
         // 1. If the plugin is no longer approved, remove it immediately from trending
         if ($plugin->status !== PluginStatus::Approved || $plugin->approved_at === null) {
             $this->cleanupTrendingCache($plugin->id, false);
@@ -27,13 +25,24 @@ class PluginObserver
         }
 
         // 2. If the plugin is currently cached in trending objects, update the cached object
-        if ($hashKey && Redis::hexists($hashKey, $plugin->id)) {
+        $this->refreshTrendingCacheIfCached($plugin->id);
+    }
+
+    /**
+     * If the plugin is currently cached in trending objects, update it with fresh data.
+     * Can be called externally (e.g., from UserObserver when username changes).
+     */
+    public function refreshTrendingCacheIfCached(string $pluginId): void
+    {
+        $hashKey = config('plugins.trending.keys.objects');
+
+        if ($hashKey && Redis::hexists($hashKey, $pluginId)) {
             $fresh = app(PluginRepositoryInterface::class)
-                ->findApprovedByIds([$plugin->id])
+                ->findApprovedByIds([$pluginId])
                 ->first();
 
             if ($fresh) {
-                Redis::hset($hashKey, $plugin->id, serialize($fresh));
+                Redis::hset($hashKey, $pluginId, serialize($fresh));
             }
         }
     }

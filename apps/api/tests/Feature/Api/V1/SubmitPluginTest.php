@@ -38,7 +38,7 @@ class SubmitPluginTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return array_merge([
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
             'category' => 'Developer tools',
@@ -52,13 +52,13 @@ class SubmitPluginTest extends TestCase
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => '  Laravel Debugbar  ',
+            'name' => '  Laravel-Debugbar  ',
         ]));
 
         $response->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('message', 'Plugin submitted successfully.')
-            ->assertJsonPath('data.plugin.name', 'Laravel Debugbar')
+            ->assertJsonPath('data.plugin.name', 'Laravel-Debugbar')
             ->assertJsonPath('data.plugin.user_id', $user->id)
             ->assertJsonPath('data.plugin.status', 'pending')
             ->assertJsonPath('data.plugin.star_count', 0)
@@ -72,7 +72,7 @@ class SubmitPluginTest extends TestCase
         // response assertions above check the values the client actually reads.
         $this->assertDatabaseHas('plugins', [
             'user_id' => $user->id,
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
             'status' => PluginStatus::Pending->value,
             'view_count' => 0,
             'approved_at' => null,
@@ -87,7 +87,7 @@ class SubmitPluginTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $response = $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => 'Resource Contract Plugin',
+            'name' => 'Resource-Contract-Plugin',
         ]))->assertCreated();
 
         $response->assertJsonStructure([
@@ -236,7 +236,7 @@ class SubmitPluginTest extends TestCase
     public static function wrongTypeFieldProvider(): array
     {
         return [
-            'name as array' => ['name', ['Laravel Debugbar']],
+            'name as array' => ['name', ['Laravel-Debugbar']],
             'name as nested array' => ['name', ['nested' => ['value']]],
             'name as integer' => ['name', 12345],
             'title as float' => ['title', 1.5],
@@ -257,6 +257,45 @@ class SubmitPluginTest extends TestCase
             ->assertJsonValidationErrors([$field]);
 
         $this->assertDatabaseCount('plugins', 0);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function invalidPluginNameProvider(): array
+    {
+        return [
+            'space' => ['Laravel Debugbar'],
+            'at sign and slash' => ['@dsh/guardrails'],
+            'unicode' => ['đây-là-plugin'],
+            'punctuation' => ['plugin!'],
+            'single dot' => ['.'],
+            'double dot' => ['..'],
+        ];
+    }
+
+    #[DataProvider('invalidPluginNameProvider')]
+    public function test_submission_rejects_names_outside_the_allowed_characters(string $name): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/plugins', $this->payload(['name' => $name]))
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'The given data was invalid.')
+            ->assertJsonPath('errors.name.0', __('api.plugin_name_invalid'));
+
+        $this->assertDatabaseCount('plugins', 0);
+    }
+
+    public function test_submission_accepts_every_allowed_character(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $name = 'Dsh.Guardrails_v2-Test';
+
+        $this->postJson('/api/v1/plugins', $this->payload(['name' => $name]))
+            ->assertCreated()
+            ->assertJsonPath('data.plugin.name', $name);
     }
 
     /**
@@ -321,7 +360,7 @@ class SubmitPluginTest extends TestCase
         ]))->assertCreated();
 
         $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => 'Another Plugin',
+            'name' => 'Another-Plugin',
             'license' => 'MIT',
         ]))->assertUnprocessable()
             ->assertJsonValidationErrors('license');
@@ -335,12 +374,12 @@ class SubmitPluginTest extends TestCase
 
         for ($index = 0; $index < $limit; $index++) {
             $this->postJson('/api/v1/plugins', $this->payload([
-                'name' => 'Plugin '.$index,
+                'name' => 'Plugin-'.$index,
             ]))->assertCreated();
         }
 
         $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => 'Plugin '.$limit,
+            'name' => 'Plugin-'.$limit,
         ]))->assertTooManyRequests();
     }
 
@@ -350,11 +389,11 @@ class SubmitPluginTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => 'First Plugin',
+            'name' => 'First-Plugin',
         ]))->assertCreated();
 
         $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => 'Second Plugin',
+            'name' => 'Second-Plugin',
         ]))->assertTooManyRequests();
     }
 
@@ -364,7 +403,7 @@ class SubmitPluginTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $this->postJson('/api/v1/plugins', $this->payload([
-            'name' => 'Still Reachable Plugin',
+            'name' => 'Still-Reachable-Plugin',
         ]))->assertCreated();
     }
 
@@ -399,7 +438,7 @@ class SubmitPluginTest extends TestCase
         $user = User::factory()->create();
         $plugin = Plugin::factory()->create([
             'user_id' => $user->id,
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
         ]);
         $plugin->delete();
         Sanctum::actingAs($user);

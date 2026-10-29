@@ -35,6 +35,12 @@ class UsersTable
                     ->sortable()
                     ->weight('bold'),
 
+                TextColumn::make('username')
+                    ->label(__('user.table.columns.username'))
+                    ->searchable()
+                    ->sortable()
+                    ->prefix('@'),
+
                 TextColumn::make('email')
                     ->label(__('user.table.columns.email'))
                     ->searchable()

@@ -12,8 +12,16 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const store = usePluginsStore()
 
-const pluginId = computed(() => route.params.id as string)
-const plugin = computed(() => store.findById(pluginId.value))
+const username = computed(() => route.params.username as string)
+const pluginName = computed(() => route.params.pluginName as string)
+
+const plugin = computed(() => {
+  if (username.value && pluginName.value) {
+    return store.findBySlug(username.value, pluginName.value)
+  }
+  return null
+})
+
 const { showComments } = usePluginDetailAccess(plugin)
 
 // When the URL contains a hash (eg: #comment, #...), it help scroll to the specific target location (eg: comment target)
@@ -37,19 +45,22 @@ function onCommentAdded() {
   })
 }
 
-onMounted(async () => {
-  if (pluginId.value) {
-    await store.ensurePlugin(pluginId.value)
-    void store.trackView(pluginId.value)
+async function loadPlugin() {
+  if (username.value && pluginName.value) {
+    const fetched = await store.ensurePluginBySlug(username.value, pluginName.value)
+    if (fetched?.id) {
+      void store.trackView(fetched.id)
+    }
   }
+}
+
+onMounted(async () => {
+  await loadPlugin()
   scrollToHash()
 })
 
-watch(pluginId, async (newId, oldId) => {
-  if (newId && newId !== oldId) {
-    await store.ensurePlugin(newId)
-    void store.trackView(newId)
-  }
+watch([username, pluginName], async () => {
+  await loadPlugin()
 })
 </script>
 

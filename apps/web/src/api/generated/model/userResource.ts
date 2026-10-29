@@ -8,10 +8,9 @@
 export interface UserResource {
   id: string;
   name: string;
+  username: string;
   email: string;
   avatarLink: string;
-  /** @nullable */
-  githubName: string | null;
   /** @nullable */
   githubLink: string | null;
   is_admin: boolean;

@@ -61,7 +61,7 @@ class PluginServicePaginateTest extends TestCase
             $expectedPaginator = new LengthAwarePaginator([], 0, $perPage);
 
             $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-                ->with($perPage, null, null)
+                ->with($perPage, null, null, null)
                 ->once()
                 ->andReturn($expectedPaginator);
 
@@ -76,7 +76,7 @@ class PluginServicePaginateTest extends TestCase
         $emptyPaginator = new LengthAwarePaginator([], 0, 10);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10, null, null)
+            ->with(10, null, null, null)
             ->once()
             ->andReturn($emptyPaginator);
 
@@ -92,7 +92,7 @@ class PluginServicePaginateTest extends TestCase
         $paginator = new LengthAwarePaginator($items, 100, 10);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10, null, null)
+            ->with(10, null, null, null)
             ->once()
             ->andReturn($paginator);
 
@@ -108,7 +108,7 @@ class PluginServicePaginateTest extends TestCase
 
         // Verify the repository is called EXACTLY once with 20
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with($expectedPerPage, null, null)
+            ->with($expectedPerPage, null, null, null)
             ->once()
             ->andReturn(new LengthAwarePaginator([], 0, $expectedPerPage));
 
@@ -122,7 +122,7 @@ class PluginServicePaginateTest extends TestCase
     public function test_pag_07_propagates_repository_exception(): void
     {
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10, null, null)
+            ->with(10, null, null, null)
             ->once()
             ->andThrow(new Exception('Database connection failed'));
 
@@ -145,7 +145,7 @@ class PluginServicePaginateTest extends TestCase
         ]);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with($perPage, null, null)
+            ->with($perPage, null, null, null)
             ->once()
             ->andReturn($paginator);
 
@@ -171,7 +171,7 @@ class PluginServicePaginateTest extends TestCase
         $paginator = new LengthAwarePaginator([], 0, 10);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10, 'Vision', null)
+            ->with(10, 'Vision', null, null)
             ->once()
             ->andReturn($paginator);
 
@@ -190,7 +190,7 @@ class PluginServicePaginateTest extends TestCase
         $plugin = (new Plugin)->forceFill(['id' => '11111111-1111-1111-1111-111111111111']);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10, 'Vision', null)
+            ->with(10, 'Vision', null, null)
             ->once()
             ->andReturn(new LengthAwarePaginator([$plugin], 1, 10));
 
@@ -219,7 +219,7 @@ class PluginServicePaginateTest extends TestCase
         $other = (new Plugin)->forceFill(['id' => '22222222-2222-2222-2222-222222222222']);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10, null, null)
+            ->with(10, null, null, null)
             ->once()
             ->andReturn(new LengthAwarePaginator([$starred, $other], 2, 10));
 
@@ -239,7 +239,7 @@ class PluginServicePaginateTest extends TestCase
         $plugin = (new Plugin)->forceFill(['id' => '11111111-1111-1111-1111-111111111111']);
 
         $this->pluginRepositoryMock->shouldReceive('getPaginatedApprovedPlugins')
-            ->with(10, null, null)
+            ->with(10, null, null, null)
             ->once()
             ->andReturn(new LengthAwarePaginator([$plugin], 1, 10));
 

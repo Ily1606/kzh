@@ -10,20 +10,20 @@ import { describeEvent } from '@/composables/usePluginEvents'
 import type { PluginResource, UserResource } from '@/api/generated/model'
 
 const mockPluginShow = vi.fn()
-const mockPluginEventIndex = vi.fn()
+const mockPluginEventIndexBySlug = vi.fn()
 
 vi.mock('@/api/generated/endpoints', () => ({
   getPlugin: () => ({ pluginShow: mockPluginShow }),
   getStar: () => ({ starStore: vi.fn() }),
-  getPluginEvent: () => ({ pluginEventIndex: mockPluginEventIndex }),
+  getPluginEvent: () => ({ pluginEventIndexBySlug: mockPluginEventIndexBySlug }),
   getAuth: () => ({ authLogout: vi.fn() }),
   getProfile: () => ({ profileShow: vi.fn() })
 }))
 
 const mockRoute = ref({
-  params: { id: 'plugin-123' } as Record<string, string>,
-  fullPath: '/plugins/plugin-123/history',
-  path: '/plugins/plugin-123/history'
+  params: { username: 'janedev', pluginName: '@dsh/my-plugin' } as Record<string, string>,
+  fullPath: '/plugins/janedev/@dsh/my-plugin/history',
+  path: '/plugins/janedev/@dsh/my-plugin/history'
 })
 
 const mockReplace = vi.fn()
@@ -46,7 +46,7 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     id: 'plugin-123',
     name: '@dsh/my-plugin',
     user_id: 'user-456',
-    author: { id: 'user-456', name: 'Jane Dev', avatar_url: '' },
+    author: { id: 'user-456', name: 'Jane Dev', username: 'janedev', avatar_url: '' },
     title: 'My awesome plugin',
     license: 'MIT',
     category: null,
@@ -108,7 +108,7 @@ beforeEach(() => {
   localStorage.clear()
 
   mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin() } })
-  mockPluginEventIndex.mockResolvedValue(timeline([]))
+  mockPluginEventIndexBySlug.mockResolvedValue(timeline([]))
 })
 
 describe('PluginHistoryView.vue', () => {
@@ -127,9 +127,9 @@ describe('PluginHistoryView.vue', () => {
 
       expect(mockReplace).toHaveBeenCalledWith({
         name: 'plugin-detail',
-        params: { id: 'plugin-123' },
+        params: { username: 'janedev', pluginName: '@dsh/my-plugin' },
       })
-      expect(mockPluginEventIndex).not.toHaveBeenCalled()
+      expect(mockPluginEventIndexBySlug).not.toHaveBeenCalled()
     })
 
     it('redirects when the plugin cannot be loaded at all', async () => {
@@ -140,7 +140,7 @@ describe('PluginHistoryView.vue', () => {
 
       expect(mockReplace).toHaveBeenCalledWith({
         name: 'plugin-detail',
-        params: { id: 'plugin-123' },
+        params: { username: 'janedev', pluginName: '@dsh/my-plugin' },
       })
     })
 
@@ -150,7 +150,7 @@ describe('PluginHistoryView.vue', () => {
 
       const wrapper = await mountView()
 
-      expect(mockPluginEventIndex).toHaveBeenCalledWith('plugin-123', { page: 1, sort: 'newest' })
+      expect(mockPluginEventIndexBySlug).toHaveBeenCalledWith('janedev', '@dsh/my-plugin', { page: 1, sort: 'newest' })
       expect(wrapper.text()).toContain('History timeline')
       expect(mockReplace).not.toHaveBeenCalled()
     })
@@ -160,7 +160,7 @@ describe('PluginHistoryView.vue', () => {
     it('labels each event type', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([
           event({ id: 'e1', event_type: 'created', created_at: '2026-10-01T00:00:00Z' }),
           event({ id: 'e2', event_type: 'resubmitted', created_at: '2026-10-02T00:00:00Z' }),
@@ -233,7 +233,7 @@ describe('PluginHistoryView.vue', () => {
     it('shows the message an admin wrote', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([
           event({
             event_type: 'update_requested',
@@ -255,7 +255,7 @@ describe('PluginHistoryView.vue', () => {
     it('renders no message block for an event that carries none', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([event({ event_type: 'approved', message: null })]),
       )
 
@@ -282,7 +282,7 @@ describe('PluginHistoryView.vue', () => {
     it('falls back to the raw value for an unknown event type', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([event({ event_type: 'some_future_type' })]),
       )
 
@@ -303,7 +303,7 @@ describe('PluginHistoryView.vue', () => {
     it('carries no pending-request counter', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([
           event({ id: 'e1', event_type: 'created' }),
           event({ id: 'e2', event_type: 'update_requested', message: 'Fix the typo.' }),
@@ -323,7 +323,7 @@ describe('PluginHistoryView.vue', () => {
     it('explains an empty timeline', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(timeline([]))
+      mockPluginEventIndexBySlug.mockResolvedValue(timeline([]))
 
       const wrapper = await mountView()
 
@@ -333,7 +333,7 @@ describe('PluginHistoryView.vue', () => {
     it('shows the server message on failure', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockRejectedValue({
+      mockPluginEventIndexBySlug.mockRejectedValue({
         response: { data: { message: 'Resource not found.' } },
       })
 
@@ -345,7 +345,7 @@ describe('PluginHistoryView.vue', () => {
     it('falls back to its own message when the server sends none', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockRejectedValue({})
+      mockPluginEventIndexBySlug.mockRejectedValue({})
 
       const wrapper = await mountView()
 
@@ -357,7 +357,7 @@ describe('PluginHistoryView.vue', () => {
     it('requests the reversed order on the second press', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([event()], { current_page: 1, last_page: 1, total: 1 }),
       )
 
@@ -366,7 +366,7 @@ describe('PluginHistoryView.vue', () => {
       await wrapper.find('button').trigger('click')
       await flushPromises()
 
-      expect(mockPluginEventIndex).toHaveBeenLastCalledWith('plugin-123', {
+      expect(mockPluginEventIndexBySlug).toHaveBeenLastCalledWith('janedev', '@dsh/my-plugin', {
         page: 1,
         sort: 'oldest',
       })
@@ -376,7 +376,7 @@ describe('PluginHistoryView.vue', () => {
     it('hides the pager when everything fits on one page', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([event()], { current_page: 1, last_page: 1, total: 1 }),
       )
 
@@ -388,7 +388,7 @@ describe('PluginHistoryView.vue', () => {
     it('pages forward and back', async () => {
       signIn()
       seedStore()
-      mockPluginEventIndex.mockResolvedValue(
+      mockPluginEventIndexBySlug.mockResolvedValue(
         timeline([event()], { current_page: 2, last_page: 3, total: 50 }),
       )
 
@@ -400,7 +400,7 @@ describe('PluginHistoryView.vue', () => {
       await previous!.trigger('click')
       await flushPromises()
 
-      expect(mockPluginEventIndex).toHaveBeenLastCalledWith('plugin-123', {
+      expect(mockPluginEventIndexBySlug).toHaveBeenLastCalledWith('janedev', '@dsh/my-plugin', {
         page: 1,
         sort: 'newest',
       })

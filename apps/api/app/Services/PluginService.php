@@ -166,6 +166,27 @@ final class PluginService
     }
 
     /**
+     * Same edit, addressed by the author and plugin name instead of the id.
+     *
+     * Uses the visibility filter so non-owners of unapproved plugins
+     * receive 404 (as if the plugin does not exist), matching the behavior
+     * of getPluginByUsernameAndPluginName and PluginEventController.
+     *
+     * @param  array<string, mixed>  $attributes  Validated patch payload.
+     */
+    public function updateBySlug(
+        User $user,
+        string $username,
+        string $pluginName,
+        array $attributes,
+        RequestContext $requestContext,
+    ): Plugin {
+        $plugin = $this->getPluginByUsernameAndPluginName($username, $pluginName, $user);
+
+        return $this->update($user, $plugin->id, $attributes, $requestContext);
+    }
+
+    /**
      * Write whichever of the two the payload carries.
      *
      * A key that is absent is left alone, so an edit that sends just `category`
@@ -298,10 +319,11 @@ final class PluginService
      *                           each plugin carries the viewer-specific `is_star` flag.
      * @param  string|null  $category  Restrict to one category, or null for all of them.
      * @param  string|null  $search  Match against plugin name and title, or null to skip the filter.
+     * @param  string|null  $userId  Restrict to plugins by this user, or null for all users.
      */
-    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null, ?string $category = null, ?string $search = null): LengthAwarePaginator
+    public function getPaginatedApprovedPlugins(int $perPage, ?User $user = null, ?string $category = null, ?string $search = null, ?string $userId = null): LengthAwarePaginator
     {
-        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage, $category, $search);
+        $paginator = $this->pluginRepository->getPaginatedApprovedPlugins($perPage, $category, $search, $userId);
 
         // A guest has no stars, so there is nothing to resolve and no flag to
         // set. Skipping here is also what keeps the public list query count at
@@ -320,28 +342,29 @@ final class PluginService
      */
     public function getPlugin(string $id, ?User $user = null): Plugin
     {
-        $plugin = $this->resolveVisiblePlugin($id, $user);
+        return $this->getVisiblePlugin($this->pluginRepository->findById($id), $user);
+    }
 
-        if ($user !== null) {
-            $this->markStarredFlag([$plugin], (string) $user->getAuthIdentifier());
-        }
-
-        return $plugin;
+    public function getPluginByUsernameAndPluginName(string $username, string $name, ?User $user = null): Plugin
+    {
+        return $this->getVisiblePlugin(
+            $this->pluginRepository->findByUsernameAndPluginName($username, $name),
+            $user,
+        );
     }
 
     /**
-     * The plugin behind the id, or a 404 for a caller who may not open it.
+     * The plugin, or a 404 for a caller who may not open it.
      */
-    private function resolveVisiblePlugin(string $id, ?User $user): Plugin
+    private function getVisiblePlugin(Plugin $plugin, ?User $user): Plugin
     {
-        $plugin = $this->pluginRepository->findById($id);
-
-        if ($plugin->status === PluginStatus::Approved) {
-            return $plugin;
+        if ($plugin->status !== PluginStatus::Approved
+            && ($user === null || $plugin->user_id !== $user->getAuthIdentifier())) {
+            throw (new ModelNotFoundException)->setModel(Plugin::class, [$plugin->getKey()]);
         }
 
-        if ($user === null || $plugin->user_id !== $user->getAuthIdentifier()) {
-            throw (new ModelNotFoundException)->setModel(Plugin::class, [$id]);
+        if ($user !== null) {
+            $this->markStarredFlag([$plugin], (string) $user->getAuthIdentifier());
         }
 
         return $plugin;

@@ -3,7 +3,8 @@ import {
   ProfileUpdateProfileBody,
   ProfileUpdatePasswordBody,
   profileUpdateProfileBodyNameMax,
-  profileUpdateProfileBodyGithubNameMax,
+  profileUpdateProfileBodyUsernameMax,
+  profileUpdateProfileBodyUsernameRegExp,
   profileUpdateProfileBodyGithubLinkMax,
   profileUpdatePasswordBodyNewPasswordMin,
 } from '@/api/generated/zod/profile/profile';
@@ -15,9 +16,14 @@ export const profileSchema = toTypedSchema(
       .min(1, 'Name is required')
       .max(profileUpdateProfileBodyNameMax, `Name must be at most ${profileUpdateProfileBodyNameMax} characters`),
 
-    githubName: z.string()
-      .max(profileUpdateProfileBodyGithubNameMax, `GitHub username must be at most ${profileUpdateProfileBodyGithubNameMax} characters`)
-      .nullish(),
+    username: z
+      .string()
+      .min(1, 'Username is required')
+      .max(profileUpdateProfileBodyUsernameMax, `Username must be at most ${profileUpdateProfileBodyUsernameMax} characters`)
+      .regex(
+        profileUpdateProfileBodyUsernameRegExp,
+        'Username may only contain letters, numbers and hyphens, and cannot start or end with a hyphen, or contain consecutive hyphens',
+      ),
 
     // Ô text luôn trả về '' khi để trống, API kỳ vọng null nên phải cho qua ''
     githubLink: z.string()

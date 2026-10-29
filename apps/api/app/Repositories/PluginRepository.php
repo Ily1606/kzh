@@ -56,6 +56,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         $plugins = $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            // Exclude plugins whose author has been soft-deleted.
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed())
             ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
             ->whereIn('id', $ids)
             ->get();
@@ -83,6 +85,14 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
     public function findById(string $id): Plugin
     {
         return $this->baseQuery()->findOrFail($id);
+    }
+
+    public function findByUsernameAndPluginName(string $username, string $name): Plugin
+    {
+        return $this->baseQuery()
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed()->where('username', strtolower($username)))
+            ->where('name', $name)
+            ->firstOrFail();
     }
 
     /**
@@ -116,11 +126,15 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         );
     }
 
-    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null): LengthAwarePaginator
+    public function getPaginatedApprovedPlugins(int $perPage, ?string $category = null, ?string $search = null, ?string $userId = null): LengthAwarePaginator
     {
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            // Exclude plugins whose author has been soft-deleted.
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed())
+            // Restrict to plugins by this user, when given.
+            ->when($userId !== null, fn (Builder $query) => $query->where('user_id', $userId))
             // Keep only the plugins filed under this category, when given.
             ->when($category !== null, fn (Builder $query) => $query->whereHas(
                 'categories',
@@ -194,6 +208,8 @@ class PluginRepository extends BaseRepository implements PluginRepositoryInterfa
         return $this->baseQuery()
             ->where('status', PluginStatus::Approved)
             ->whereNotNull('approved_at')
+            // Exclude plugins whose author has been soft-deleted.
+            ->whereHas('user', fn (Builder $query) => $query->withoutTrashed())
             ->selectRaw("*, {$this->starCountSql()} as star_count, {$this->commentCountSql()} as comment_count")
             ->orderByDesc('view_count')
             ->orderByRaw($this->starCountSql().' desc')

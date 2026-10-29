@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 
 const props = withDefaults(
   defineProps<{
@@ -6,12 +7,14 @@ const props = withDefaults(
     src?: string | null;
     fallback?: string;
     size?: 'sm' | 'md';
+    username?: string | null;
   }>(),
   {
     name: null,
     src: null,
     fallback: 'community',
     size: 'sm',
+    username: null,
   }
 )
 
@@ -30,7 +33,14 @@ function hideBrokenImage(event: Event) {
 
 <template>
   <span class="inline-flex items-center gap-1.5 min-w-0">
-    <span class="truncate">{{ displayName() }}</span>
+    <RouterLink
+      v-if="username"
+      :to="{ name: 'author-profile', params: { username } }"
+      class="truncate transition-colors hover:text-primary hover:underline"
+    >
+      {{ displayName() }}
+    </RouterLink>
+    <span v-else class="truncate">{{ displayName() }}</span>
     <span
       class="relative hidden @xs:inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-primary/10 font-bold leading-none text-primary"
       :class="[SIZES[size].box, SIZES[size].text]"

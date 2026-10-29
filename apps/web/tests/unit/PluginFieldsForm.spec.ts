@@ -19,7 +19,7 @@ const waitForValidation = async () => {
 }
 
 const valid: PluginFields = {
-  name: '@dsh/guardrails',
+  name: 'guardrails',
   title: 'Opinionated safety checks',
   license: 'MIT',
   category: 'Security & diagnostics',

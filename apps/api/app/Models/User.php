@@ -9,6 +9,7 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,6 +21,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable([
     'name',
+    'username',
     'email',
     'password',
     'locked_at',
@@ -30,6 +32,10 @@ class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes;
+
+    protected $attributes = [
+        'is_admin' => false,
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -90,5 +96,15 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return (bool) $this->is_admin && $this->locked_at === null && $this->deleted_at === null;
+    }
+
+    /**
+     * The avatar URL of the user.
+     */
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): string => $this->profile?->avatar_url ?? url(UserProfile::DEFAULT_AVATAR_PATH)
+        );
     }
 }

@@ -21,7 +21,7 @@ class PluginFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->unique()->words(2, true),
+            'name' => fake()->unique()->slug(2),
             'user_id' => User::factory(),
             'title' => fake()->sentence(3),
             'license' => PluginLicense::MIT->value,

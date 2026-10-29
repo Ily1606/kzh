@@ -15,8 +15,15 @@ const route = useRoute()
 const router = useRouter()
 const store = usePluginsStore()
 
-const pluginId = computed(() => route.params.id as string)
-const plugin = computed<PluginResource | null>(() => store.findById(pluginId.value))
+const username = computed(() => route.params.username as string)
+const pluginName = computed(() => route.params.pluginName as string)
+
+const plugin = computed<PluginResource | null>(() => {
+  if (username.value && pluginName.value) {
+    return store.findBySlug(username.value, pluginName.value)
+  }
+  return null
+})
 
 const { canEdit } = usePluginDetailAccess(plugin)
 
@@ -39,7 +46,13 @@ const initialValues = computed<PluginFields | null>(() =>
  * Only a pending plugin is editable
  */
 function leave() {
-  router.replace({ name: 'plugin-detail', params: { id: pluginId.value } })
+  router.replace({
+    name: 'plugin-detail',
+    params: {
+      username: username.value,
+      pluginName: pluginName.value,
+    },
+  })
 }
 
 /** A bookmark or a new tab has no earlier entry, so `router.back()` would drop
@@ -55,8 +68,14 @@ function goBack() {
 }
 
 async function save(values: PluginFields) {
+  if (!plugin.value) return
+
   error.value = ''
-  const saved = await store.updatePlugin(pluginId.value, values as UpdatePluginRequest)
+  const saved = await store.updatePlugin(
+    username.value,
+    pluginName.value,
+    values as UpdatePluginRequest
+  )
 
   if (!saved) {
     error.value = 'Could not save the plugin. Please try again.'
@@ -66,11 +85,26 @@ async function save(values: PluginFields) {
 
   notifySuccess('Plugin updated successfully.')
 
-  goBack()
+  // An edit can rename the plugin, so the URL that got us here may now 404.
+  if (saved.author && saved.author.username === username.value && saved.name === pluginName.value) {
+    goBack()
+
+    return
+  }
+
+  router.replace({
+    name: 'plugin-detail',
+    params: {
+      username: saved.author?.username ?? username.value,
+      pluginName: saved.name,
+    },
+  })
 }
 
 onMounted(async () => {
-  await store.ensurePlugin(pluginId.value)
+  if (username.value && pluginName.value) {
+    await store.ensurePluginBySlug(username.value, pluginName.value)
+  }
 
   // Re-checked after the fetch: the store may have been empty on mount, and
   // ownership is only knowable once the plugin is actually in hand.

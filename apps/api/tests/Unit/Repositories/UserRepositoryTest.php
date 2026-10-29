@@ -44,6 +44,7 @@ class UserRepositoryTest extends TestCase
 
         $user = $repository->create([
             'name' => 'Nguyen Van A',
+            'username' => 'nguyen-van-a',
             'email' => 'nguyen@example.com',
             'password' => 'secret-password',
         ]);

@@ -40,7 +40,7 @@ class UpdatePluginTest extends TestCase
 
         return $factory->create(array_merge([
             'user_id' => $user->id,
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
             'title' => 'Debugbar for Laravel',
             'license' => 'MIT',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar',
@@ -79,7 +79,7 @@ class UpdatePluginTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->patchJson("/api/v1/plugins/{$plugin->id}", [
-            'name' => 'Laravel Debugbar Renamed',
+            'name' => 'Laravel-Debugbar-Renamed',
             'title' => 'Debugbar cho Laravel',
             'license' => 'GPL-3.0',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar/tree/3.x',
@@ -88,14 +88,14 @@ class UpdatePluginTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('message', 'Plugin updated successfully.')
             ->assertJsonPath('data.plugin.id', $plugin->id)
-            ->assertJsonPath('data.plugin.name', 'Laravel Debugbar Renamed')
+            ->assertJsonPath('data.plugin.name', 'Laravel-Debugbar-Renamed')
             ->assertJsonPath('data.plugin.title', 'Debugbar cho Laravel')
             ->assertJsonPath('data.plugin.license', 'GPL-3.0')
             ->assertJsonPath('data.plugin.source_link', 'https://github.com/barryvdh/laravel-debugbar/tree/3.x');
 
         $this->assertDatabaseHas('plugins', [
             'id' => $plugin->id,
-            'name' => 'Laravel Debugbar Renamed',
+            'name' => 'Laravel-Debugbar-Renamed',
             'title' => 'Debugbar cho Laravel',
             'license' => 'GPL-3.0',
             'source_link' => 'https://github.com/barryvdh/laravel-debugbar/tree/3.x',
@@ -112,14 +112,14 @@ class UpdatePluginTest extends TestCase
             'title' => 'Debugbar mới',
         ])->assertOk()
             ->assertJsonPath('data.plugin.title', 'Debugbar mới')
-            ->assertJsonPath('data.plugin.name', 'Laravel Debugbar')
+            ->assertJsonPath('data.plugin.name', 'Laravel-Debugbar')
             ->assertJsonPath('data.plugin.license', 'MIT')
             ->assertJsonPath('data.plugin.source_link', 'https://github.com/barryvdh/laravel-debugbar');
 
         $plugin->refresh();
 
         $this->assertSame('Debugbar mới', $plugin->title);
-        $this->assertSame('Laravel Debugbar', $plugin->name);
+        $this->assertSame('Laravel-Debugbar', $plugin->name);
         $this->assertSame('MIT', $plugin->license);
     }
 
@@ -231,6 +231,71 @@ class UpdatePluginTest extends TestCase
             ->assertJsonPath('data.plugin.approved_at', null);
     }
 
+    public function test_owner_can_update_by_slug(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$user->username}/{$plugin->name}", [
+            'title' => 'Sửa bằng slug',
+        ])->assertOk()
+            ->assertJsonPath('data.plugin.title', 'Sửa bằng slug');
+
+        $this->assertDatabaseHas('plugins', [
+            'id' => $plugin->id,
+            'title' => 'Sửa bằng slug',
+        ]);
+    }
+
+    public function test_renaming_by_slug_returns_the_new_slug(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user, ['name' => 'Old-Name']);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$user->username}/Old-Name", [
+            'name' => 'New-Name',
+        ])->assertOk()
+            ->assertJsonPath('data.plugin.name', 'New-Name')
+            ->assertJsonPath('data.plugin.author.username', $user->username);
+
+        $this->assertDatabaseHas('plugins', ['id' => $plugin->id, 'name' => 'New-Name']);
+    }
+
+    public function test_a_plugin_owned_by_someone_else_cannot_be_updated_by_slug(): void
+    {
+        $owner = User::factory()->create();
+        $intruder = User::factory()->create();
+        $plugin = $this->pluginFor($owner); // pending by default
+        Sanctum::actingAs($intruder);
+
+        // Non-approved plugins are hidden from non-owners (404, not 403)
+        // to avoid confirming their existence.
+        $this->patchJson("/api/v1/plugins/{$owner->username}/{$plugin->name}", [
+            'title' => 'Đã bị chiếm',
+        ])->assertNotFound();
+    }
+
+    public function test_unknown_slug_is_a_not_found_on_update(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->patchJson('/api/v1/plugins/nobody/unknown-plugin', [
+            'title' => 'Không tồn tại',
+        ])->assertNotFound();
+    }
+
+    public function test_update_by_slug_requires_authentication(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+
+        $this->patchJson("/api/v1/plugins/{$user->username}/{$plugin->name}", [
+            'title' => 'Không token',
+        ])->assertUnauthorized();
+    }
+
     public function test_a_plugin_owned_by_someone_else_cannot_be_updated(): void
     {
         $owner = User::factory()->create();
@@ -288,12 +353,12 @@ class UpdatePluginTest extends TestCase
         $plugin = $this->pluginFor($user, ['name' => 'Debugbar']);
         Plugin::factory()->create([
             'user_id' => $user->id,
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
         ]);
         Sanctum::actingAs($user);
 
         $this->patchJson("/api/v1/plugins/{$plugin->id}", [
-            'name' => 'Laravel Debugbar',
+            'name' => 'Laravel-Debugbar',
         ])
             ->assertUnprocessable()
             ->assertJsonPath('success', false)
@@ -376,6 +441,24 @@ class UpdatePluginTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('name');
+    }
+
+    public function test_names_outside_the_allowed_characters_are_rejected(): void
+    {
+        $user = User::factory()->create();
+        $plugin = $this->pluginFor($user);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("/api/v1/plugins/{$plugin->id}", [
+            'name' => '@dsh/guardrails',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.name.0', __('api.plugin_name_invalid'));
+
+        $this->assertDatabaseHas('plugins', [
+            'id' => $plugin->id,
+            'name' => 'Laravel-Debugbar',
+        ]);
     }
 
     public function test_strings_are_trimmed_before_validation(): void

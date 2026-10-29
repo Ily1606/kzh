@@ -7,7 +7,10 @@
 import type { SubmitPluginRequestLicense } from './submitPluginRequestLicense';
 
 export interface SubmitPluginRequest {
-  /** @maxLength 255 */
+  /**
+     * @maxLength 255
+     * @pattern ^(?!\.{1,2}$)[A-Za-z0-9._-]+$
+     */
   name: string;
   /** @maxLength 255 */
   title: string;

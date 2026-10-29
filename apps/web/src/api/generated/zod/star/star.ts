@@ -30,6 +30,29 @@ export const StarStoreResponse = zod.object({
 })
 
 /**
+ * @summary Star or unstar a plugin, addressed by its author and name
+ */
+export const StarStoreBySlugParams = zod.object({
+  "username": zod.string(),
+  "pluginName": zod.string()
+})
+
+export const StarStoreBySlugBody = zod.object({
+  "starred": zod.boolean()
+})
+
+export const StarStoreBySlugResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.enum(['Plugin starred successfully.', 'Plugin unstarred successfully.']),
+  "data": zod.object({
+  "starred": zod.boolean(),
+  "star_count": zod.number().int()
+}),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
  * @summary Get star timeline for a plugin
  */
 export const StarTimelineParams = zod.object({

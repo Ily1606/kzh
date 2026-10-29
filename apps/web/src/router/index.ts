@@ -75,28 +75,34 @@ export const router = createRouter({
       meta: { layout: 'auth', title: 'Reset Password', guestOnly: true }
     },
     {
-      path: "/plugins/:id",
+      path: "/plugins/:username/:pluginName",
       name: "plugin-detail",
       component: () => import("@/views/PluginDetailView.vue"),
       meta: { layout: 'default' }
     },
     {
-      path: "/resources/:id/edit",
+      path: "/resources/:username/:pluginName/edit",
       name: "plugin-edit",
       component: () => import("@/views/EditPluginView.vue"),
       meta: { layout: 'default', requiresAuth: true }
     },
     {
-      path: "/plugins/:id/history",
+      path: "/plugins/:username/:pluginName/history",
       name: "plugin-history",
       component: () => import("@/views/PluginHistoryView.vue"),
       meta: { layout: 'default', requiresAuth: true }
     },
     {
-      path: "/profile",
-      name: "profile",
-      component: () => import("@/views/ProfileView.vue"),
+      path: "/settings",
+      name: "profile-settings",
+      component: () => import("@/views/ProfileSettingsView.vue"),
       meta: { layout: 'default', requiresAuth: true }
+    },
+    {
+      path: "/profile/:username",
+      name: "author-profile",
+      component: () => import("@/views/ProfileView.vue"),
+      meta: { layout: 'default' }
     },
     {
       path: '/:pathMatch(.*)*',
@@ -120,5 +126,15 @@ router.beforeEach((to) => {
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } };
+  }
+
+  // Normalize username route param to lowercase
+  const username = to.params.username;
+  if (typeof username === 'string' && username !== username.toLowerCase()) {
+    return {
+      ...to,
+      params: { ...to.params, username: username.toLowerCase() },
+      replace: true,
+    };
   }
 });

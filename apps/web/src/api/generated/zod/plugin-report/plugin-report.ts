@@ -25,19 +25,16 @@ export const PluginReportStoreBody = zod.object({
   "reason": zod.string().min(pluginReportStoreBodyReasonMin).max(pluginReportStoreBodyReasonMax)
 })
 
+export const pluginReportStoreResponseDataReportMin = 0;
+export const pluginReportStoreResponseDataReportMax = 0;
+
+
+
 export const PluginReportStoreResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.literal("Plugin reported successfully. Our moderators will review it shortly."),
   "data": zod.object({
-  "report": zod.object({
-  "id": zod.string(),
-  "user_id": zod.string(),
-  "plugin_id": zod.string(),
-  "reason": zod.string(),
-  "created_at": zod.string().datetime({"offset":true}).nullable(),
-  "updated_at": zod.string().datetime({"offset":true}).nullable(),
-  "deleted_at": zod.string().datetime({"offset":true}).nullable()
-})
+  "report": zod.array(zod.string()).min(pluginReportStoreResponseDataReportMin).max(pluginReportStoreResponseDataReportMax)
 }),
   "errors": zod.null(),
   "meta": zod.string()

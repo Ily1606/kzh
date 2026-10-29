@@ -84,9 +84,13 @@ class PluginController extends Controller
      * @unauthenticated
      */
     #[Response(status: 404, description: 'The plugin does not exist, is soft-deleted, or is not approved and not the caller\'s.')]
-    public function show(Request $request, string $id): JsonResponse
+    public function show(Request $request, string $username, string $pluginName): JsonResponse
     {
-        $plugin = $this->pluginService->getPlugin($id, $request->user());
+        $plugin = $this->pluginService->getPluginByUsernameAndPluginName(
+            $username,
+            $pluginName,
+            $request->user(),
+        );
 
         return ApiResponse::successResponse([
             'plugin' => new PluginResource($plugin),
@@ -148,6 +152,27 @@ class PluginController extends Controller
     }
 
     /**
+     * Update a plugin you own, addressed by its author and name.
+     */
+    #[Response(status: 404, description: 'The plugin does not exist or is soft-deleted.')]
+    #[Response(status: 429, description: 'Too many submissions. Retry after the rate limit window resets.')]
+    public function updateBySlug(UpdatePluginRequest $request, string $username, string $pluginName): JsonResponse
+    {
+        $plugin = $this->pluginService->updateBySlug(
+            $request->user(),
+            $username,
+            $pluginName,
+            $request->validated(),
+            RequestContext::fromRequest($request),
+        );
+
+        return ApiResponse::successResponse(
+            ['plugin' => new PluginResource($plugin)],
+            __('api.plugin_updated_successfully'),
+        );
+    }
+
+    /**
      * Track view
      *
      * Include request header `Authorization: Bearer <token>` if user logged in (optional).
@@ -160,7 +185,7 @@ class PluginController extends Controller
         $result = $this->pluginService->incrementViewIfNotViewed($id, $viewerId);
 
         return ApiResponse::successResponse(
-            (new PluginViewResource($result))->resolve(),
+            new PluginViewResource($result),
             $result->message
         );
     }

@@ -7,6 +7,7 @@ import { MotionConfig } from 'motion-v'
 import { computed, nextTick, onMounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { Toaster } from 'vue-sonner'
+import 'vue-sonner/style.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,7 +72,7 @@ watch(layout, async () => {
         </Transition>
       </RouterView>
     </component>
-    <Toaster richColors position="top-right" />
+    <Toaster richColors position="top-right" close-button :visible-toasts="3" closeButtonPosition="top-right" />
   </MotionConfig>
 </template>
 

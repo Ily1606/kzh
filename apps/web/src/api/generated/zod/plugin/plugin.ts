@@ -39,6 +39,7 @@ export const PluginMyPluginsResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -82,6 +83,8 @@ export const PluginMyPluginsResponse = zod.object({
  */
 export const pluginStoreBodyNameMax = 255;
 
+
+export const pluginStoreBodyNameRegExp = new RegExp('^(?!\\.{1,2}$)[A-Za-z0-9._-]+$');
 export const pluginStoreBodyTitleMax = 255;
 
 export const pluginStoreBodyTagsMax = 5;
@@ -91,7 +94,7 @@ export const pluginStoreBodySourceLinkMax = 2048;
 
 
 export const PluginStoreBody = zod.object({
-  "name": zod.string().max(pluginStoreBodyNameMax),
+  "name": zod.string().max(pluginStoreBodyNameMax).regex(pluginStoreBodyNameRegExp),
   "title": zod.string().max(pluginStoreBodyTitleMax),
   "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']),
   "category": zod.string(),
@@ -110,6 +113,7 @@ export const PluginStoreResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -165,6 +169,7 @@ export const PluginIndexResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -212,6 +217,8 @@ export const PluginUpdateParams = zod.object({
 
 export const pluginUpdateBodyNameMax = 255;
 
+
+export const pluginUpdateBodyNameRegExp = new RegExp('^(?!\\.{1,2}$)[A-Za-z0-9._-]+$');
 export const pluginUpdateBodyTitleMax = 255;
 
 export const pluginUpdateBodyTagsMax = 5;
@@ -221,7 +228,7 @@ export const pluginUpdateBodySourceLinkMax = 2048;
 
 
 export const PluginUpdateBody = zod.object({
-  "name": zod.string().max(pluginUpdateBodyNameMax).optional(),
+  "name": zod.string().max(pluginUpdateBodyNameMax).regex(pluginUpdateBodyNameRegExp).optional(),
   "title": zod.string().max(pluginUpdateBodyTitleMax).optional(),
   "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']).optional(),
   "category": zod.string().optional(),
@@ -240,6 +247,7 @@ export const PluginUpdateResponse = zod.object({
   "author": zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "username": zod.string(),
   "avatar_url": zod.string()
 }).nullable(),
   "title": zod.string(),
@@ -277,6 +285,111 @@ export const PluginDestroyResponse = zod.object({
 })
 
 /**
+ * @summary Update a plugin you own, addressed by its author and name
+ */
+export const PluginUpdateBySlugParams = zod.object({
+  "username": zod.string(),
+  "pluginName": zod.string()
+})
+
+export const pluginUpdateBySlugBodyNameMax = 255;
+
+
+export const pluginUpdateBySlugBodyNameRegExp = new RegExp('^(?!\\.{1,2}$)[A-Za-z0-9._-]+$');
+export const pluginUpdateBySlugBodyTitleMax = 255;
+
+export const pluginUpdateBySlugBodyTagsMax = 5;
+
+export const pluginUpdateBySlugBodySourceLinkMax = 2048;
+
+
+
+export const PluginUpdateBySlugBody = zod.object({
+  "name": zod.string().max(pluginUpdateBySlugBodyNameMax).regex(pluginUpdateBySlugBodyNameRegExp).optional(),
+  "title": zod.string().max(pluginUpdateBySlugBodyTitleMax).optional(),
+  "license": zod.enum(['MIT', 'Apache-2.0', 'GPL-2.0', 'GPL-3.0', 'BSD-3-Clause', 'proprietary']).optional(),
+  "category": zod.string().optional(),
+  "tags": zod.array(zod.string()).max(pluginUpdateBySlugBodyTagsMax).nullish(),
+  "source_link": zod.string().url().max(pluginUpdateBySlugBodySourceLinkMax).optional()
+})
+
+export const PluginUpdateBySlugResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Plugin updated successfully."),
+  "data": zod.object({
+  "plugin": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "user_id": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "username": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
+  "title": zod.string(),
+  "license": zod.string(),
+  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
+  "tags": zod.array(zod.string()),
+  "approved_at": zod.string().nullable(),
+  "status": zod.string(),
+  "source_link": zod.string(),
+  "star_count": zod.number().int(),
+  "is_star": zod.boolean().optional(),
+  "comment_count": zod.number().int(),
+  "view_count": zod.number().int(),
+  "created_at": zod.string().nullable(),
+  "updated_at": zod.string().nullable()
+})
+}),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
+ * An approved plugin is public. A plugin still in review is readable by
+ * its own author only.
+ * @summary Get one plugin's detail
+ */
+export const PluginShowParams = zod.object({
+  "username": zod.string(),
+  "pluginName": zod.string()
+})
+
+export const PluginShowResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.literal("Request successful."),
+  "data": zod.object({
+  "plugin": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "user_id": zod.string(),
+  "author": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "username": zod.string(),
+  "avatar_url": zod.string()
+}).nullable(),
+  "title": zod.string(),
+  "license": zod.string(),
+  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
+  "tags": zod.array(zod.string()),
+  "approved_at": zod.string().nullable(),
+  "status": zod.string(),
+  "source_link": zod.string(),
+  "star_count": zod.number().int(),
+  "is_star": zod.boolean().optional(),
+  "comment_count": zod.number().int(),
+  "view_count": zod.number().int(),
+  "created_at": zod.string().nullable(),
+  "updated_at": zod.string().nullable()
+})
+}),
+  "errors": zod.null(),
+  "meta": zod.string()
+})
+
+/**
  * @summary Trending
  */
 
@@ -308,47 +421,6 @@ export const PluginTrendingResponse = zod.object({
 })
 
 /**
- * An approved plugin is public. A plugin still in review is readable by
- * its own author only.
- * @summary Get one plugin's detail
- */
-export const PluginShowParams = zod.object({
-  "id": zod.string()
-})
-
-export const PluginShowResponse = zod.object({
-  "success": zod.boolean(),
-  "message": zod.literal("Request successful."),
-  "data": zod.object({
-  "plugin": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "user_id": zod.string(),
-  "author": zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "avatar_url": zod.string()
-}).nullable(),
-  "title": zod.string(),
-  "license": zod.string(),
-  "category": zod.string().nullable().describe('Null for a plugin submitted before categories existed.'),
-  "tags": zod.array(zod.string()),
-  "approved_at": zod.string().nullable(),
-  "status": zod.string(),
-  "source_link": zod.string(),
-  "star_count": zod.number().int(),
-  "is_star": zod.boolean().optional(),
-  "comment_count": zod.number().int(),
-  "view_count": zod.number().int(),
-  "created_at": zod.string().nullable(),
-  "updated_at": zod.string().nullable()
-})
-}),
-  "errors": zod.null(),
-  "meta": zod.string()
-})
-
-/**
  * Include request header `Authorization: Bearer <token>` if user logged in (optional).
  * @summary Track view
  */
@@ -359,7 +431,10 @@ export const PluginTrackViewParams = zod.object({
 export const PluginTrackViewResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string(),
-  "data": zod.array(zod.unknown()),
+  "data": zod.object({
+  "status": zod.string(),
+  "view_count": zod.number().int()
+}),
   "errors": zod.null(),
   "meta": zod.string()
 })

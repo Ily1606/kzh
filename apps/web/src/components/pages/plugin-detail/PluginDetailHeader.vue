@@ -123,10 +123,21 @@ async function handleDelete() {
       <p class="text-lg text-muted-foreground">{{ plugin.title }}</p>
 
        <!-- Infomation: Author, License, updated_at, views, stars -->
-      <div class="@container grid grid-cols-1 items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">
+      <div class="@container min-w-xs grid grid-cols-1 items-center gap-y-2 gap-x-4 text-sm text-muted-foreground pt-1">
         <span class="flex items-center gap-x-2">
           <BookOpen class="size-5 text-muted-foreground" />
-          <span>By: <span class="font-medium text-foreground">{{ plugin.author?.name }}</span></span>
+          <span>
+            By:
+            <RouterLink
+              v-if="plugin.author?.username"
+              :to="{ name: 'author-profile', params: { username: plugin.author.username } }"
+              class="font-medium text-foreground transition-colors hover:text-primary hover:underline"
+            >
+              {{ plugin.author.name }}
+            </RouterLink>
+            <span v-else-if="plugin.author" class="font-medium text-foreground">{{ plugin.author.name }}</span>
+            <span v-else class="font-medium text-foreground">Deleted</span>
+          </span>
         </span>
         <span class="flex items-center gap-x-2">
           <Scale class="size-5" />
@@ -163,8 +174,8 @@ async function handleDelete() {
 
       <!-- Owner-only. -->
       <RouterLink
-        v-if="showHistoryLink"
-        :to="{ name: 'plugin-history', params: { id: plugin.id } }"
+        v-if="showHistoryLink && plugin.author"
+        :to="{ name: 'plugin-history', params: { username: plugin.author.username, pluginName: plugin.name } }"
         class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
       >
         <History class="size-4" />

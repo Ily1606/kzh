@@ -13,10 +13,13 @@ class PluginResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        // relationLoaded check the User object associated with this specific Plugin already in RAM?
+        // Prevent Orval generate the author is NULL
+        if (!$this->relationLoaded('user')) {
+            $this->load('user');
+        }
 
         /** @var User|null $author */
-        $author = $this->relationLoaded('user') ? $this->user : null;
+        $author = $this->user;
 
         return [
             'id' => $this->id,
@@ -25,7 +28,8 @@ class PluginResource extends JsonResource
             'author' => $author ? [
                 'id' => $author->id,
                 'name' => $author->name,
-                'avatar_url' => $author->profile?->avatar_url,
+                'username' => $author->username,
+                'avatar_url' => $author->avatar_url,
             ] : null,
             'title' => $this->title,
             'license' => $this->license,

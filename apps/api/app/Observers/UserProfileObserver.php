@@ -2,12 +2,24 @@
 
 namespace App\Observers;
 
+use App\Models\Plugin;
 use App\Models\UserProfile;
+use App\Services\TrendingTracker;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class UserProfileObserver
 {
+    /**
+     * Handle the UserProfile "created" event.
+     */
+    public function created(UserProfile $profile): void
+    {
+        DB::afterCommit(function () use ($profile): void {
+            $this->refreshTrendingCacheForAvatarChange($profile);
+        });
+    }
+
     /**
      * Handle the UserProfile "updated" event.
      */
@@ -20,6 +32,10 @@ class UserProfileObserver
                     Storage::disk(UserProfile::AVATAR_DISK)->delete($oldAvatar);
                 });
             }
+
+            DB::afterCommit(function () use ($profile): void {
+                $this->refreshTrendingCacheForAvatarChange($profile);
+            });
         }
     }
 
@@ -34,6 +50,20 @@ class UserProfileObserver
             DB::afterCommit(function () use ($avatar): void {
                 Storage::disk(UserProfile::AVATAR_DISK)->delete($avatar);
             });
+        }
+    }
+
+    /**
+     * Refresh trending cache for user's plugins when avatar changes.
+     */
+    private function refreshTrendingCacheForAvatarChange(UserProfile $profile): void
+    {
+        $userId = $profile->user_id;
+        if ($userId) {
+            $ids = Plugin::where('user_id', $userId)->pluck('id')->all();
+            if ($ids) {
+                TrendingTracker::refreshPlugins($ids);
+            }
         }
     }
 }

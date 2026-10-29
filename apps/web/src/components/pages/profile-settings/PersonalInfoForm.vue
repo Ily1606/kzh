@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useForm } from 'vee-validate';
 import { useAuth } from "@/composables/useAuth";
 import { getProfile } from "@/api/generated/endpoints";
 import { profileSchema } from "@/schemas/profile.schema";
 import { notifyError, notifySuccess } from "@/utils/toast";
-import Avatar from "@/components/pages/profile/Avatar.vue";
+import { usePluginsStore } from "@/stores/plugins";
+import Avatar from "@/components/pages/profile-settings/Avatar.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
 const auth = useAuth();
+const pluginsStore = usePluginsStore();
 const { profileUpdateProfile, profileUpdateAvatar } = getProfile();
 
 const avatarPreview = ref<string | null>(null);
@@ -50,55 +52,107 @@ const {
   errors,
   isSubmitting,
   setValues,
+  setFieldValue,
 } = useForm({
   validationSchema: profileSchema,
 });
 
 const [name, nameProps] = defineField('name');
-const [githubName, githubNameProps] = defineField('githubName');
+const [username, usernameProps] = defineField('username');
 const [githubLink, githubLinkProps] = defineField('githubLink');
 
-// Schema cho phép null, còn Input chỉ nhận string.
-const githubNameModel = computed({
-  get: () => githubName.value ?? '',
-  set: (value: string) => { githubName.value = value; },
+// Track if fields were manually edited by user
+const usernameEdited = ref(false);
+const nameEdited = ref(false);
+const githubLinkEdited = ref(false);
+
+const usernameModel = computed({
+  get: () => username.value ?? '',
+  set: (value: string) => {
+    username.value = value;
+    usernameEdited.value = true;
+  },
 });
+
+const nameModel = computed({
+  get: () => name.value ?? '',
+  set: (value: string) => {
+    name.value = value;
+    nameEdited.value = true;
+  },
+});
+
+// Schema cho phép null, còn Input chỉ nhận string.
 const githubLinkModel = computed({
   get: () => githubLink.value ?? '',
-  set: (value: string) => { githubLink.value = value; },
+  set: (value: string) => {
+    githubLink.value = value;
+    githubLinkEdited.value = true;
+  },
 });
 
 const onSubmit = handleSubmit(async (values) => {
   try {
+    const oldUsername = auth.user?.username;
     const response = await profileUpdateProfile({
       name: values.name,
-      githubName: values.githubName || null,
+      username: values.username,
       githubLink: values.githubLink || null,
     });
     if (auth.user) Object.assign(auth.user, response.data);
+
+    // If username changed, update cached plugin author usernames
+    if (oldUsername && oldUsername !== values.username) {
+      pluginsStore.updateCachedPluginAuthorUsername(values.username);
+    }
+
     notifySuccess("Profile updated successfully.");
   } catch (e: any) {
     notifyError(e?.response?.data?.message || "Failed to update profile. Please try again.");
   }
 });
 
-// Pre-fill from current user
+// Pre-fill from current user on mount
 onMounted(() => {
   if (auth.user) {
     setValues({
       name: auth.user.name ?? "",
-      githubName: auth.user.githubName ?? "",
+      username: auth.user.username ?? "",
       githubLink: auth.user.githubLink ?? "",
     });
   }
 });
+
+// Sync form when auth.user refreshes, but only if field is pristine
+watch(
+  () => auth.user,
+  (newUser) => {
+    if (!newUser) return;
+
+    // Only update name if user hasn't manually edited it
+    if (!nameEdited.value) {
+      setFieldValue('name', newUser.name ?? "");
+    }
+
+    // Only update githubLink if user hasn't manually edited it
+    if (!githubLinkEdited.value) {
+      setFieldValue('githubLink', newUser.githubLink ?? "");
+    }
+
+    // Only update username if user hasn't manually edited it
+    if (!usernameEdited.value) {
+      setFieldValue('username', newUser.username ?? "");
+    }
+  },
+  { deep: true }
+);
 </script>
 
 <template>
   <div>
     <div class="mb-5">
       <h2 class="text-lg font-medium">Personal Information</h2>
-      <p class="text-sm text-muted-foreground">Update your name and GitHub details.</p>
+      <p class="text-sm text-muted-foreground">Update your name, username and GitHub details.</p>
     </div>
 
     <!-- Avatar -->
@@ -114,14 +168,14 @@ onMounted(() => {
     <form class="space-y-4" @submit.prevent="onSubmit">
       <div class="space-y-1.5">
         <Label for="profileName">Name</Label>
-        <Input id="profileName" v-model="name" v-bind="nameProps" type="text" autocomplete="name" placeholder="Your name" :aria-invalid="Boolean(errors.name)" />
+        <Input id="profileName" v-model="nameModel" v-bind="nameProps" type="text" autocomplete="name" placeholder="Your name" :aria-invalid="Boolean(errors.name)" />
         <p v-if="errors.name" class="text-xs text-destructive">{{ errors.name }}</p>
       </div>
 
       <div class="space-y-1.5">
-        <Label for="githubName">GitHub username</Label>
-        <Input id="githubName" v-model="githubNameModel" v-bind="githubNameProps" type="text" placeholder="johndoe" :aria-invalid="Boolean(errors.githubName)" />
-        <p v-if="errors.githubName" class="text-xs text-destructive">{{ errors.githubName }}</p>
+        <Label for="username">Username</Label>
+        <Input id="username" v-model="usernameModel" v-bind="usernameProps" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="johndoe" :aria-invalid="Boolean(errors.username)" />
+        <p v-if="errors.username" class="text-xs text-destructive">{{ errors.username }}</p>
       </div>
 
       <div class="space-y-1.5">

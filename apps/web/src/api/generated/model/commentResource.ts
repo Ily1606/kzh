@@ -14,13 +14,6 @@ export interface CommentResource {
   content: string;
   /** @nullable */
   author: CommentResourceAuthor;
-  /**
-     * Number of visible direct replies — the client renders a "View N
-     *  replies" affordance when this is above 0 and calls the replies
-     * endpoint to expand them. The list queries compute it per row, so it
-     * is null on the create path, where a brand-new comment cannot have
-     * replies yet; the 0 fallback keeps that payload an integer too.
-     */
   replies_count: string | 0;
   /** @nullable */
   created_at: string | null;

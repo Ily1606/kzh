@@ -10,7 +10,7 @@ import type { PluginResource, UserResource } from '@/api/generated/model'
 
 const mockPluginShow = vi.fn()
 const mockPluginTrackView = vi.fn()
-const mockStarStore = vi.fn()
+const mockStarStoreBySlug = vi.fn()
 const mockNotifyError = vi.fn()
 const mockNotifySuccess = vi.fn()
 const mockPluginDestroy = vi.fn()
@@ -22,7 +22,7 @@ vi.mock('@/api/generated/endpoints', () => ({
     pluginTrackView: mockPluginTrackView,
     pluginDestroy: mockPluginDestroy
   }),
-  getStar: () => ({ starStore: mockStarStore }),
+  getStar: () => ({ starStoreBySlug: mockStarStoreBySlug }),
   getAuth: () => ({ authLogout: vi.fn() }),
   getProfile: () => ({ profileShow: vi.fn() }),
   getPluginReport: () => ({
@@ -41,9 +41,9 @@ vi.mock('@/utils/toast', () => ({
 }))
 
 const mockRoute = ref({
-  params: { id: 'plugin-123' } as Record<string, string>,
+  params: { username: 'janedev', pluginName: '@dsh/my-plugin' } as Record<string, string>,
   hash: '',
-  fullPath: '/plugins/plugin-123',
+  fullPath: '/plugins/janedev/@dsh/my-plugin',
   query: {} as Record<string, string | string[]>
 })
 
@@ -85,7 +85,7 @@ function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
     id: 'plugin-123',
     name: '@dsh/my-plugin',
     user_id: 'user-456',
-    author: { id: 'user-456', name: 'Jane Dev', avatar_url: '' },
+    author: { id: 'user-456', name: 'Jane Dev', username: 'janedev', avatar_url: '' },
     title: 'My awesome plugin',
     license: 'MIT',
     category: 'Integrations',
@@ -154,16 +154,16 @@ describe('PluginDetailView.vue', () => {
     setActivePinia(pinia)
     localStorage.clear()
 
-    mockRoute.value.params = { id: 'plugin-123' }
+    mockRoute.value.params = { username: 'janedev', pluginName: '@dsh/my-plugin' }
     mockRoute.value.hash = ''
     mockRoute.value.query = {}
-    mockRoute.value.fullPath = '/plugins/plugin-123'
+    mockRoute.value.fullPath = '/plugins/janedev/@dsh/my-plugin'
 
     mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin() } })
     mockPluginTrackView.mockResolvedValue({
       data: { status: 'success', message: 'View counted successfully.', view_count: 100 },
     })
-    mockStarStore.mockResolvedValue({ data: { starred: true, star_count: 6 } })
+    mockStarStoreBySlug.mockResolvedValue({ data: { starred: true, star_count: 6 } })
     mockNotifyError.mockImplementation(() => {})
     mockFetch.mockResolvedValue({
       ok: true,
@@ -207,15 +207,15 @@ describe('PluginDetailView.vue', () => {
     })
 
     it('fetches once when the store does not have the plugin', async () => {
-      mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin({ name: '@dsh/from-api' }) } })
+      mockPluginShow.mockResolvedValue({ data: { plugin: makePlugin({ title: 'From API Title' }) } })
 
       const wrapper = mountView()
       await flushPromises()
       await wrapper.vm.$nextTick()
 
       // The hard-refresh / shared-link case.
-      expect(mockPluginShow).toHaveBeenCalledWith('plugin-123')
-      expect(wrapper.text()).toContain('@dsh/from-api')
+      expect(mockPluginShow).toHaveBeenCalledWith('janedev', '@dsh/my-plugin')
+      expect(wrapper.text()).toContain('From API Title')
     })
 
     it('caches the fetched plugin so a second mount does not refetch', async () => {
@@ -268,7 +268,7 @@ describe('PluginDetailView.vue', () => {
       await wrapper.vm.$nextTick()
 
       expect(order).toEqual(['show', 'trackView'])
-      expect(mockPluginShow).toHaveBeenCalledWith('plugin-123')
+      expect(mockPluginShow).toHaveBeenCalledWith('janedev', '@dsh/my-plugin')
       expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-123')
       expect(mockPluginShow.mock.invocationCallOrder[0]).toBeLessThan(
         mockPluginTrackView.mock.invocationCallOrder[0]
@@ -279,14 +279,14 @@ describe('PluginDetailView.vue', () => {
 
     it('tracks view again when plugin route changes', async () => {
       seedStore(makePlugin({ id: 'plugin-123', view_count: 100 }))
-      seedStore(makePlugin({ id: 'plugin-456', view_count: 200 }))
+      seedStore(makePlugin({ id: 'plugin-456', name: '@dsh/another-plugin', view_count: 200 }))
 
       mountView()
       await flushPromises()
 
       expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-123')
 
-      mockRoute.value.params.id = 'plugin-456'
+      mockRoute.value.params = { username: 'janedev', pluginName: '@dsh/another-plugin' }
       await flushPromises()
 
       expect(mockPluginTrackView).toHaveBeenCalledWith('plugin-456')
@@ -376,7 +376,7 @@ describe('PluginDetailView.vue', () => {
       await starButton(wrapper)!.trigger('click')
       await flushPromises()
 
-      expect(mockStarStore).toHaveBeenCalledWith('plugin-123', { starred: true })
+      expect(mockStarStoreBySlug).toHaveBeenCalledWith('janedev', '@dsh/my-plugin', { starred: true })
       expect(wrapper.text()).toContain('6 stars')
       expect(starButton(wrapper)?.text()).toContain('Starred')
     })
@@ -384,7 +384,7 @@ describe('PluginDetailView.vue', () => {
     it('calls the API with starred false to unstar', async () => {
       signIn()
       seedStore(makePlugin({ is_star: true, star_count: 5 }))
-      mockStarStore.mockResolvedValue({ data: { starred: false, star_count: 4 } })
+      mockStarStoreBySlug.mockResolvedValue({ data: { starred: false, star_count: 4 } })
 
       const wrapper = mountView()
       await flushPromises()
@@ -392,7 +392,7 @@ describe('PluginDetailView.vue', () => {
       await starButton(wrapper)!.trigger('click')
       await flushPromises()
 
-      expect(mockStarStore).toHaveBeenCalledWith('plugin-123', { starred: false })
+      expect(mockStarStoreBySlug).toHaveBeenCalledWith('janedev', '@dsh/my-plugin', { starred: false })
       expect(wrapper.text()).toContain('4 stars')
       expect(starButton(wrapper)?.text()).toContain('Star')
     })
@@ -400,7 +400,7 @@ describe('PluginDetailView.vue', () => {
     it('lets the server count win over the optimistic one', async () => {
       signIn()
       seedStore(makePlugin({ is_star: false, star_count: 5 }))
-      mockStarStore.mockResolvedValue({ data: { starred: true, star_count: 17 } })
+      mockStarStoreBySlug.mockResolvedValue({ data: { starred: true, star_count: 17 } })
 
       const wrapper = mountView()
       await flushPromises()
@@ -478,7 +478,7 @@ describe('PluginDetailView.vue', () => {
     it('rolls back and notifies when the API fails', async () => {
       signIn()
       seedStore(makePlugin({ is_star: false, star_count: 5 }))
-      mockStarStore.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } })
+      mockStarStoreBySlug.mockRejectedValue({ response: { data: { message: 'Too many requests.' } } })
 
       const wrapper = mountView()
       await flushPromises()
@@ -496,7 +496,7 @@ describe('PluginDetailView.vue', () => {
       seedStore(makePlugin({ is_star: false, star_count: 5 }))
 
       let release!: () => void
-      mockStarStore.mockImplementation(() => new Promise((resolve) => {
+      mockStarStoreBySlug.mockImplementation(() => new Promise((resolve) => {
         release = () => resolve({ data: { starred: true, star_count: 6 } })
       }))
 
@@ -527,7 +527,7 @@ describe('PluginDetailView.vue', () => {
       await button!.trigger('click')
       await flushPromises()
 
-      expect(mockStarStore).not.toHaveBeenCalled()
+      expect(mockStarStoreBySlug).not.toHaveBeenCalled()
       expect(wrapper.text()).toContain('5 stars')
     })
 
@@ -554,7 +554,7 @@ describe('PluginDetailView.vue', () => {
       expect(content?.textContent).toContain('Sign in to star this plugin')
       // The link comes back to this page after signing in.
       expect(content?.querySelector('a')?.getAttribute('href'))
-        .toBe('/login?redirect=/plugins/plugin-123')
+        .toBe('/login?redirect=/plugins/janedev/@dsh/my-plugin')
 
       wrapper.unmount()
     })
@@ -657,7 +657,8 @@ describe('PluginDetailView.vue', () => {
         // the route name and the params in the href for the assertion to read.
         const edit = wrapper.findAll('a').find((a) => /Edit plugin/.test(a.text()))
         expect(edit?.attributes('href')).toContain('plugin-edit')
-        expect(edit?.attributes('href')).toContain('id=plugin-123')
+        expect(edit?.attributes('href')).toContain('username=janedev')
+        expect(edit?.attributes('href')).toContain('pluginName=@dsh/my-plugin')
       })
     })
 
@@ -795,7 +796,7 @@ describe('PluginDetailView.vue', () => {
         const modal = document.body.querySelector('[role="dialog"]')
         expect(modal).not.toBeNull()
         expect(modal?.textContent).toContain('Delete Plugin')
-        expect(modal?.textContent).toContain('@dsh/test-plugin')
+        expect(modal?.textContent).toContain('@dsh/my-plugin')
 
         // Find the confirm button in the modal and click it
         const confirmBtn = Array.from(modal!.querySelectorAll('button')).find((b) =>

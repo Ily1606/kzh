@@ -121,6 +121,37 @@ class PluginRepositoryTest extends TestCase
         $this->assertTrue($found->user->relationLoaded('profile'));
     }
 
+    public function test_find_by_username_and_plugin_name_scopes_to_the_author(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        Plugin::factory()->create([
+            'user_id' => $other->id,
+            'name' => $plugin->name,
+        ]);
+
+        $found = app(PluginRepositoryInterface::class)->findByUsernameAndPluginName(
+            $user->username,
+            $plugin->name,
+        );
+
+        $this->assertTrue($found->is($plugin));
+        $this->assertTrue($found->relationLoaded('user'));
+    }
+
+    public function test_find_by_username_and_plugin_name_does_not_return_a_soft_deleted_plugin(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+        $plugin->delete();
+
+        $this->expectException(ModelNotFoundException::class);
+
+        app(PluginRepositoryInterface::class)->findByUsernameAndPluginName($user->username, $plugin->name);
+    }
+
     public function test_update_writes_only_the_given_attributes(): void
     {
         $user = User::factory()->create();

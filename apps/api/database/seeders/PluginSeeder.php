@@ -7,6 +7,7 @@ use App\Enums\PluginStatus;
 use App\Models\Category;
 use App\Models\Tag;
 use App\Models\User;
+use App\Support\UsernameHelper;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
@@ -93,6 +94,7 @@ class PluginSeeder extends Seeder
                 ['email' => $u['email']],
                 [
                     'name' => $u['name'],
+                    'username' => UsernameHelper::generate(),
                     'password' => $passwordHash,
                     'is_admin' => false,
                     'email_verified_at' => $now,
@@ -104,7 +106,6 @@ class PluginSeeder extends Seeder
                 [
                     'id' => (string) Str::uuid(),
                     'avatar_link' => $u['avatar'],
-                    'github_name' => Str::slug($u['name']),
                     'github_link' => 'https://github.com/' . Str::slug($u['name']),
                     'created_at' => $now,
                     'updated_at' => $now,

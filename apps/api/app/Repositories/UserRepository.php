@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Contracts\UserRepositoryInterface;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -43,6 +44,38 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     }
 
     /**
+     * The user carrying this username, with the profile the public page shows.
+     */
+    public function findByUsername(string $username): ?User
+    {
+        /** @var User|null $user */
+        $user = $this->newQuery()
+            ->where('username', strtolower($username))
+            ->with('profile')
+            ->first();
+
+        return $user;
+    }
+
+    /**
+     * The ID of the user carrying this username.
+     *
+     * @throws ModelNotFoundException when no user carries that username.
+     */
+    public function findIdByUsername(string $username): string
+    {
+        $id = $this->newQuery()
+            ->where('username', strtolower($username))
+            ->value('id');
+
+        if ($id === null) {
+            throw (new ModelNotFoundException)->setModel(User::class, [$username]);
+        }
+
+        return $id;
+    }
+
+    /**
      * Credential check lives here, not in the base class: "email exists AND
      * account is not locked AND the password matches" is a business rule that
      * only this repository knows about.
@@ -59,11 +92,11 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
             : null;
     }
 
-    public function updateProfile(User $user, ?string $name, array $profileData): User
+    public function updateProfile(User $user, array $userData, array $profileData): User
     {
-        return DB::transaction(function () use ($user, $name, $profileData) {
-            if ($name !== null) {
-                $user->update(['name' => $name]);
+        return DB::transaction(function () use ($user, $userData, $profileData) {
+            if (! empty($userData)) {
+                $user->update($userData);
             }
 
             if (! empty($profileData)) {
