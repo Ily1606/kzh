@@ -15,7 +15,7 @@ class UserProfileObserver
      */
     public function created(UserProfile $profile): void
     {
-        $this->refreshTrendingCacheIfAvatarExists($profile);
+        $this->refreshTrendingCacheForAvatarChange($profile);
     }
 
     /**
@@ -31,7 +31,7 @@ class UserProfileObserver
                 });
             }
 
-            $this->refreshTrendingCacheIfAvatarExists($profile);
+            $this->refreshTrendingCacheForAvatarChange($profile);
         }
     }
 
@@ -50,17 +50,15 @@ class UserProfileObserver
     }
 
     /**
-     * Refresh trending cache for user's plugins when avatar exists.
+     * Refresh trending cache for user's plugins when avatar changes.
      */
-    private function refreshTrendingCacheIfAvatarExists(UserProfile $profile): void
+    private function refreshTrendingCacheForAvatarChange(UserProfile $profile): void
     {
-        if ($profile->avatar_link) {
-            $userId = $profile->user_id;
-            if ($userId) {
-                $ids = Plugin::where('user_id', $userId)->pluck('id')->all();
-                if ($ids) {
-                    TrendingTracker::refreshPlugins($ids);
-                }
+        $userId = $profile->user_id;
+        if ($userId) {
+            $ids = Plugin::where('user_id', $userId)->pluck('id')->all();
+            if ($ids) {
+                TrendingTracker::refreshPlugins($ids);
             }
         }
     }
