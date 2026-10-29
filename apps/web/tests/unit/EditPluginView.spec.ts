@@ -36,8 +36,8 @@ vi.mock('@/utils/toast', () => ({
 }))
 
 const mockRoute = ref({
-  params: { username: 'janedev', pluginName: '@dsh/my-plugin' } as Record<string, string>,
-  fullPath: '/resources/janedev/@dsh/my-plugin/edit',
+  params: { username: 'janedev', pluginName: 'my-plugin' } as Record<string, string>,
+  fullPath: '/resources/janedev/my-plugin/edit',
 })
 
 const mockPush = vi.fn()
@@ -53,7 +53,7 @@ vi.mock('vue-router', () => ({
 function makePlugin(overrides: Partial<PluginResource> = {}): PluginResource {
   return {
     id: 'plugin-123',
-    name: '@dsh/my-plugin',
+    name: 'my-plugin',
     user_id: 'user-456',
     author: { id: 'user-456', name: 'Jane Dev', username: 'janedev', avatar_url: '' },
     title: 'My awesome plugin',
@@ -120,7 +120,7 @@ describe('EditPluginView.vue', () => {
 
       const fields = wrapper.findComponent(PluginFieldsForm)
       expect(fields.props('initialValues')).toEqual({
-        name: '@dsh/my-plugin',
+        name: 'my-plugin',
         title: 'My awesome plugin',
         license: 'MIT',
         category: 'Integrations',
@@ -153,7 +153,7 @@ describe('EditPluginView.vue', () => {
       await flushPromises()
 
       // The hard-refresh / shared-link case.
-      expect(mockPluginShow).toHaveBeenCalledWith('janedev', '@dsh/my-plugin')
+      expect(mockPluginShow).toHaveBeenCalledWith('janedev', 'my-plugin')
       expect(wrapper.findComponent(PluginFieldsForm).props('initialValues')).toMatchObject({
         title: 'From API',
       })
@@ -191,7 +191,7 @@ describe('EditPluginView.vue', () => {
       // reveal that at submit time.
       expect(mockReplace).toHaveBeenCalledWith({
         name: 'plugin-detail',
-        params: { username: 'janedev', pluginName: '@dsh/my-plugin' },
+        params: { username: 'janedev', pluginName: 'my-plugin' },
       })
       expect(wrapper.findComponent(PluginFieldsForm).exists()).toBe(false)
     })
@@ -269,7 +269,7 @@ describe('EditPluginView.vue', () => {
 
   describe('saving', () => {
     const baseValues = {
-      name: '@dsh/my-plugin',
+      name: 'my-plugin',
       title: 'Renamed',
       license: 'MIT',
       category: 'Vision',
@@ -291,7 +291,7 @@ describe('EditPluginView.vue', () => {
       await wrapper.findComponent(PluginFieldsForm).props('submit')(baseValues)
       await flushPromises()
 
-      expect(mockPluginUpdateBySlug).toHaveBeenCalledWith('janedev', '@dsh/my-plugin', baseValues)
+      expect(mockPluginUpdateBySlug).toHaveBeenCalledWith('janedev', 'my-plugin', baseValues)
       expect(mockNotifySuccess).toHaveBeenCalledWith('Plugin updated successfully.')
       // Back, not a fresh push: pushing the detail route again would leave this
       // page in the history and send the browser Back button straight back into it.
@@ -314,11 +314,11 @@ describe('EditPluginView.vue', () => {
       await wrapper.findComponent(PluginFieldsForm).props('submit')(renamedValues)
       await flushPromises()
 
-      // The update request should use the OLD slug (janedev/@dsh/my-plugin) but
+      // The update request should use the OLD slug (janedev/my-plugin) but
       // send the NEW name (renamed-plugin) in the payload.
       expect(mockPluginUpdateBySlug).toHaveBeenCalledWith(
         'janedev',
-        '@dsh/my-plugin',
+        'my-plugin',
         expect.objectContaining({ name: 'renamed-plugin' })
       )
 
@@ -344,7 +344,7 @@ describe('EditPluginView.vue', () => {
       expect(mockBack).not.toHaveBeenCalled()
       expect(mockReplace).toHaveBeenCalledWith({
         name: 'plugin-detail',
-        params: { username: 'janedev', pluginName: '@dsh/my-plugin' },
+        params: { username: 'janedev', pluginName: 'my-plugin' },
       })
     })
 
