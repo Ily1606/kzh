@@ -4,6 +4,7 @@ return [
     'table' => [
         'columns' => [
             'plugin' => 'Plugin',
+            'reports' => 'Reports',
             'author' => 'Author',
             'content' => 'Comment',
             'created_at' => 'Created At',
@@ -30,6 +31,7 @@ return [
         ],
         'modal' => [
             'plugin' => 'Plugin',
+            'reports' => 'Reports',
             'author' => 'Author',
             'published_at' => 'Published at',
             'content' => 'Content',

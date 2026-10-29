@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Observers\CommentObserver;
+use Carbon\CarbonInterface;
 use Database\Factories\CommentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 #[Fillable([
     'plugin_id',
@@ -36,6 +37,13 @@ class Comment extends Model
         return [
             'hidden_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::restoring(function (Comment $comment): bool {
+            return false;
+        });
     }
 
     public function plugin(): BelongsTo
@@ -79,72 +87,32 @@ class Comment extends Model
         return array_unique($ids);
     }
 
-    public function cascadeDelete()
+    public function cascadeDelete(): void
     {
         $ids = $this->getDescendantIds();
-        $deletedCount = 0;
 
         if (!empty($ids)) {
-            $deletedCount += static::whereIn('id', $ids)->delete();
+            static::whereIn('id', $ids)->delete();
             CommentReport::whereIn('comment_id', $ids)->delete();
         }
 
-        $wasDeleted = $this->trashed();
         $this->delete();
 
-        if (!$wasDeleted) {
-            $deletedCount++;
-        }
-
         CommentReport::where('comment_id', $this->id)->delete();
-
-        if ($deletedCount > 0) {
-            DB::table('plugins')
-                ->where('id', $this->plugin_id)
-                ->decrement('comment_count', $deletedCount);
-        }
     }
 
-    public function cascadeRestore()
+    public function cascadeHide(): void
     {
-        $deletedAt = $this->deleted_at;
-        if (!$deletedAt) {
-            return;
-        }
-
-        $ids = $this->getDescendantIds();
-        $restoredCount = 0;
-
-        if (!empty($ids)) {
-            $restoredCount += static::withTrashed()->whereIn('id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
-            CommentReport::withTrashed()->whereIn('comment_id', $ids)->where('deleted_at', '>=', $deletedAt)->restore();
-        }
-
-        $this->restore();
-        $restoredCount++;
-
-        CommentReport::withTrashed()->where('comment_id', $this->id)->where('deleted_at', '>=', $deletedAt)->restore();
-
-        if ($restoredCount > 0) {
-            DB::table('plugins')
-                ->where('id', $this->plugin_id)
-                ->increment('comment_count', $restoredCount);
-        }
-    }
-
-    public function cascadeHide()
-    {
+        $now = now();
         $ids = $this->getDescendantIds();
         if (!empty($ids)) {
-            static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => now()]);
-            // hidden_at doesn't need to delete reports?
-            // Wait, previous code had `CommentReport::whereIn('comment_id', $ids)->delete();`
+            static::withTrashed()->whereIn('id', $ids)->whereNull('hidden_at')->update(['hidden_at' => $now]);
         }
 
-        $this->update(['hidden_at' => now()]);
+        $this->update(['hidden_at' => $now]);
     }
 
-    public function cascadeUnhide()
+    public function cascadeUnhide(): void
     {
         $hiddenAt = $this->hidden_at;
         if (!$hiddenAt) {
@@ -152,9 +120,13 @@ class Comment extends Model
             return;
         }
 
+        $cutoff = $hiddenAt instanceof CarbonInterface
+            ? $hiddenAt->copy()->subSecond()
+            : Carbon::parse($hiddenAt)->subSecond();
+
         $ids = $this->getDescendantIds();
         if (!empty($ids)) {
-            static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $hiddenAt)->update(['hidden_at' => null]);
+            static::withTrashed()->whereIn('id', $ids)->where('hidden_at', '>=', $cutoff)->update(['hidden_at' => null]);
         }
 
         $this->update(['hidden_at' => null]);

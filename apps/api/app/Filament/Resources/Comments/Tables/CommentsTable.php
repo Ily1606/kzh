@@ -3,10 +3,11 @@
 namespace App\Filament\Resources\Comments\Tables;
 
 use App\Enums\PluginStatus;
+use App\Filament\Resources\Comments\CommentResource;
 use App\Models\Comment;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\RestoreAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
@@ -19,13 +20,27 @@ class CommentsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['plugin', 'author']))
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->with(['plugin', 'author'])
+                ->withCount([
+                    'reports as reports_count' => fn (Builder $reports) => $reports->whereNull('deleted_at'),
+                ])
+            )
             ->columns([
+                TextColumn::make('reports_count')
+                    ->label(__('comment.table.columns.reports'))
+                    ->icon('heroicon-m-shield-exclamation')
+                    ->badge()
+                    ->color(fn ($state): string => (int) $state > 0 ? 'danger' : 'gray')
+                    ->alignCenter()
+                    ->sortable(),
+
                 TextColumn::make('plugin.name')
                     ->label(__('comment.table.columns.plugin'))
                     ->icon('heroicon-m-cube')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('author.name')
                     ->label(__('comment.table.columns.author'))
@@ -38,17 +53,7 @@ class CommentsTable
                     ->wrap()
                     ->extraCellAttributes([
                         'style' => 'max-width: 25rem; overflow-wrap: break-word;',
-                    ])
-                    ->action(
-                        Action::make('view')
-                            ->label(__('comment.table.actions.view'))
-                            ->modalHeading(fn (Comment $record): string => $record->plugin?->name ?? __('comment.table.actions.view_modal_heading'))
-                            ->modalContent(fn (Comment $record) => view('filament.comments.show', [
-                                'comment' => $record,
-                            ]))
-                            ->modalSubmitAction(false)
-                            ->modalCancelActionLabel(__('comment.table.actions.close'))
-                    ),
+                    ]),
 
                 TextColumn::make('created_at')
                     ->label(__('comment.table.columns.created_at'))
@@ -132,14 +137,19 @@ class CommentsTable
             ->filtersLayout(FiltersLayout::Dropdown)
             ->deferFilters()
             ->defaultSort('created_at', 'desc')
+            ->recordUrl(fn (Comment $record): string => CommentResource::getUrl('view', ['record' => $record]))
             ->actions([
+                ViewAction::make(),
+
                 Action::make('hide')
                     ->label(__('Hide'))
                     ->icon('heroicon-o-eye-slash')
                     ->color('warning')
                     ->visible(fn (Comment $record) => $record->hidden_at === null && !$record->trashed())
                     ->action(fn (Comment $record) => $record->cascadeHide())
-                    ->requiresConfirmation(),
+                    ->requiresConfirmation()
+                    ->modalHeading('Hide Comment')
+                    ->modalDescription('Are you sure you want to hide this comment and its replies? You can unhide it at any time.'),
 
                 Action::make('unhide')
                     ->label(__('Unhide'))
@@ -147,13 +157,15 @@ class CommentsTable
                     ->color('success')
                     ->visible(fn (Comment $record) => $record->hidden_at !== null && !$record->trashed())
                     ->action(fn (Comment $record) => $record->cascadeUnhide())
-                    ->requiresConfirmation(),
+                    ->requiresConfirmation()
+                    ->modalHeading('Unhide Comment')
+                    ->modalDescription('Are you sure you want to unhide this comment and its replies, making them visible again?'),
 
                 DeleteAction::make()
+                    ->visible(fn (Comment $record) => !$record->trashed())
+                    ->modalHeading('Delete Comment')
+                    ->modalDescription('Are you sure you want to delete this comment and its replies? Once deleted, it cannot be restored.')
                     ->using(fn (Comment $record) => $record->cascadeDelete()),
-
-                RestoreAction::make()
-                    ->using(fn (Comment $record) => $record->cascadeRestore()),
             ]);
     }
 }

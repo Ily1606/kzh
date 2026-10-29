@@ -18,6 +18,13 @@ class CommentReport extends Model
         'reason',
     ];
 
+    protected static function booted(): void
+    {
+        static::restoring(function (CommentReport $report): bool {
+            return false;
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withTrashed();

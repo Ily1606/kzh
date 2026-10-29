@@ -1,43 +1,62 @@
 <?php
 
-namespace App\Livewire;
+namespace App\Filament\Resources\Comments\Livewire;
 
-use Livewire\Component;
-use App\Models\CommentReport;
 use App\Models\Comment;
+use App\Models\CommentReport;
+use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithActions;
 use Filament\Actions\Contracts\HasActions;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Actions\Action;
+use Livewire\Attributes\On;
+use Livewire\Component;
 
 class CommentContextTree extends Component implements HasForms, HasActions
 {
     use InteractsWithActions;
     use InteractsWithForms;
 
-    public string $reportId;
+    #[On('comment-state-updated')]
+    public function refreshTreeState(): void
+    {
+        // Re-render
+    }
+
+    public ?string $reportId = null;
+    public ?string $commentId = null;
     public ?string $targetCommentId = null;
     public ?string $pluginId = null;
     public array $ancestorIds = [];
     public array $nodeStates = [];
 
-    public function mount(string $reportId)
+    public function mount(?string $reportId = null, ?string $commentId = null)
     {
         $this->reportId = $reportId;
-        $report = CommentReport::with('comment')->find($reportId);
-        
-        if (!$report || !$report->comment) {
+        $this->commentId = $commentId;
+
+        if ($reportId) {
+            $report = CommentReport::withTrashed()->with('comment')->find($reportId);
+            if (!$report || !$report->comment) {
+                return;
+            }
+            $comment = $report->comment;
+        } elseif ($commentId) {
+            $comment = Comment::withTrashed()->find($commentId);
+            if (!$comment) {
+                return;
+            }
+        } else {
             return;
         }
-        
-        $this->targetCommentId = $report->comment_id;
-        $this->pluginId = $report->plugin_id;
-        
-        $curr = $report->comment;
+
+        $this->targetCommentId = $comment->id;
+        $this->pluginId = $comment->plugin_id;
+
+        $curr = $comment;
         while ($curr) {
             $this->ancestorIds[] = $curr->id;
-            $curr = $curr->parentComment;
+            $curr = $curr->parentComment()->withTrashed()->first();
         }
     }
     
@@ -62,11 +81,14 @@ class CommentContextTree extends Component implements HasForms, HasActions
             ->color('danger')
             ->icon('heroicon-o-trash')
             ->modalHeading('Delete Comment')
-            ->modalDescription('Are you sure you want to delete this comment? All child comments will also be deleted.')
+            ->modalDescription('Are you sure you want to delete this comment? All child comments will also be deleted. Once deleted, it cannot be restored.')
             ->modalSubmitActionLabel('Yes, delete it')
             ->action(function (array $arguments) {
                 $comment = Comment::withTrashed()->find($arguments['comment_id']);
-                if ($comment) $comment->cascadeDelete();
+                if ($comment) {
+                    $comment->cascadeDelete();
+                    $this->dispatch('comment-state-updated');
+                }
             });
     }
 
@@ -81,7 +103,10 @@ class CommentContextTree extends Component implements HasForms, HasActions
             ->modalSubmitActionLabel('Yes, hide it')
             ->action(function (array $arguments) {
                 $comment = Comment::withTrashed()->find($arguments['comment_id']);
-                if ($comment) $comment->cascadeHide();
+                if ($comment) {
+                    $comment->cascadeHide();
+                    $this->dispatch('comment-state-updated');
+                }
             });
     }
 
@@ -96,34 +121,7 @@ class CommentContextTree extends Component implements HasForms, HasActions
             ->modalSubmitActionLabel('Yes, dismiss')
             ->action(function (array $arguments) {
                 CommentReport::where('comment_id', $arguments['comment_id'])->delete();
-            });
-    }
-
-    public function restoreReportAction(): Action
-    {
-        return Action::make('restoreReport')
-            ->requiresConfirmation()
-            ->color('gray')
-            ->icon('heroicon-o-arrow-path')
-            ->modalHeading('Restore Reports')
-            ->modalDescription('Are you sure you want to restore the reports for this comment?')
-            ->modalSubmitActionLabel('Yes, restore')
-            ->action(function (array $arguments) {
-                CommentReport::withTrashed()->where('comment_id', $arguments['comment_id'])->restore();
-            });
-    }
-
-    public function restoreCommentAction(): Action
-    {
-        return Action::make('restoreComment')
-            ->requiresConfirmation()
-            ->color('gray')
-            ->modalHeading('Restore Comment')
-            ->modalDescription('Are you sure you want to restore this comment and its reports?')
-            ->modalSubmitActionLabel('Yes, restore')
-            ->action(function (array $arguments) {
-                $comment = Comment::withTrashed()->find($arguments['comment_id']);
-                if ($comment) $comment->cascadeRestore();
+                $this->dispatch('comment-state-updated');
             });
     }
 
@@ -131,13 +129,17 @@ class CommentContextTree extends Component implements HasForms, HasActions
     {
         return Action::make('unhideComment')
             ->requiresConfirmation()
-            ->color('gray')
+            ->color('success')
+            ->icon('heroicon-o-eye')
             ->modalHeading('Unhide Comment')
-            ->modalDescription('Are you sure you want to unhide this comment and restore its reports?')
+            ->modalDescription('Are you sure you want to unhide this comment?')
             ->modalSubmitActionLabel('Yes, unhide')
             ->action(function (array $arguments) {
                 $comment = Comment::withTrashed()->find($arguments['comment_id']);
-                if ($comment) $comment->cascadeUnhide();
+                if ($comment) {
+                    $comment->cascadeUnhide();
+                    $this->dispatch('comment-state-updated');
+                }
             });
     }
     
@@ -203,6 +205,7 @@ class CommentContextTree extends Component implements HasForms, HasActions
 
     public function render()
     {
-        return view('livewire.comment-context-tree');
+        return view('filament.resources.comments.comment-context-tree');
     }
 }
+
