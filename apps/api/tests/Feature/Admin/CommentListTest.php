@@ -3,7 +3,9 @@
 namespace Tests\Feature\Admin;
 
 use App\Enums\PluginStatus;
+use App\Filament\Resources\Comments\CommentResource;
 use App\Filament\Resources\Comments\Pages\ListComments;
+use App\Filament\Resources\Comments\Pages\ViewComment;
 use App\Models\Comment;
 use App\Models\Plugin;
 use App\Models\User;
@@ -186,27 +188,24 @@ class CommentListTest extends TestCase
             ->assertCanNotSeeTableRecords([$pendingComment, $otherApprovedComment]);
     }
 
-    public function test_the_content_cell_is_clickable_and_opens_the_view_modal(): void
+    public function test_the_table_row_and_view_action_link_to_the_comment_detail_page(): void
     {
         $comment = Comment::factory()->create(['content' => 'Short body']);
 
-        // Filament renders a column that carries an Action as a button whose
-        // click mounts that action — this is the click-to-expand affordance.
+        $viewUrl = CommentResource::getUrl('view', ['record' => $comment]);
+
         $html = html_entity_decode(Livewire::test(ListComments::class)->html());
 
-        $this->assertStringContainsString(
-            "mountTableAction('view', '{$comment->getKey()}')",
-            $html,
-        );
+        $this->assertStringContainsString($viewUrl, $html);
     }
 
-    public function test_the_modal_shows_the_full_comment_detail(): void
+    public function test_the_detail_page_shows_the_full_comment_and_context(): void
     {
         $plugin = Plugin::factory()->create(['name' => 'Awesome Plugin']);
         $author = User::factory()->create(['name' => 'Jane Doe']);
 
         // Long enough that the 2-line clamp in the cell hides the tail, so the
-        // assertion below can only pass if the modal renders the whole body.
+        // assertion below can only pass if the detail page renders the whole body.
         $content = 'Start of the comment. '.str_repeat('filler words ', 40).'END OF COMMENT';
 
         $comment = Comment::factory()
@@ -214,35 +213,28 @@ class CommentListTest extends TestCase
             ->for($author, 'author')
             ->create(['content' => $content]);
 
-        Livewire::test(ListComments::class)
-            ->mountTableAction('view', $comment)
-            ->assertTableActionMounted([
-                ['name' => 'view', 'context' => ['recordKey' => $comment->getKey()]],
-            ])
-            ->assertMountedActionModalSee('Awesome Plugin')
-            ->assertMountedActionModalSee('Jane Doe')
-            ->assertMountedActionModalSee('END OF COMMENT');
+        Livewire::test(ViewComment::class, ['record' => $comment->id])
+            ->assertSuccessful()
+            ->assertSee('Awesome Plugin')
+            ->assertSee('Jane Doe')
+            ->assertSee('END OF COMMENT');
     }
 
-    public function test_the_modal_reports_when_a_comment_is_hidden(): void
+    public function test_the_detail_page_reports_when_a_comment_is_hidden(): void
     {
         $hidden = Comment::factory()->hidden()->create(['content' => 'moderated comment']);
 
-        Livewire::test(ListComments::class)
-            ->assertCanSeeTableRecords([$hidden])
-            ->mountTableAction('view', $hidden)
-            ->assertTableActionMounted([
-                ['name' => 'view', 'context' => ['recordKey' => $hidden->getKey()]],
-            ])
-            ->assertMountedActionModalSee(__('comment.table.modal.hidden_at'));
+        Livewire::test(ViewComment::class, ['record' => $hidden->id])
+            ->assertSuccessful()
+            ->assertSee('Hidden At');
     }
 
-    public function test_the_modal_omits_the_hidden_at_row_for_visible_comments(): void
+    public function test_the_detail_page_omits_the_hidden_at_row_for_visible_comments(): void
     {
         $comment = Comment::factory()->create();
 
-        Livewire::test(ListComments::class)
-            ->mountTableAction('view', $comment)
-            ->assertMountedActionModalDontSee(__('comment.table.modal.hidden_at'));
+        Livewire::test(ViewComment::class, ['record' => $comment->id])
+            ->assertSuccessful()
+            ->assertDontSee('Hidden At');
     }
 }

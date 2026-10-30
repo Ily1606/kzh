@@ -83,9 +83,10 @@ class CommentContextTree extends Component implements HasForms, HasActions
             ->modalHeading('Delete Comment')
             ->modalDescription('Are you sure you want to delete this comment? All child comments will also be deleted. Once deleted, it cannot be restored.')
             ->modalSubmitActionLabel('Yes, delete it')
+            ->successNotificationTitle('Comment deleted successfully')
             ->action(function (array $arguments) {
                 $comment = Comment::withTrashed()->find($arguments['comment_id']);
-                if ($comment) {
+                if ($comment && ! $comment->trashed()) {
                     $comment->cascadeDelete();
                     $this->dispatch('comment-state-updated');
                 }
@@ -101,9 +102,10 @@ class CommentContextTree extends Component implements HasForms, HasActions
             ->modalHeading('Hide Comment')
             ->modalDescription('Are you sure you want to hide this comment? All child comments will also be hidden.')
             ->modalSubmitActionLabel('Yes, hide it')
+            ->successNotificationTitle('Comment hidden successfully')
             ->action(function (array $arguments) {
                 $comment = Comment::withTrashed()->find($arguments['comment_id']);
-                if ($comment) {
+                if ($comment && $comment->hidden_at === null && ! $comment->trashed()) {
                     $comment->cascadeHide();
                     $this->dispatch('comment-state-updated');
                 }
@@ -119,6 +121,7 @@ class CommentContextTree extends Component implements HasForms, HasActions
             ->modalHeading('Dismiss Reports')
             ->modalDescription('Are you sure you want to dismiss the reports for this comment?')
             ->modalSubmitActionLabel('Yes, dismiss')
+            ->successNotificationTitle('Reports dismissed successfully')
             ->action(function (array $arguments) {
                 CommentReport::where('comment_id', $arguments['comment_id'])->delete();
                 $this->dispatch('comment-state-updated');
@@ -134,9 +137,10 @@ class CommentContextTree extends Component implements HasForms, HasActions
             ->modalHeading('Unhide Comment')
             ->modalDescription('Are you sure you want to unhide this comment?')
             ->modalSubmitActionLabel('Yes, unhide')
+            ->successNotificationTitle('Comment unhidden successfully')
             ->action(function (array $arguments) {
                 $comment = Comment::withTrashed()->find($arguments['comment_id']);
-                if ($comment) {
+                if ($comment && $comment->hidden_at !== null && ! $comment->trashed()) {
                     $comment->cascadeUnhide();
                     $this->dispatch('comment-state-updated');
                 }

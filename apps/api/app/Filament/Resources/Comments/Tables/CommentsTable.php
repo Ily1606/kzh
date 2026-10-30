@@ -13,19 +13,12 @@ use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CommentsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query
-                ->with(['plugin', 'author'])
-                ->withCount([
-                    'reports as reports_count' => fn (Builder $reports) => $reports->whereNull('deleted_at'),
-                ])
-            )
             ->columns([
                 TextColumn::make('reports_count')
                     ->label(__('comment.table.columns.reports'))
@@ -149,7 +142,8 @@ class CommentsTable
                     ->action(fn (Comment $record) => $record->cascadeHide())
                     ->requiresConfirmation()
                     ->modalHeading('Hide Comment')
-                    ->modalDescription('Are you sure you want to hide this comment and its replies? You can unhide it at any time.'),
+                    ->modalDescription('Are you sure you want to hide this comment and its replies? You can unhide it at any time.')
+                    ->successNotificationTitle('Comment hidden successfully'),
 
                 Action::make('unhide')
                     ->label(__('Unhide'))
@@ -159,7 +153,8 @@ class CommentsTable
                     ->action(fn (Comment $record) => $record->cascadeUnhide())
                     ->requiresConfirmation()
                     ->modalHeading('Unhide Comment')
-                    ->modalDescription('Are you sure you want to unhide this comment and its replies, making them visible again?'),
+                    ->modalDescription('Are you sure you want to unhide this comment and its replies, making them visible again?')
+                    ->successNotificationTitle('Comment unhidden successfully'),
 
                 DeleteAction::make()
                     ->visible(fn (Comment $record) => !$record->trashed())
@@ -169,7 +164,8 @@ class CommentsTable
                         $record->cascadeDelete();
 
                         return true;
-                    }),
+                    })
+                    ->successNotificationTitle('Comment deleted successfully'),
             ]);
     }
 }

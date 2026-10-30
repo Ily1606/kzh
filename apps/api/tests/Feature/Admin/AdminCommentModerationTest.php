@@ -145,5 +145,139 @@ class AdminCommentModerationTest extends TestCase
         $this->assertFalse($restoreResult);
         $this->assertSoftDeleted('comment_reports', ['id' => $report->id]);
     }
+
+    /**
+     * Test that cascadeDelete is idempotent and guards against double-deletion when already trashed.
+     */
+    public function test_cascade_delete_is_idempotent_when_comment_already_trashed(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        $comment = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+
+        $date = now()->format('Y-m-d');
+        $statKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        \Illuminate\Support\Facades\Redis::set($statKey, 5);
+
+        // 1st cascadeDelete
+        $comment->cascadeDelete();
+        $this->assertSoftDeleted('comments', ['id' => $comment->id]);
+        $this->assertEquals(4, (int) \Illuminate\Support\Facades\Redis::get($statKey));
+
+        // 2nd cascadeDelete on already trashed instance
+        $comment->cascadeDelete();
+        $this->assertSoftDeleted('comments', ['id' => $comment->id]);
+        // Redis count must NOT be decremented again
+        $this->assertEquals(4, (int) \Illuminate\Support\Facades\Redis::get($statKey));
+    }
+
+    /**
+     * Test that cascadeDelete decrements trending score for both parent and all replies in batch.
+     */
+    public function test_cascade_delete_decrements_trending_for_all_replies_in_batch(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        $parent = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+        $child1 = Comment::factory()->replyTo($parent)->create(['author_id' => $user->id]);
+        $child2 = Comment::factory()->replyTo($parent)->create(['author_id' => $user->id]);
+
+        $date = now()->format('Y-m-d');
+        $statKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        \Illuminate\Support\Facades\Redis::set($statKey, 3);
+
+        $parent->cascadeDelete();
+
+        $this->assertSoftDeleted('comments', ['id' => $parent->id]);
+        $this->assertSoftDeleted('comments', ['id' => $child1->id]);
+        $this->assertSoftDeleted('comments', ['id' => $child2->id]);
+        $this->assertEquals(0, (int) \Illuminate\Support\Facades\Redis::get($statKey));
+    }
+
+    /**
+     * Test that cascadeHide and cascadeUnhide adjust trending score for all replies in batch.
+     */
+    public function test_cascade_hide_and_unhide_adjusts_trending_for_all_replies_in_batch(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        $parent = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+        $child1 = Comment::factory()->replyTo($parent)->create(['author_id' => $user->id]);
+        $child2 = Comment::factory()->replyTo($parent)->create(['author_id' => $user->id]);
+
+        $date = now()->format('Y-m-d');
+        $statKey = "trending:stats:comments:{$date}:{$plugin->id}";
+        \Illuminate\Support\Facades\Redis::set($statKey, 3);
+
+        $parent->cascadeHide();
+        $this->assertNotNull($parent->fresh()->hidden_at);
+        $this->assertNotNull($child1->fresh()->hidden_at);
+        $this->assertNotNull($child2->fresh()->hidden_at);
+        $this->assertEquals(0, (int) \Illuminate\Support\Facades\Redis::get($statKey));
+
+        $parent->fresh()->cascadeUnhide();
+        $this->assertNull($parent->fresh()->hidden_at);
+        $this->assertNull($child1->fresh()->hidden_at);
+        $this->assertNull($child2->fresh()->hidden_at);
+        $this->assertEquals(3, (int) \Illuminate\Support\Facades\Redis::get($statKey));
+    }
+
+    /**
+     * Test that cascadeUnhide does not unhide replies that were hidden separately before or after.
+     */
+    public function test_cascade_unhide_does_not_unhide_replies_hidden_separately(): void
+    {
+        $user = User::factory()->create();
+        $plugin = Plugin::factory()->create(['user_id' => $user->id]);
+
+        $parent = Comment::factory()->create([
+            'plugin_id' => $plugin->id,
+            'author_id' => $user->id,
+        ]);
+        // child_before was hidden 10 minutes before parent
+        $childBefore = Comment::factory()->replyTo($parent)->create([
+            'author_id' => $user->id,
+            'hidden_at' => now()->subMinutes(10),
+        ]);
+        // child_cascade was active and should be hidden/unhidden with parent
+        $childCascade = Comment::factory()->replyTo($parent)->create([
+            'author_id' => $user->id,
+            'hidden_at' => null,
+        ]);
+
+        // Hide parent
+        $parent->cascadeHide();
+        $this->assertNotNull($parent->fresh()->hidden_at);
+        $this->assertNotNull($childCascade->fresh()->hidden_at);
+
+        // child_after was hidden separately after parent was hidden (e.g. spam)
+        $childAfter = Comment::factory()->replyTo($parent)->create([
+            'author_id' => $user->id,
+            'hidden_at' => now()->addMinutes(5),
+        ]);
+
+        // Unhide parent
+        $parent->fresh()->cascadeUnhide();
+
+        // Parent and child_cascade should be unhidden
+        $this->assertNull($parent->fresh()->hidden_at);
+        $this->assertNull($childCascade->fresh()->hidden_at);
+
+        // child_before and child_after MUST remain hidden
+        $this->assertNotNull($childBefore->fresh()->hidden_at);
+        $this->assertNotNull($childAfter->fresh()->hidden_at);
+    }
 }
 

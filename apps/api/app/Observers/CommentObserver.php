@@ -43,8 +43,9 @@ class CommentObserver implements ShouldHandleEventsAfterCommit
      */
     public function deleted(Comment $comment): void
     {
-        // Hidden comments were already subtracted when hidden; a force delete of an
-        // already-trashed comment was already subtracted at soft-delete time.
+        // Hidden comments were already subtracted when hidden; skip if the comment
+        // was already soft-deleted before this event fires (only relevant when force-deleting
+        // a record that was previously soft-deleted, since the trending was already decremented then).
         $wasAlreadyTrashed = $comment->isForceDeleting() && $comment->getOriginal('deleted_at') !== null;
 
         if ($comment->hidden_at === null && ! $wasAlreadyTrashed) {
@@ -117,7 +118,7 @@ class CommentObserver implements ShouldHandleEventsAfterCommit
     /**
      * If the plugin is cached in Redis trending objects, refresh its cached comment count.
      */
-    private function refreshCachedPluginCommentCount(string $pluginId): void
+    public function refreshCachedPluginCommentCount(string $pluginId): void
     {
         try {
             $hashKey = config('plugins.trending.keys.objects');

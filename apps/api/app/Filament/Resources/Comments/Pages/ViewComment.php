@@ -61,6 +61,7 @@ class ViewComment extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Hide Comment')
                 ->modalDescription('Are you sure you want to hide this comment and its replies? You can unhide it at any time.')
+                ->successNotificationTitle('Comment hidden successfully')
                 ->action(function (Comment $record) {
                     $record->cascadeHide();
                     $this->record = $this->resolveRecord($record->getKey());
@@ -75,6 +76,7 @@ class ViewComment extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Unhide Comment')
                 ->modalDescription('Are you sure you want to unhide this comment and its replies, making them visible again?')
+                ->successNotificationTitle('Comment unhidden successfully')
                 ->action(function (Comment $record) {
                     $record->cascadeUnhide();
                     $this->record = $this->resolveRecord($record->getKey());
@@ -85,6 +87,7 @@ class ViewComment extends ViewRecord
                 ->visible(fn (Comment $record): bool => ! $record->trashed())
                 ->modalHeading('Delete Comment')
                 ->modalDescription('Are you sure you want to delete this comment and its replies? Once deleted, it cannot be restored.')
+                ->successNotificationTitle('Comment deleted successfully')
                 ->using(function (Comment $record): bool {
                     $record->cascadeDelete();
                     $this->record = $this->resolveRecord($record->getKey());
