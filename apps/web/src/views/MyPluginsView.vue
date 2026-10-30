@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { PluginStatus } from '@/api/generated/model'
 import { Button } from '@/components/ui/button'
-import MyPluginRow from '@/components/pages/plugin/MyPluginRow.vue'
+import BasePluginRow from '@/components/common/BasePluginRow.vue'
 import { usePluginsStore } from '@/stores'
 import { AlertCircle, LoaderCircle, PackageOpen, Plus } from '@lucide/vue'
 
@@ -181,8 +181,8 @@ watch([activeStatus, () => route.query.page], () => {
       </div>
 
       <template v-else>
-        <ul class="glass rounded-2xl overflow-hidden">
-          <MyPluginRow v-for="plugin in store.minePlugins" :key="plugin.id" :plugin="plugin" />
+        <ul class="border rounded-2xl overflow-hidden">
+          <BasePluginRow v-for="plugin in store.minePlugins" :key="plugin.id" :plugin="plugin" :showStatusBadge="true" />
         </ul>
 
         <!-- Pagination -->

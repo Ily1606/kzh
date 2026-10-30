@@ -77,6 +77,10 @@ const onSubmit = handleSubmit(async (values) => {
 
 <template>
   <Card variant="glass" class="gap-0 overflow-hidden py-0 shadow-xl shadow-primary/10">
+    <div class="px-6 pt-6 pb-2">
+      <h2 class="text-xl font-semibold text-foreground">Create a publisher account</h2>
+      <p class="text-sm text-muted-foreground mt-1">Create an account to publish your plugins.</p>
+    </div>
     <form class="space-y-4 p-6" @submit.prevent="onSubmit">
       <Alert v-if="errorMsg" variant="destructive">
         <AlertDescription>{{ errorMsg }}</AlertDescription>

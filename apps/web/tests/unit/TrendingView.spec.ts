@@ -4,7 +4,6 @@ import { createApp, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import TrendingView from '@/views/TrendingView.vue'
-import { useAuthStore } from '@/stores'
 
 const mockPluginTrending = vi.fn()
 const mockStarStoreBySlug = vi.fn()
@@ -126,9 +125,19 @@ describe('TrendingView.vue', () => {
     expect(wrapper.text()).toContain('Trending Plugins')
     expect(wrapper.text()).toContain('Ranked by recent engagement, stars, and views.')
 
-    // Checks ranks
-    expect(wrapper.text()).toContain('1')
-    expect(wrapper.text()).toContain('2')
+    // Checks ranks - verify rank badges in each row
+    const rows = wrapper.findAll('[data-plugin-id]')
+    expect(rows.length).toBeGreaterThanOrEqual(2)
+
+    const rank1Badge = rows[0].find('span.rounded-full')
+    expect(rank1Badge.exists()).toBe(true)
+    expect(rank1Badge.text()).toBe('1')
+    expect(rank1Badge.classes()).toContain('bg-amber-100')
+
+    const rank2Badge = rows[1].find('span.rounded-full')
+    expect(rank2Badge.exists()).toBe(true)
+    expect(rank2Badge.text()).toBe('2')
+    expect(rank2Badge.classes()).toContain('bg-slate-200')
 
     // Checks author / plugin name
     expect(wrapper.text()).toContain('octocat')
@@ -147,61 +156,44 @@ describe('TrendingView.vue', () => {
     expect(wrapper.text()).toContain('4,210')
   })
 
-  it('renders a star button in each row and toggles star when clicked by authenticated user', async () => {
-    const authStore = useAuthStore()
-    authStore.setUser({
-      id: 'tester-1',
-      name: 'Tester',
-      username: 'tester',
-      email: 'tester@example.com',
-      avatarLink: '',
-      githubLink: null,
-      is_admin: false,
-      created_at: null
-    })
-    authStore.setToken('fake-token')
-
+  it('renders trending rows with rank, name, title, author, stats and date', async () => {
     const wrapper = mountView()
     await flushPromises()
 
-    // Find first article / row
+    // Find first row
     const row1 = wrapper.find('[data-plugin-id="10"]')
     expect(row1.exists()).toBe(true)
 
-    // Find star button in row 1
-    const starBtn = row1.find('button[data-test="star-button"]')
-    expect(starBtn.exists()).toBe(true)
-    expect(starBtn.text()).toContain('Star')
-    expect(starBtn.text()).toContain('1420')
-
-    // Click star
-    await starBtn.trigger('click')
-    await flushPromises()
-
-    expect(mockStarStoreBySlug).toHaveBeenCalledWith(
-      'octocat',
-      'deepseek-agent',
-      { starred: true }
-    )
-    expect(row1.text()).toContain('Starred')
-    expect(row1.text()).toContain('1421')
+    // Row contains rank badge (1), plugin name, title, author, stars, views, comments, date
+    const rank1Badge = row1.find('span.rounded-full')
+    expect(rank1Badge.exists()).toBe(true)
+    expect(rank1Badge.text()).toBe('1')
+    expect(rank1Badge.classes()).toContain('bg-amber-100')
+    expect(row1.text()).toContain('deepseek-agent')
+    expect(row1.text()).toContain('Autonomous multi-step coding agent plugin')
+    expect(row1.text()).toContain('octocat')
+    expect(row1.text()).toContain('1,420') // stars
+    expect(row1.text()).toContain('8,530') // views
+    expect(row1.text()).toContain('32') // comments
   })
 
-  it('renders guest star button with disabled state for unauthenticated user', async () => {
-    useAuthStore().clearAuth()
-
+  it('renders second row with correct rank and data', async () => {
     const wrapper = mountView()
     await flushPromises()
 
-    const row1 = wrapper.find('[data-plugin-id="10"]')
-    expect(row1.exists()).toBe(true)
+    const row2 = wrapper.find('[data-plugin-id="11"]')
+    expect(row2.exists()).toBe(true)
 
-    // The button for guest is disabled
-    const starBtn = row1.find('button[data-test="star-button"]')
-    expect(starBtn.exists()).toBe(true)
-    expect(starBtn.attributes('disabled')).toBeDefined()
-    expect(starBtn.text()).toContain('Star')
-    expect(starBtn.text()).toContain('1420')
+    const rank2Badge = row2.find('span.rounded-full')
+    expect(rank2Badge.exists()).toBe(true)
+    expect(rank2Badge.text()).toBe('2')
+    expect(rank2Badge.classes()).toContain('bg-slate-200')
+    expect(row2.text()).toContain('vision-analyzer')
+    expect(row2.text()).toContain('Image recognition and OCR tool for harness')
+    expect(row2.text()).toContain('alice')
+    expect(row2.text()).toContain('890')
+    expect(row2.text()).toContain('4,210')
+    expect(row2.text()).toContain('15')
   })
 
   it('shows empty state when no trending plugins exist', async () => {

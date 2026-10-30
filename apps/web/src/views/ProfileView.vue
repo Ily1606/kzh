@@ -4,7 +4,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { AlertCircle, LoaderCircle, PackageOpen, UserRound } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import AuthorSummary from '@/components/pages/profile/AuthorSummary.vue'
-import AuthorPluginRow from '@/components/pages/profile/AuthorPluginRow.vue'
+import BasePluginRow from '@/components/common/BasePluginRow.vue'
 import { useAuthorProfile } from '@/composables/useAuthorProfile'
 
 const route = useRoute()
@@ -129,8 +129,8 @@ async function goToPage(target: number) {
           </p>
         </div>
 
-        <ul v-else class="glass rounded-2xl overflow-hidden">
-          <AuthorPluginRow v-for="plugin in plugins" :key="plugin.id" :plugin="plugin" />
+        <ul v-else class="border rounded-2xl overflow-hidden">
+          <BasePluginRow v-for="plugin in plugins" :key="plugin.id" :plugin="plugin" />
         </ul>
 
         <!-- Pagination -->

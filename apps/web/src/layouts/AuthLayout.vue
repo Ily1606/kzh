@@ -1,18 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import { Motion } from 'motion-v'
 import { Package, ShieldCheck, Zap } from '@lucide/vue'
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
-
-const route = useRoute()
-const title = computed(() => route.meta.title || 'Welcome')
-
-const subtitle = computed(() =>
-  route.name === 'register'
-    ? 'Create an account to publish your plugins.'
-    : 'Sign in to publish and manage your plugins.',
-)
 
 /** Left-panel selling points, paired with the install command below them. */
 const highlights = [
@@ -29,7 +18,7 @@ const highlights = [
     <div class="pointer-events-none absolute inset-0 -z-10">
       <div class="aurora absolute inset-0 animate-aurora-pan" />
       <div
-        class="grid-dots absolute inset-0 opacity-35 [mask-image:radial-gradient(ellipse_80%_60%_at_50%_0%,black,transparent)]"
+        class="grid-dots absolute inset-0 opacity-35 mask-[radial-gradient(ellipse_80%_60%_at_50%_0%,black,transparent)]"
       />
     </div>
 
@@ -111,12 +100,6 @@ const highlights = [
           >
           DSH
         </RouterLink>
-
-        <div class="mb-7">
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">{{ title }}</h1>
-          <p class="mt-1.5 text-sm text-muted-foreground">{{ subtitle }}</p>
-        </div>
-
         <slot />
       </Motion>
     </main>

@@ -97,7 +97,7 @@ describe('ProfileView.vue', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.findAllComponents({ name: 'AuthorPluginRow' })).toHaveLength(2)
+    expect(wrapper.findAllComponents({ name: 'BasePluginRow' })).toHaveLength(2)
   })
 
   it('reads the page from the URL', async () => {
@@ -153,7 +153,7 @@ describe('ProfileView.vue', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('No published plugins yet')
-    expect(wrapper.findAllComponents({ name: 'AuthorPluginRow' })).toHaveLength(0)
+    expect(wrapper.findAllComponents({ name: 'BasePluginRow' })).toHaveLength(0)
   })
 
   it('shows the not found state for an unknown author', async () => {

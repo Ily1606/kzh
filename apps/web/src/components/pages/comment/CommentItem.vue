@@ -122,7 +122,7 @@ const CONNECTOR_WIDTH = '30px'
             <span>replying to <strong class="text-foreground font-semibold">@{{ parentAuthorName }}</strong></span>
           </Badge>
 
-          <span class="text-xs text-muted-foreground">&bull; {{ formatRelativeDate(comment.created_at) }}</span>
+          <span class="text-xs text-muted-foreground inline-block first-letter:uppercase">&bull; {{ formatRelativeDate(comment.created_at) }}</span>
         </div>
 
         <Button

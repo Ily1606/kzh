@@ -145,7 +145,7 @@ async function handleDelete() {
         </span>
         <span class="flex items-center gap-x-2">
           <Calendar class="size-5" />
-          <span>{{ formatRelativeDate(plugin.updated_at) }}</span>
+          <span class="inline-block first-letter:uppercase">{{ formatRelativeDate(plugin.updated_at) }}</span>
         </span>
         <span class="flex items-center gap-x-2">
           <Eye class="size-4 text-muted-foreground" />

@@ -176,9 +176,6 @@ onMounted(async () => {
           of <span class="font-medium text-foreground">{{ store.list.total }}</span> total plugins
         </template>
       </span>
-      <span v-if="store.list.lastPage > 1">
-        Page {{ store.list.page }} of {{ store.list.lastPage }}
-      </span>
     </div>
 
     <!-- Loading State -->

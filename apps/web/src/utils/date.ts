@@ -40,6 +40,7 @@ const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
 /**
  * "3 days ago" for recent values, "14 Aug 2026" once it is far enough in the
  * past that a relative phrase stops being useful.
+ * Returns lowercase for mid-sentence usage; capitalize via CSS ::first-letter where needed.
  */
 export function formatRelativeDate(value: DateInput): string {
   const date = toDate(value);
