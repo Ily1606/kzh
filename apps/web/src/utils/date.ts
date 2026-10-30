@@ -48,14 +48,16 @@ export function formatRelativeDate(value: DateInput): string {
   const diff = date.getTime() - Date.now();
   const absDiff = Math.abs(diff);
 
-  if (absDiff < 60 * 1000) return "just now";
+  if (absDiff < 60 * 1000) return "Just now";
   if (absDiff > 365 * 24 * 60 * 60 * 1000) return formatDate(date);
 
   for (const [unit, ms] of RELATIVE_UNITS) {
     if (absDiff >= ms) {
-      return relativeFormatter.format(Math.round(diff / ms), unit);
+      const formatted = relativeFormatter.format(Math.round(diff / ms), unit);
+      // Capitalize first letter (e.g., "last month" -> "Last month")
+      return formatted.charAt(0).toUpperCase() + formatted.slice(1);
     }
   }
 
-  return "just now";
+  return "Just now";
 }
