@@ -10,7 +10,7 @@ import {
   Sparkles
 } from '@lucide/vue'
 import { usePluginsStore } from '@/stores'
-import TrendingPluginRow from '@/components/pages/trending/TrendingPluginRow.vue'
+import BasePluginRow from '@/components/common/BasePluginRow.vue'
 import { Button } from '@/components/ui/button'
 import { pluginConfig } from '@/config/plugins'
 
@@ -191,7 +191,7 @@ onMounted(() => {
           class="divide-y divide-zinc-300 dark:divide-zinc-700 transition-opacity"
           :class="{ 'opacity-60 pointer-events-none': store.isFetchingTrending }"
         >
-          <TrendingPluginRow
+          <BasePluginRow
             v-for="(plugin, index) in paginatedPlugins"
             :key="plugin.id"
             :plugin="plugin"

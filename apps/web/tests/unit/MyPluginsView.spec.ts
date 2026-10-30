@@ -72,7 +72,7 @@ function mountView() {
     global: {
       stubs: {
         RouterLink: true,
-        MyPluginRow: true
+        BasePluginRow: true
       }
     }
   })
@@ -99,7 +99,7 @@ describe('MyPluginsView.vue', () => {
     await flushPromises()
 
     expect(mockPluginMyPlugins).toHaveBeenCalledWith({ page: 1, per_page: 9, status: undefined })
-    expect(wrapper.findAllComponents({ name: 'MyPluginRow' }).length).toBe(1)
+    expect(wrapper.findAllComponents({ name: 'BasePluginRow' }).length).toBe(1)
   })
 
   it('does not call the API for a guest', async () => {
@@ -127,7 +127,7 @@ describe('MyPluginsView.vue', () => {
     await flushPromises()
 
     // The whole point of this list: a pending plugin has to be visible here.
-    expect(wrapper.findAllComponents({ name: 'MyPluginRow' }).length).toBe(3)
+    expect(wrapper.findAllComponents({ name: 'BasePluginRow' }).length).toBe(3)
   })
 
   it('passes the status from the URL to the API', async () => {
@@ -228,7 +228,7 @@ describe('MyPluginsView.vue', () => {
     await wrapper.findAll('button').find((b) => b.text().includes('Try again'))!.trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAllComponents({ name: 'MyPluginRow' }).length).toBe(1)
+    expect(wrapper.findAllComponents({ name: 'BasePluginRow' }).length).toBe(1)
   })
 
   it('reads the rows from the store', async () => {
@@ -242,7 +242,7 @@ describe('MyPluginsView.vue', () => {
     store.mine = { ids: ['p-new'], page: 1, total: 1, lastPage: 1 }
     await flushPromises()
 
-    expect(wrapper.findAllComponents({ name: 'MyPluginRow' }).length).toBe(1)
-    expect(wrapper.findComponent({ name: 'MyPluginRow' }).props('plugin')).toMatchObject({ id: 'p-new' })
+    expect(wrapper.findAllComponents({ name: 'BasePluginRow' }).length).toBe(1)
+    expect(wrapper.findComponent({ name: 'BasePluginRow' }).props('plugin')).toMatchObject({ id: 'p-new' })
   })
 })

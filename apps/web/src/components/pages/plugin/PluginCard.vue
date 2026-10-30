@@ -18,6 +18,8 @@ const props = defineProps<{
     version: string;
     author: string;
     tag: string;
+    license: string;
+    publishedAt: string;
   };
   rank?: number;
 }>();
@@ -71,29 +73,8 @@ const rankTopRightClasses = computed(() => {
       'hover:border-primary/35 hover:shadow-lg hover:shadow-primary/5': !rank,
     }"
   >
-    <!-- Rank 1: Gold -->
-    <div
-      v-if="rank === 1"
-      :class="rankTopRightClasses"
-    >
-      #1
-    </div>
-
-    <!-- Rank 2: Silver -->
-    <div
-      v-else-if="rank === 2"
-      :class="rankTopRightClasses"
-    >
-      #2
-    </div>
-
-    <!-- Rank 3: Bronze -->
-    <div
-      v-else-if="rank === 3"
-      :class="rankTopRightClasses"
-    >
-      #3
-    </div>
+    <!-- Rank 1–3 badge -->
+    <div v-if="rank && rank <= 3" :class="rankTopRightClasses">#{{ rank }}</div>
 
     <!-- Category/Tag Badges -->
     <div v-if="plugin.category || plugin.tags.length" class="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
@@ -186,9 +167,7 @@ const rankTopRightClasses = computed(() => {
       'hover:border-primary/35 hover:shadow-lg hover:shadow-primary/5': !rank,
     }"
   >
-    <div v-if="rank === 1" :class="rankTopRightClasses">#1</div>
-    <div v-else-if="rank === 2" :class="rankTopRightClasses">#2</div>
-    <div v-else-if="rank === 3" :class="rankTopRightClasses">#3</div>
+    <div v-if="rank && rank <= 3" :class="rankTopRightClasses">#{{ rank }}</div>
 
     <div class="flex items-start justify-between">
       <span class="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -206,11 +185,11 @@ const rankTopRightClasses = computed(() => {
     <div class="mt-2.5 text-xs text-muted-foreground space-y-0.5">
       <div class="flex items-baseline gap-1">
         <span class="font-semibold">License:</span>
-        <span>MIT</span>
+        <span>{{ fallback.license }}</span>
       </div>
       <div class="flex items-baseline gap-1">
         <span class="font-semibold">Published:</span>
-        <span class="inline-block first-letter:uppercase">{{ formatRelativeDate('2026-10-01T00:00:00Z') }}</span>
+        <span class="inline-block first-letter:uppercase">{{ formatRelativeDate(fallback.publishedAt) }}</span>
       </div>
     </div>
     <div class="mt-auto flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
