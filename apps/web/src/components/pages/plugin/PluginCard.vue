@@ -146,6 +146,7 @@ const rankTopRightClasses = computed(() => {
           :username="authorUsername"
           size="sm"
           class="shrink-0"
+          @click.stop
         />
       </div>
     </div>
