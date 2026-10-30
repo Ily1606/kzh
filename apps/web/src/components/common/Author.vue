@@ -42,10 +42,9 @@ function hideBrokenImage(event: Event) {
     </RouterLink>
     <span v-else class="truncate">{{ displayName() }}</span>
     <span
-      class="relative hidden @xs:inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-primary/10 font-bold leading-none text-primary"
+      class="relative hidden sm:inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-primary/10 font-bold leading-none text-primary"
       :class="[SIZES[size].box, SIZES[size].text]"
     >
-      <span class="grid place-items-center">{{ displayName().charAt(0).toUpperCase() }}</span>
       <img
         v-if="src"
         :src="src"

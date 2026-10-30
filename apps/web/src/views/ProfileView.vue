@@ -129,7 +129,7 @@ async function goToPage(target: number) {
           </p>
         </div>
 
-        <ul v-else class="glass rounded-2xl overflow-hidden">
+        <ul v-else class="border rounded-2xl overflow-hidden">
           <AuthorPluginRow v-for="plugin in plugins" :key="plugin.id" :plugin="plugin" />
         </ul>
 

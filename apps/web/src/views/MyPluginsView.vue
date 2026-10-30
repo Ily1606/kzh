@@ -181,7 +181,7 @@ watch([activeStatus, () => route.query.page], () => {
       </div>
 
       <template v-else>
-        <ul class="glass rounded-2xl overflow-hidden">
+        <ul class="border rounded-2xl overflow-hidden">
           <MyPluginRow v-for="plugin in store.minePlugins" :key="plugin.id" :plugin="plugin" />
         </ul>
 

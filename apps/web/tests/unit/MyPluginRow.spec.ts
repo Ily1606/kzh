@@ -65,7 +65,7 @@ describe('MyPluginRow.vue', () => {
 
     expect(wrapper.text()).toContain('@dsh/dsr-webhook')
     expect(wrapper.text()).toContain('Webhook notifier')
-    expect(wrapper.text()).toContain('1200')
+    expect(wrapper.text()).toContain('1,200')
     expect(wrapper.text()).toContain('42')
     expect(wrapper.text()).toContain('7')
   })
@@ -99,5 +99,12 @@ describe('MyPluginRow.vue', () => {
 
     expect(wrapper.find('button').exists()).toBe(false)
     expect(wrapper.find('input').exists()).toBe(false)
+  })
+
+  it('shows author name and avatar in meta row', () => {
+    const wrapper = mountRow()
+
+    expect(wrapper.text()).toContain('John Doe')
+    expect(wrapper.findComponent({ name: 'Author' }).exists()).toBe(true)
   })
 })

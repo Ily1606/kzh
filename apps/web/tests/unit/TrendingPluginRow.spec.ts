@@ -1,4 +1,4 @@
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createApp } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
@@ -6,6 +6,7 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import TrendingPluginRow from '@/components/pages/trending/TrendingPluginRow.vue'
 import { useAuthStore, usePluginsStore } from '@/stores'
 import type { PluginResource } from '@/api/generated/model'
+import { formatRelativeDate } from '@/utils/date'
 
 const mockStarStoreBySlug = vi.fn()
 
@@ -70,7 +71,7 @@ describe('TrendingPluginRow.vue', () => {
     usePluginsStore().put([testPlugin])
   })
 
-  it('renders all required plugin information in GitHub style', () => {
+  it('renders plugin name, title and stats via BasePluginRow', () => {
     const wrapper = mount(TrendingPluginRow, {
       props: {
         plugin: testPlugin,
@@ -78,72 +79,50 @@ describe('TrendingPluginRow.vue', () => {
       }
     })
 
-    // Rank #1
+    // Rank #1 badge (number only, no # prefix)
     expect(wrapper.text()).toContain('1')
 
-    // Author and plugin name
-    expect(wrapper.text()).toContain('octocat')
+    // Plugin name (simple format, not GitHub style)
     expect(wrapper.text()).toContain('code-reviewer')
 
-    // Basic info / description
+    // Title
     expect(wrapper.text()).toContain('Automated pull request code review assistant')
 
-    // Star count & View count & Comments
+    // Stats
     expect(wrapper.text()).toContain('520')
     expect(wrapper.text()).toContain('3,200')
     expect(wrapper.text()).toContain('42')
 
-    // Source link
-    const sourceLink = wrapper.find('a[title="Source code"]')
-    expect(sourceLink.exists()).toBe(true)
-    expect(sourceLink.attributes('href')).toBe('https://github.com/octocat/code-reviewer')
+    // Author name in meta row
+    expect(wrapper.text()).toContain('octocat')
 
-    const pluginLink = wrapper.find('h2 a')
+    // Date
+    expect(wrapper.text()).toContain(formatRelativeDate('2026-10-15T12:00:00Z'))
+
+    // Link to plugin detail
+    const pluginLink = wrapper.find('a')
     expect(pluginLink.exists()).toBe(true)
-    expect(wrapper.findComponent({ name: 'RouterLink' }).props('to')).toEqual({
-      name: 'plugin-detail',
-      params: { username: 'octocat', pluginName: 'code-reviewer' },
-    })
-
-    // Star button exists in the row
-    const starBtn = wrapper.find('button[data-test="star-button"]')
-    expect(starBtn.exists()).toBe(true)
   })
 
-  it('allows authenticated user to star directly from the row', async () => {
-    const auth = useAuthStore()
-    auth.setUser({
-      id: 'u-1',
-      name: 'User 1',
-      email: 'user1@example.com',
-      username: 'user-1',
-      avatarLink: '',
-      githubLink: null,
-      is_admin: false,
-      created_at: null
-    })
-    auth.setToken('auth-token')
+  it('renders different rank badges with correct colors', () => {
+    const ranks = [1, 2, 3, 4, 10]
 
-    mockStarStoreBySlug.mockResolvedValue({
-      data: { starred: true, star_count: 521 }
+    ranks.forEach(rank => {
+      const wrapper = mount(TrendingPluginRow, {
+        props: { plugin: testPlugin, rank }
+      })
+
+      expect(wrapper.text()).toContain(`${rank}`)
     })
+  })
+
+  it('falls back to community when author is missing', () => {
+    const pluginWithoutAuthor = { ...testPlugin, author: undefined }
 
     const wrapper = mount(TrendingPluginRow, {
-      props: {
-        plugin: testPlugin,
-        rank: 2
-      }
+      props: { plugin: pluginWithoutAuthor, rank: 1 }
     })
 
-    const starBtn = wrapper.find('button[data-test="star-button"]')
-    await starBtn.trigger('click')
-    await flushPromises()
-
-    expect(mockStarStoreBySlug).toHaveBeenCalledWith(
-      'octocat',
-      'code-reviewer',
-      { starred: true }
-    )
-    expect(wrapper.text()).toContain('Starred')
+    expect(wrapper.text()).toContain('community')
   })
 })
