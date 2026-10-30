@@ -52,6 +52,7 @@ function hideBrokenImage(event: Event) {
         class="absolute inset-0 size-full object-cover"
         @error="hideBrokenImage"
       />
+      <span v-else class="grid place-items-center">{{ displayName().charAt(0).toUpperCase() }}</span>
     </span>
   </span>
 </template>

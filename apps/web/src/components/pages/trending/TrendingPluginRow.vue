@@ -2,7 +2,7 @@
 import type { PluginResource } from '@/api/generated/model';
 import BasePluginRow from '@/components/common/BasePluginRow.vue'
 
-const props = defineProps<{
+defineProps<{
   plugin: PluginResource
   rank: number
 }>()
