@@ -4,13 +4,13 @@ namespace App\Filament\Resources\Comments;
 
 use App\Filament\Resources\Comments\CommentReportResource\Pages\ListCommentReports;
 use App\Filament\Resources\Comments\CommentReportResource\Pages\ViewCommentReport;
+use App\Filament\Resources\Comments\Livewire\CommentContextTree;
 use App\Models\CommentReport;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Components\ViewEntry;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Livewire;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -19,6 +19,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CommentReportResource extends Resource
@@ -49,9 +50,9 @@ class CommentReportResource extends Resource
 
                 Section::make('Comment Context')
                     ->components([
-                        ViewEntry::make('comment_tree')
-                            ->view('filament.infolists.comment-tree')
-                            ->columnSpanFull(),
+                        Livewire::make(CommentContextTree::class, fn (CommentReport $record): array => [
+                            'reportId' => $record->id,
+                        ])->columnSpanFull(),
                     ])->columnSpanFull(),
             ]);
     }
@@ -65,7 +66,6 @@ class CommentReportResource extends Resource
                     ->label('Comment')
                     ->limit(50)
                     ->tooltip(fn ($record) => $record->comment->content ?? null),
-                TextColumn::make('plugin.name')->label('Plugin'),
                 TextColumn::make('reason')
                     ->limit(50)
                     ->tooltip(fn ($record) => $record->reason),
@@ -84,8 +84,17 @@ class CommentReportResource extends Resource
                 DeleteAction::make()
                     ->label('Dismiss')
                     ->successNotificationTitle('Report dismissed successfully'),
-                RestoreAction::make(),
             ]);
+    }
+
+    public static function canRestore(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canRestoreAny(): bool
+    {
+        return false;
     }
 
     public static function getEloquentQuery(): Builder

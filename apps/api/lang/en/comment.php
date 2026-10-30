@@ -4,6 +4,7 @@ return [
     'table' => [
         'columns' => [
             'plugin' => 'Plugin',
+            'reports' => 'Reports',
             'author' => 'Author',
             'content' => 'Comment',
             'created_at' => 'Created At',
@@ -25,16 +26,6 @@ return [
         ],
         'actions' => [
             'view' => 'View comment',
-            'view_modal_heading' => 'Comment detail',
-            'close' => 'Close',
-        ],
-        'modal' => [
-            'plugin' => 'Plugin',
-            'author' => 'Author',
-            'published_at' => 'Published at',
-            'content' => 'Content',
-            'hidden_at' => 'Hidden at',
-            'hidden_at_value' => 'Hidden at :date',
         ],
     ],
 ];
