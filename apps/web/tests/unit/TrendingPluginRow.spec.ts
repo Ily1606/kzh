@@ -4,7 +4,7 @@ import { createApp } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import TrendingPluginRow from '@/components/pages/trending/TrendingPluginRow.vue'
-import { useAuthStore, usePluginsStore } from '@/stores'
+import { usePluginsStore } from '@/stores'
 import type { PluginResource } from '@/api/generated/model'
 import { formatRelativeDate } from '@/utils/date'
 
@@ -80,7 +80,10 @@ describe('TrendingPluginRow.vue', () => {
     })
 
     // Rank #1 badge (number only, no # prefix)
-    expect(wrapper.text()).toContain('1')
+    const rankBadge = wrapper.find('span.rounded-full')
+    expect(rankBadge.exists()).toBe(true)
+    expect(rankBadge.text()).toBe('1')
+    expect(rankBadge.classes()).toContain('bg-amber-100')
 
     // Plugin name (simple format, not GitHub style)
     expect(wrapper.text()).toContain('code-reviewer')
@@ -104,20 +107,29 @@ describe('TrendingPluginRow.vue', () => {
     expect(pluginLink.exists()).toBe(true)
   })
 
-  it('renders different rank badges with correct colors', () => {
-    const ranks = [1, 2, 3, 4, 10]
+  it('renders the rank badge with the expected style per rank', () => {
+    const expected: Record<number, string> = {
+      1: 'bg-amber-100',
+      2: 'bg-slate-200',
+      3: 'bg-orange-100',
+      4: 'bg-muted',
+      10: 'bg-muted',
+    }
 
-    ranks.forEach(rank => {
+    Object.entries(expected).forEach(([key, cls]) => {
+      const rank = Number(key)
       const wrapper = mount(TrendingPluginRow, {
         props: { plugin: testPlugin, rank }
       })
 
-      expect(wrapper.text()).toContain(`${rank}`)
+      const badge = wrapper.find('span.rounded-full')
+      expect(badge.text()).toBe(`${rank}`)
+      expect(badge.classes()).toContain(cls)
     })
   })
 
   it('falls back to community when author is missing', () => {
-    const pluginWithoutAuthor = { ...testPlugin, author: undefined }
+    const pluginWithoutAuthor = { ...testPlugin, author: undefined } as unknown as PluginResource
 
     const wrapper = mount(TrendingPluginRow, {
       props: { plugin: pluginWithoutAuthor, rank: 1 }

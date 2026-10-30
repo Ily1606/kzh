@@ -4,7 +4,6 @@ import { createApp, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import TrendingView from '@/views/TrendingView.vue'
-import { useAuthStore } from '@/stores'
 
 const mockPluginTrending = vi.fn()
 const mockStarStoreBySlug = vi.fn()
@@ -126,9 +125,19 @@ describe('TrendingView.vue', () => {
     expect(wrapper.text()).toContain('Trending Plugins')
     expect(wrapper.text()).toContain('Ranked by recent engagement, stars, and views.')
 
-    // Checks ranks
-    expect(wrapper.text()).toContain('1')
-    expect(wrapper.text()).toContain('2')
+    // Checks ranks - verify rank badges in each row
+    const rows = wrapper.findAll('[data-plugin-id]')
+    expect(rows.length).toBeGreaterThanOrEqual(2)
+
+    const rank1Badge = rows[0].find('span.rounded-full')
+    expect(rank1Badge.exists()).toBe(true)
+    expect(rank1Badge.text()).toBe('1')
+    expect(rank1Badge.classes()).toContain('bg-amber-100')
+
+    const rank2Badge = rows[1].find('span.rounded-full')
+    expect(rank2Badge.exists()).toBe(true)
+    expect(rank2Badge.text()).toBe('2')
+    expect(rank2Badge.classes()).toContain('bg-slate-200')
 
     // Checks author / plugin name
     expect(wrapper.text()).toContain('octocat')
@@ -156,7 +165,10 @@ describe('TrendingView.vue', () => {
     expect(row1.exists()).toBe(true)
 
     // Row contains rank badge (1), plugin name, title, author, stars, views, comments, date
-    expect(row1.text()).toContain('1') // rank badge
+    const rank1Badge = row1.find('span.rounded-full')
+    expect(rank1Badge.exists()).toBe(true)
+    expect(rank1Badge.text()).toBe('1')
+    expect(rank1Badge.classes()).toContain('bg-amber-100')
     expect(row1.text()).toContain('deepseek-agent')
     expect(row1.text()).toContain('Autonomous multi-step coding agent plugin')
     expect(row1.text()).toContain('octocat')
@@ -172,7 +184,10 @@ describe('TrendingView.vue', () => {
     const row2 = wrapper.find('[data-plugin-id="11"]')
     expect(row2.exists()).toBe(true)
 
-    expect(row2.text()).toContain('2') // rank badge
+    const rank2Badge = row2.find('span.rounded-full')
+    expect(rank2Badge.exists()).toBe(true)
+    expect(rank2Badge.text()).toBe('2')
+    expect(rank2Badge.classes()).toContain('bg-slate-200')
     expect(row2.text()).toContain('vision-analyzer')
     expect(row2.text()).toContain('Image recognition and OCR tool for harness')
     expect(row2.text()).toContain('alice')
