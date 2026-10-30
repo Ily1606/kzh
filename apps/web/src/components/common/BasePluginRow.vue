@@ -17,7 +17,6 @@ const props = defineProps<Props>()
 
 const authorName = computed(() => props.plugin.author?.name || 'community')
 const authorAvatar = computed(() => props.plugin.author?.avatar_url ?? null)
-const authorUsername = computed(() => props.plugin.author?.username ?? null)
 const submittedDate = computed(() => props.plugin.approved_at ?? props.plugin.created_at)
 const hasAuthor = computed(() => !!props.plugin.author)
 
@@ -67,7 +66,6 @@ const rankLabel = computed(() => props.rank ? `${props.rank}` : '')
         <Author
           :name="authorName"
           :src="authorAvatar"
-          :username="authorUsername"
           size="sm"
           class="mr-auto shrink-0"
         />
