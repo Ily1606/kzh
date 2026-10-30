@@ -94,7 +94,7 @@ const rankLabel = computed(() => props.rank ? `${props.rank}` : '')
         <!-- Date -->
         <time
           :datetime="submittedDate ?? undefined"
-          class="hidden w-24 shrink-0 text-right text-xs text-muted-foreground md:block"
+          class="hidden w-24 shrink-0 text-right text-xs text-muted-foreground md:block first-letter:uppercase"
         >
           {{ formatRelativeDate(submittedDate) }}
         </time>
@@ -142,7 +142,7 @@ const rankLabel = computed(() => props.rank ? `${props.rank}` : '')
 
         <time
           :datetime="submittedDate ?? undefined"
-          class="hidden w-24 shrink-0 text-right text-xs text-muted-foreground md:block"
+          class="hidden w-24 shrink-0 text-right text-xs text-muted-foreground md:block first-letter:uppercase"
         >
           {{ formatRelativeDate(submittedDate) }}
         </time>

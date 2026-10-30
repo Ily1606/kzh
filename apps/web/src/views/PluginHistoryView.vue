@@ -195,7 +195,7 @@ watch([username, pluginName], async () => {
                 </Badge>
                 <time
                   :datetime="event.created_at ?? undefined"
-                  class="text-xs text-muted-foreground"
+                  class="text-xs text-muted-foreground first-letter:uppercase"
                 >
                   {{ formatRelativeDate(event.created_at) }}
                 </time>

@@ -46,7 +46,7 @@ const notice = computed<Notice | undefined>(() => NOTICES[props.plugin.status])
     <div class="space-y-1">
       <p class="font-semibold">{{ notice.title }}</p>
       <p class="opacity-90">
-        Submitted <time :datetime="plugin.created_at ?? undefined">{{ formatRelativeDate(plugin.created_at) }}</time>.
+        Submitted <time :datetime="plugin.created_at ?? undefined" class="inline-block first-letter:uppercase">{{ formatRelativeDate(plugin.created_at) }}</time>.
         {{ notice.body }}
       </p>
     </div>

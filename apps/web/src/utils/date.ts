@@ -40,6 +40,7 @@ const relativeFormatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" })
 /**
  * "3 days ago" for recent values, "14 Aug 2026" once it is far enough in the
  * past that a relative phrase stops being useful.
+ * Returns lowercase for mid-sentence usage; capitalize via CSS ::first-letter where needed.
  */
 export function formatRelativeDate(value: DateInput): string {
   const date = toDate(value);
@@ -48,16 +49,14 @@ export function formatRelativeDate(value: DateInput): string {
   const diff = date.getTime() - Date.now();
   const absDiff = Math.abs(diff);
 
-  if (absDiff < 60 * 1000) return "Just now";
+  if (absDiff < 60 * 1000) return "just now";
   if (absDiff > 365 * 24 * 60 * 60 * 1000) return formatDate(date);
 
   for (const [unit, ms] of RELATIVE_UNITS) {
     if (absDiff >= ms) {
-      const formatted = relativeFormatter.format(Math.round(diff / ms), unit);
-      // Capitalize first letter (e.g., "last month" -> "Last month")
-      return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+      return relativeFormatter.format(Math.round(diff / ms), unit);
     }
   }
 
-  return "Just now";
+  return "just now";
 }

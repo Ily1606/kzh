@@ -134,7 +134,7 @@ const rankTopRightClasses = computed(() => {
         </span>
         <span class="flex items-baseline gap-1">
           <span class="font-semibold">Published:</span>
-          <span>{{ formatRelativeDate(plugin.approved_at) }}</span>
+          <span class="inline-block first-letter:uppercase">{{ formatRelativeDate(plugin.approved_at) }}</span>
         </span>
       </div>
       <!-- Author with By: label -->
@@ -210,7 +210,7 @@ const rankTopRightClasses = computed(() => {
       </div>
       <div class="flex items-baseline gap-1">
         <span class="font-semibold">Published:</span>
-        <span>{{ formatRelativeDate('2026-10-01T00:00:00Z') }}</span>
+        <span class="inline-block first-letter:uppercase">{{ formatRelativeDate('2026-10-01T00:00:00Z') }}</span>
       </div>
     </div>
     <div class="mt-auto flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
