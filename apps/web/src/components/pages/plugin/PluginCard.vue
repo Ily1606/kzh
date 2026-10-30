@@ -113,7 +113,7 @@ const rankTopRightClasses = computed(() => {
           <span class="font-semibold">License:</span>
           <span>{{ plugin.license }}</span>
         </span>
-        <span class="flex items-baseline gap-1">
+        <span v-if="plugin.approved_at" class="flex items-baseline gap-1">
           <span class="font-semibold">Published:</span>
           <span class="inline-block first-letter:uppercase">{{ formatRelativeDate(plugin.approved_at) }}</span>
         </span>
