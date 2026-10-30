@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
-import { ArrowUpRight, Boxes, Check, Download, ShieldCheck } from "@lucide/vue";
+import { ArrowUpRight, Boxes, Check, Download, Search, ShieldCheck } from "@lucide/vue";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Author from "@/components/common/Author.vue";
