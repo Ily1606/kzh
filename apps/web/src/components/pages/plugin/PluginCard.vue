@@ -48,18 +48,6 @@ function goToDetail(username: string | undefined, pluginName: string | undefined
   }
 }
 
-const rankClasses = computed(() => {
-  const rank = props.rank;
-  if (!rank) return '';
-  const base = 'inline-flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-xs font-normal ring-1 ring-inset';
-  if (rank === 1) return `${base} bg-amber-100 text-amber-900 ring-amber-400 dark:bg-amber-400 dark:text-amber-950 dark:ring-amber-300`;
-  if (rank === 2) return `${base} bg-slate-200 text-slate-800 ring-slate-400 dark:bg-slate-200 dark:text-slate-900 dark:ring-slate-100`;
-  if (rank === 3) return `${base} bg-orange-100 text-orange-900 ring-orange-400 dark:bg-orange-400 dark:text-orange-950 dark:ring-orange-300`;
-  return `${base} bg-muted text-muted-foreground ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700`;
-});
-
-const rankLabel = computed(() => props.rank ? `#${props.rank}` : '');
-
 const rankTopRightClasses = computed(() => {
   const rank = props.rank;
   if (!rank) return '';
